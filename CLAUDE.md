@@ -15,29 +15,122 @@ and message moderation, ported unchanged in business logic from
 `mwanachama-backend-api-gateway` runs as one service and imports this package
 directly — there is no separate process, matching
 [mwanachama-backend-taskmanager](../mwanachama-backend-taskmanager)'s CLAUDE.md.
-HTTP routes and handlers stayed in the gateway; only the domain types, the
-repository interfaces and both store backends moved here.
+
+**Storage moved from hand-rolled SQL to GORM, the package split into
+models/+gormstore/, and a routes/ package was added — 2026-09-04,** to bring
+this repo onto the same template
+[mwanachama-backend-actor](../mwanachama-backend-actor) had already moved to
+for the same "extracted from the gateway" reason. This reverses three
+decisions this file used to record as deliberate (flat single package
+matching taskmanager; hand-rolled `pgx` SQL because "that is what chat/
+directmessage/moderation already were"; HTTP routes staying in the gateway)
+— each is superseded below in favour of actor's shape. **Scoped to this repo
+only**, mirroring actor's own precedent: the gateway's
+`internal/store/{postgres,memory}` adapters, which construct this package's
+old `ChatPostgresStore`/`DMMemoryStore`/etc., will not compile against the
+new constructors, and the gateway's own `chat_handlers.go`/`dm_handlers.go`/
+`moderation_handlers.go` are not rewired to this package's new `routes/` —
+both are explicit, not-done-here follow-ups.
+
+- `models/` holds the domain types and the three repository interfaces
+  (`ChatRepository`/`DMRepository`/`ModerationRepository`) they're read and
+  written through, plus `moderation_act.go`'s `ActEntry`/`ActKind`/
+  `ActWriter`/`MemoryActWriter`/`Actor` (moved here from the root package
+  because `ModerationRepository`'s methods take `Actor` in their own
+  signature — Go requires the interface and every type its methods name to
+  share a package). `gormstore/` holds every GORM-specific piece: row
+  structs, row↔domain conversion, and `Migrate`, one file per entity area,
+  mirroring actor's `gormstore/`. The root package keeps `chat_impl.go`,
+  `dm_impl.go`/`dm_roster_impl.go`/`dm_message_impl.go`, and
+  `moderation_impl.go`/`moderation_dismissal_impl.go` — one `ChatStore`/
+  `DMStore`/`ModerationStore` per domain, each built on a `*gorm.DB`,
+  replacing that domain's Postgres-store-plus-memory-store pair. Each store
+  runs against Postgres in production and, in this repo's own tests, an
+  in-memory sqlite database (`glebarez/sqlite`, matching actor's
+  `testdb_test.go`) — the fast-test role the hand-rolled memory stores used
+  to play, now exercising real SQL instead of a parallel implementation
+  that could (and, per this repo's own former
+  `TestParticipantOrderMatchesAcrossBackendsLive`, once needed a dedicated
+  test to prove didn't) drift from Postgres.
+- **Ids are still human-readable and prefix-numbered** (`msg-1042`,
+  `dm-77`, ...) on Postgres, minted by `gormstore.mintID`'s
+  `BeforeCreate` hooks reading a same-named `SEQUENCE` `gormstore.Migrate`
+  creates alongside `AutoMigrate` — the same "drop to raw SQL where
+  `AutoMigrate` can't reach" pattern actor's own `Migrate` already uses for
+  its partial unique indexes. sqlite (tests only, no `SEQUENCE` support)
+  falls back to a uuid-suffixed id with the same prefix; every behavioural
+  assertion this repo's tests make holds under either dialect, only the
+  exact digits after the prefix can differ.
+- **The `ActWriter`/`MemoryActWriter` seam (see "Why moderation doesn't
+  import custody" below) is completely unaffected by the storage swap** —
+  it predates GORM and still does the same job. What changed is how
+  `CreateRemoval`/`DismissReports`/`DecideDispute` obtain the `*sql.Tx`
+  `ActWriter.WriteAct` requires: `moderation_impl.go`'s `sqlTxFrom` recovers
+  it from inside a `db.Transaction(func(tx *gorm.DB) error {...})` callback
+  via `tx.Statement.ConnPool.(*sql.Tx)` — every SQL dialect this repo uses
+  backs its GORM connection with `database/sql` underneath, so the
+  assertion holds on both Postgres and sqlite.
+- **`schema.sql` and `postgres_scratch_test.go` are gone.** The whole reason
+  `schema.sql` existed — "comm's tables are bespoke SQL, so there's no
+  generic DDL generator to lean on, unlike taskmanager's
+  `mwanachama-backend-shared/postgres`-generated schema" — stops applying
+  once `gormstore.Migrate` is that generator; actor never needed one either.
+  The former squashed-fixture divergences (dropped `member(id)` FKs, a
+  `comm_test_act_log` stand-in table) live on only as ad hoc setup inside
+  `postgres_integration_test.go` (`//go:build postgres`, gated on
+  `POSTGRES_URL`, mirroring actor's own file of the same name), which
+  replaces `postgres_scratch_test.go`.
+- **`routes/` is new — 19 of the gateway's 37 chat/dm/moderation routes**,
+  the ones that are, underneath, a plain call against
+  `models.ChatActivityReader`/`DMRepository`/`ModerationRepository` with no
+  gateway-only policy composed into the handler body (same-domain
+  composition — a DM handler checking the caller's own roster state via
+  `ListParticipants` — is fine; a gateway-internal domain package
+  (`chapter`/`member`/`role`/`address`) reached from the handler body is
+  not, the identical line actor's own `routes/doc.go` draws). Chat
+  contributes one route (`chatActivity`; the other six all call
+  `requireChapterMember`, `member.Repository` + `chapter.Repository`
+  in-body); DM contributes sixteen of nineteen (`createDMThread`,
+  `blockThreadOrigin`, `postDMMessage` reach `address.Repository` in-body
+  and stay); moderation contributes two of eleven (`listReportQueue`,
+  `listReportsForMessage`; every write and every other read resolves
+  `wallLabel`/`callerModerationActor`/`nearestRoleClass`
+  (`chapter.Repository`/`member.Repository`/`role.Repository`) or runs an
+  in-body `hasCapabilityAt` check with no external route-table wrapper to
+  lean on). See `routes/doc.go` for the full, named exclusion list — it is
+  considerably longer than actor's, since comm's HTTP surface leans much
+  more heavily on gateway-internal domains than member/chapter's did.
+  `routes/identity.go`'s `Identity` interface is the one seam this package
+  needed that actor's `routes/` didn't: almost every portable DM handler
+  needs the *caller's own* id from the session (accept/leave act on the
+  caller; invite/kick/promote/re-enable need the caller as the admin "by";
+  `publishDeviceKey` overwrites member/device fields from session) rather
+  than a URL path segment, the way `{actorID}` supplies it in actor's
+  routes.
 
 ## Naming: three packages flattened into one
 
 `chat`, `directmessage` and `moderation` were three separate Go packages in
 the gateway. This module is flat (one package, `mwanachamacomm`, matching
-taskmanager's `mwanachamataskmanager` convention), so names that collided
-across the three are prefixed by domain:
+taskmanager's `mwanachamataskmanager` convention) for the root package's
+implementation files, and `models/` follows the same flat-naming rule for
+the domain types and interfaces it now holds — names that collided across
+the three are prefixed by domain:
 
 - `chat.Thread`/`chat.Message`/`chat.Repository`/`chat.ErrNotFound` →
-  `ChatThread`/`ChatMessage`/`ChatRepository`/`ErrChatNotFound`
+  `models.ChatThread`/`ChatMessage`/`ChatRepository`/`ErrChatNotFound`
 - `directmessage.Thread`/`.Message`/`.Repository`/`.ErrNotFound`/`.ParticipantState`/
-  `.StateActive` etc. → `DMThread`/`DMMessage`/`DMRepository`/`ErrDMNotFound`/
+  `.StateActive` etc. → `models.DMThread`/`DMMessage`/`DMRepository`/`ErrDMNotFound`/
   `DMParticipantState`/`DMStateActive` etc.
-- `moderation.Repository`/`.ErrNotFound` → `ModerationRepository`/
+- `moderation.Repository`/`.ErrNotFound` → `models.ModerationRepository`/
   `ErrModerationNotFound` — moderation's own vocabulary (`Report`, `Removal`,
   `Dismissal`, `Dispute`, `Actor`, `ReportReason`, `RemovalReason`,
   `DisputeState`, `ErrAlreadyDecided`, `ErrReviewerIsRemover`,
-  `ErrAlreadyRemoved`) had no collisions and ported unchanged.
+  `ErrAlreadyRemoved`) had no collisions and ports unchanged.
 
-Postgres/memory store types follow `<Domain>PostgresStore`/`<Domain>MemoryStore`
-(`ChatPostgresStore`, `DMMemoryStore`, `ModerationPostgresStore`, ...).
+Storage types follow `<Domain>Store` (`ChatStore`, `DMStore`,
+`ModerationStore`) — one GORM-backed implementation per domain, replacing
+the old `<Domain>PostgresStore`/`<Domain>MemoryStore` pair.
 
 ## Why moderation doesn't import custody
 
@@ -46,10 +139,10 @@ Postgres/memory store types follow `<Domain>PostgresStore`/`<Domain>MemoryStore`
 `CreateRemoval`/`DismissReports`/`DecideDispute` write the chapter's act-log
 row in the **same Postgres transaction** as the moderation row. This module
 cannot import a gateway-internal package (Go `internal/` visibility forbids
-it even across modules), and the gateway importing this module rules out the
-reverse.
-
-The fix is dependency inversion, in `moderation_act.go`:
+it even across modules, and the gateway importing this module rules out the
+reverse). Unaffected by the 2026-09-04 GORM move above — this dependency
+inversion predates it and still does the same job, just from `models/`
+instead of the old root-package `moderation_act.go`.
 
 - `ActEntry` is this module's own narrowed copy of exactly the fields
   moderation ever populated on `custody.ChapterActLogEntry` (never
@@ -70,39 +163,16 @@ The fix is dependency inversion, in `moderation_act.go`:
 - `ActWriter` (postgres) takes a `*sql.Tx`, so the gateway's adapter can pass
   it straight through to its own `insertAct` and land in the same transaction
   as the moderation write. `MemoryActWriter` is the memory backend's
-  equivalent (no transaction to pass through).
+  equivalent (no transaction to pass through) — kept even though this
+  repo's own stores no longer use a separate memory backend, since the
+  gateway's own in-memory wiring (`cmd/server/comm_act_writer.go`) still
+  needs it. On this repo's side, `moderation_impl.go`'s `sqlTxFrom` is what
+  hands `ActWriter` a real `*sql.Tx` out of a GORM transaction — see above.
 - The gateway wires both adapters at construction time
   (`cmd/server/stores.go`, `cmd/server/comm_act_writer.go` for memory,
   `internal/store/postgres/comm_act_writer.go` for postgres) — **always with
   the same `*sql.DB`/custody store the gateway's own custody code uses**, or
   the transaction guarantee breaks silently.
-
-## Why schema.sql isn't a real migration
-
-Chat/directmessage/moderation's Postgres tables were built across ~15
-historical migrations in the gateway (`000005`, `000006`, `000014`, plus a
-chain of ALTERs through `000045`, several interleaved with unrelated domains'
-schema — `member_address`, `auth_device`). Those files are frozen history in
-the gateway repo and were never copied here.
-
-`schema.sql` is instead a **squashed, comm_-prefixed consolidation** of the
-final column shape each table holds today, used only by
-`postgres_scratch_test.go`'s own scratch-DB tests (mirroring taskmanager's
-`postgres_integration_test.go` pattern, adapted: taskmanager generates its
-schema from `mwanachama-backend-shared/postgres`'s generic DDL generator,
-which doesn't apply to bespoke SQL like this module's). It deliberately
-diverges from production in two ways, both noted in the file's own header:
-the four moderation tables' `REFERENCES member(id)` foreign keys are dropped
-(this scratch DB has no `member` table), and it includes a
-`comm_test_act_log` table that exists nowhere in production, standing in for
-the gateway's real `chapter_act_log_entry` so the transactional-write test can
-run without depending on custody's schema.
-
-The real production schema change is the gateway's own single forward
-migration, `internal/store/postgres/migrations/000065_extract_comm_tables.up.sql`
-— a pure `ALTER TABLE ... RENAME` from `chat_thread`/`dm_thread`/
-`message_report`/etc. to their `comm_`-prefixed names, applied to the
-gateway's live database as a normal migration, never mirrored here.
 
 ## Conventions
 
@@ -113,6 +183,10 @@ gateway's live database as a normal migration, never mirrored here.
 - Four-phase `documentation/` layout — see
   [documentation/README.md](documentation/README.md).
 - No file over 300 lines; split by responsibility (the gateway's own
-  convention, [[file-length-limit]] — moderation's postgres store is already
-  split into `store_postgres_moderation.go` / `store_postgres_moderation_dismissal.go`
-  for this reason, mirroring the gateway's original split).
+  convention, [[file-length-limit]] — moderation's dismissal write is
+  already split into `moderation_impl.go`/`moderation_dismissal_impl.go`
+  for this reason, and DM's roster writes into their own
+  `dm_roster_impl.go` alongside `dm_impl.go`/`dm_message_impl.go`, a
+  three-way rather than the original module's two-way split, since one
+  GORM store now does the job two backend-specific implementations used to
+  split across).

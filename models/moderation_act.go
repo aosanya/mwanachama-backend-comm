@@ -1,4 +1,4 @@
-package mwanachamacomm
+package models
 
 // The chapter act-log rows moderation writes — DEV-1341.
 //

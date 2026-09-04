@@ -1,4 +1,4 @@
-package mwanachamacomm
+package models
 
 // Models chat message moderation: a member's report (message_report), a
 // moderator's removal — withheld, never deleted (message_removal) — and an
@@ -221,3 +221,7 @@ type Dispute struct {
 	DecidedBy string     `json:"decided_by,omitempty"`
 	DecidedAt *time.Time `json:"decided_at,omitempty"`
 }
+
+// ModerationRepository, the persistence boundary this domain's types are
+// read and written through, is in its own file — see
+// moderation_repository.go.

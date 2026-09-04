@@ -1,4 +1,4 @@
-package mwanachamacomm
+package models
 
 // Models N-member direct/group threads: the participant roster
 // (invite/accept/leave/kick/promote/re-enable), the ciphertext messages,

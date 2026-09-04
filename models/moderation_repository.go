@@ -1,4 +1,8 @@
-package mwanachamacomm
+package models
+
+// ModerationRepository's own file, split from moderation.go's domain types
+// — mirrors this module's original moderation.go/moderation_repository.go
+// split ([[file-length-limit]]), which this refactor otherwise merged.
 
 import (
 	"context"
@@ -17,7 +21,7 @@ import (
 // == remover): it depends on this store's own Removal row, not on a chapter
 // or a capability, so it belongs beside the write it guards.
 type ModerationRepository interface {
-	// FileReport inserts a message_report row. Returns domerr.Conflict when
+	// FileReport inserts a message_report row. Returns ErrConflict when
 	// (MessageID, ReportedBy) already exists — message-report.md's
 	// unique(message_id, reported_by), reported back as a plain "already
 	// reported" rather than a 500.
@@ -35,7 +39,7 @@ type ModerationRepository interface {
 
 	// CreateRemoval inserts a message_removal row **and writes the chapter's
 	// `post_withheld` act-log row in the same transaction** — DEV-1341 (see
-	// ActWriter). Returns domerr.Conflict when MessageID already has one —
+	// ActWriter). Returns ErrConflict when MessageID already has one —
 	// "one removal per message" — before either write, so a repeat writes no
 	// second log row.
 	//
@@ -53,7 +57,7 @@ type ModerationRepository interface {
 	//
 	// Two refusals, both before the log is touched, so only a dismissal that
 	// happened is logged:
-	//   - domerr.Conflict when MessageID already has a dismissal — one per
+	//   - ErrConflict when MessageID already has a dismissal — one per
 	//     message, the same shape CreateRemoval's is.
 	//   - ErrAlreadyRemoved when the message is already withheld.
 	//
@@ -80,7 +84,7 @@ type ModerationRepository interface {
 	ListRemovalsForChapter(ctx context.Context, chapterID string) ([]Removal, error)
 
 	// CreateDispute inserts a removal_dispute row in the Open state. Returns
-	// domerr.Conflict when RemovalID already has one — "one dispute per
+	// ErrConflict when RemovalID already has one — "one dispute per
 	// removal", refused as "already disputed" rather than a raw
 	// unique-violation.
 	CreateDispute(ctx context.Context, d Dispute) (Dispute, error)

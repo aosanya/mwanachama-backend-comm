@@ -1,4 +1,4 @@
-package mwanachamacomm
+package models
 
 import (
 	"encoding/json"

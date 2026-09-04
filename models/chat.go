@@ -1,17 +1,9 @@
-// Package mwanachamacomm models chapter chat rooms, N-member direct/group
-// threads, and message moderation for mwanachama-backend-api-gateway.
-//
-// Ported from mwanachama-backend-api-gateway's internal/domain/{chat,
-// directmessage,moderation} and internal/store/{postgres,memory} — see
-// CLAUDE.md for the porting notes, in particular why moderation's act-log
-// write no longer imports the gateway's custody package directly.
-//
-// Exported names that collided across the three original packages (Thread,
-// Message, Repository, ErrNotFound) are prefixed by domain: Chat*, DM*, and
-// Moderation* / ErrModerationNotFound. Moderation's own vocabulary (Report,
-// Removal, Dismissal, Dispute, Actor, ...) had no collisions and ports
-// unchanged.
-package mwanachamacomm
+// Package models holds mwanachamacomm's domain types and the repository
+// interfaces they're read and written through — Chat*, DM*, and
+// moderation's Report/Removal/Dismissal/Dispute. Callers use models.ChatThread
+// etc. directly; the root package holds the GORM-backed implementations
+// (see gormstore/ for row shapes and doc.go for the split rationale).
+package models
 
 import (
 	"context"
