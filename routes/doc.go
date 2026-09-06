@@ -16,8 +16,27 @@
 //   - DM: DMRoutes + DMMessageRoutes — sixteen of nineteen.
 //   - Moderation: ModerationRoutes — listReportQueue, listReportsForMessage.
 //
+// Extended 2026-09-06 when address and notification joined this module
+// (see this repo's CLAUDE.md): two of address's seven routes qualify
+// (AddressRoutes — listMyAddresses, retireAddress) and all five of
+// notification's do (NotificationRoutes). Address's own arrival here does
+// NOT retroactively move any of DM's three address-touching exclusions
+// (createDMThread, blockThreadOrigin, postDMMessage) into this package in
+// this pass — that is a DM-boundary decision this address+notification
+// port did not open, scoped as it is to mirroring address_handlers.go/
+// address_directory_handlers.go/notification_handlers.go/
+// notification_authz.go, not dm_handlers.go. One of the three,
+// blockThreadOrigin, is worth flagging rather than silently carrying
+// forward: it calls only DMRepository.GetThread, DMRepository.
+// ListParticipants (via requireThreadParticipant) and
+// AddressRepository.Block — all three now live in this module, so this
+// package's own portability rule would in fact admit it today. It stays a
+// gateway-composed route for now, pending that DM-boundary decision;
+// createDMThread and postDMMessage still also reach member.Repository
+// (gateway-internal) regardless and cannot move on the same rule.
+//
 // [Routes] returns the whole set as one list of addresses a mounting
-// process can range over to build a mux from; the four *Routes functions
+// process can range over to build a mux from; the six *Routes functions
 // return one group at a time for a mounting process that wraps different
 // domains in different policy (the gateway does, today — chat activity's
 // CapChatActivityRead is not moderation's CapModerateChat).
@@ -57,6 +76,25 @@
 // for the same constraint moderation's act-log write already works around
 // by dependency inversion; this package draws the identical line rather
 // than inventing a new one.
+//
+// Address (five of seven): publishAddress, resolveAddress and blockAddress
+// all reach phonesalt.Repository in-body (hashAddress) — a gateway-internal
+// package this module does not import, for the same never-crosses-a-
+// module-boundary reason chat/DM/moderation's exclusions give. myPublic-
+// AddressCap and updateAddressSettings additionally (updateAddressSettings)
+// or solely (myPublicAddressCap) reach orgpolicy.Repository for the public-
+// address cap. searchDirectory is not a handler exclusion in the same
+// sense — AddressDirectory is fully implemented in this module (see
+// address_directory_impl.go) — but the gateway's own construction of it
+// still resolves the caller's own id and the 503-when-unwired branch
+// itself, so the route registration, not the domain logic, stays there.
+//
+// Notification (zero of five): every notification route is a plain call
+// against models.NotificationRepository with the caller's own id from
+// [Identity] and nothing else in the handler body — the whole domain
+// arrived with no gateway-internal coupling to begin with (see this
+// repo's CLAUDE.md), which is the same reason it was picked for this move
+// over harder cases.
 //
 // realtime.Hub (SSE stream + pub/sub publish — inviteDM's/reEnableDM's
 // post-write notify, chatStream, postChatMessage, postDMMessage,

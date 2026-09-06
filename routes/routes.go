@@ -24,16 +24,19 @@ func (r Route) Pattern(prefix string) string {
 }
 
 // Routes is every address this package answers today: ChatActivityRoutes,
-// DMRoutes, DMMessageRoutes and ModerationRoutes concatenated. A mounting
-// process that wants all of it in one loop uses this; one that wants to
-// wrap each domain's gate differently (the gateway does, today — chat
-// activity's CapChatActivityRead is not moderation's report-queue gate)
-// calls the four functions separately instead. See doc.go for what is
-// deliberately not included here and why.
-func Routes(chat models.ChatActivityReader, dm models.DMRepository, moderation models.ModerationRepository, identity Identity) []Route {
+// DMRoutes, DMMessageRoutes, ModerationRoutes, AddressRoutes and
+// NotificationRoutes concatenated. A mounting process that wants all of it
+// in one loop uses this; one that wants to wrap each domain's gate
+// differently (the gateway does, today — chat activity's
+// CapChatActivityRead is not moderation's report-queue gate) calls the six
+// functions separately instead. See doc.go for what is deliberately not
+// included here and why.
+func Routes(chat models.ChatActivityReader, dm models.DMRepository, moderation models.ModerationRepository, addr models.AddressRepository, notif models.NotificationRepository, identity Identity) []Route {
 	out := ChatActivityRoutes(chat)
 	out = append(out, DMRoutes(dm, identity)...)
 	out = append(out, DMMessageRoutes(dm, identity)...)
 	out = append(out, ModerationRoutes(moderation)...)
+	out = append(out, AddressRoutes(addr, identity)...)
+	out = append(out, NotificationRoutes(notif, identity)...)
 	return out
 }

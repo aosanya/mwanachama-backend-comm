@@ -108,6 +108,77 @@ both are explicit, not-done-here follow-ups.
   than a URL path segment, the way `{actorID}` supplies it in actor's
   routes.
 
+## `address` and `notification` joined this module — 2026-09-06
+
+Per the given decision (owner, 2026-08-24/2026-09-05 for `address`) and the
+domain-decomposition research (`architecture-domain-decomposition.md` in
+the gateway's `documentation/2. design/`), `internal/domain/address` and
+`internal/domain/notification` ported into this module's `models/` +
+`gormstore/`, following the exact template chat/directmessage/moderation's
+2026-09-04 GORM move set: `models/address.go` (+`address_hours.go`,
+`address_directory.go`) and `models/notification.go`
+(+`notification_category.go`) hold the domain types; `gormstore/address.go`
+and `gormstore/notification.go` hold the row structs; `address_impl.go`,
+`address_directory_impl.go` and `notification_impl.go` hold the GORM
+stores, at the repo root alongside `chat_impl.go` etc.
+
+- **Same domain-prefixing convention chat/directmessage/moderation set,
+  applied by design rather than only where a literal collision forced it**
+  — `Address`/`Settings`/`Hours` etc. had no bare-name collision to force a
+  rename the way `chat.Thread`/`directmessage.Thread` did, but this
+  package's own `ChatActivityQuery` et al. already prefix fresh names on
+  principle (five domains, one flat `models/` namespace), so address's and
+  notification's exported names are `Address*`/`Notification*` throughout:
+  `ErrAddressNotFound`, `AddressSettings`, `AddressRepository`,
+  `ErrNotificationInvalid`, `NotificationCategory`, and so on.
+- **Fifteen tables now, not eleven.** `gormstore.DefaultTableNames` gained
+  `Addresses`/`AddressBlocks` (`comm_member_address`/
+  `comm_member_address_block`) and `Notifications`/
+  `NotificationPreferences` (`comm_notification`/
+  `comm_notification_preference`). `AddressRow` mints no id — its primary
+  key is the hash itself, exactly as the gateway's original
+  `member_address` table had it — so it needs no entry in `seqNames`.
+  Notification's two G63/G278 caps (one reminder per member per subject,
+  one nudge per chapter per subject) are partial unique indexes
+  `gormstore.syncNotificationCapIndexes` creates by raw SQL after
+  `AutoMigrate`, mirroring actor's `syncUniqueAttributeIndexes` for the
+  identical reason — partial-index syntax is identical on Postgres and
+  sqlite, so one statement per index covers both dialects unlike actor's
+  own dialect-branching version.
+- **`AddressDirectoryStore` joins a table this module does not own, by
+  name, not by import.** A directory listing is an address's plaintext and
+  its owner's display name, and the display name lives in
+  `mwanachama-backend-actor`'s `member_actors` table — a fact this module
+  reaches with a plain SQL `JOIN member_actors m ON m.id = a.member_id`
+  (`address_directory_impl.go`), never a Go import of that module's types.
+  This is the same fact this repo's own `migrations/000002_comm_tables.up.sql`
+  already leans on for moderation's `reported_by`/`removed_by`/etc. FKs —
+  every domain the gateway composes shares one physical Postgres database,
+  and reaching a table by name is not a module dependency. The join table
+  name is a constructor parameter (`membersTable`), defaulting to
+  `DefaultMembersTable = "member_actors"`, so this package's own tests can
+  point it at a scratch stand-in instead (`testdb_test.go`'s
+  `createTestMembers`, mirroring `createTestActLog`'s reasoning for the
+  custody-log stand-in).
+- **ILIKE and `COLLATE "C"` do not exist on sqlite**, so the directory
+  search uses `LOWER(...) LIKE LOWER(...)` for case-insensitive matching
+  (works on both dialects) and appends `COLLATE "C"` to the `ORDER BY`
+  only when `db.Dialector.Name() == "postgres"` — sqlite's own default TEXT
+  collation is already byte-order, so no dialect branch is needed there.
+- **Routes, per this package's own portability rule (`routes/doc.go`):**
+  two of address's seven (`AddressRoutes` — `ListMyAddresses`,
+  `RetireAddress`) and all five of notification's (`NotificationRoutes`).
+  The other five address routes reach `phonesalt`/`orgpolicy` in-body and
+  stay in the gateway, same as chat/DM/moderation's exclusions — see
+  `routes/doc.go` for the full reasoning, including a flagged (but
+  deliberately not acted on) finding that DM's `blockThreadOrigin` would
+  now also qualify under this package's own rule, since address moving
+  here made its one remaining dependency (`AddressRepository`) intra-module.
+- **The gateway's own HTTP cutover for chat/DM/moderation/address/
+  notification is tracked as one board**,
+  `mwanachama-backend-api-gateway/documentation/3. implementation/todo_comm_absorb.md`
+  (DEV-1664…1669) — not yet done as of this port landing.
+
 ## Naming: three packages flattened into one
 
 `chat`, `directmessage` and `moderation` were three separate Go packages in

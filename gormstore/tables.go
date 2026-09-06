@@ -16,11 +16,14 @@ import (
 // TableNames configures which physical tables a store reads and writes.
 // Unlike mwanachama-backend-actor's TableNames (which is instance-scoped —
 // member/chapter had no fixed production name before this move), comm's
-// eleven tables already exist in the gateway's Postgres under the fixed
-// comm_-prefixed names migration 000065 renamed them to — see
-// [DefaultTableNames]. The struct still exists, rather than hard-coding the
-// names, so a test can migrate a differently-named scratch set without
-// colliding with a concurrent test run.
+// original eleven tables already existed in the gateway's Postgres under
+// the fixed comm_-prefixed names migration 000065 renamed them to; the four
+// added for address and notification (given/decided 2026-09-06 — see this
+// repo's CLAUDE.md) are new tables this package's own [Migrate] creates,
+// under the same comm_ prefix — see [DefaultTableNames]. The struct still
+// exists, rather than hard-coding the names, so a test can migrate a
+// differently-named scratch set without colliding with a concurrent test
+// run.
 type TableNames struct {
 	ChatThreads  string
 	ChatMessages string
@@ -35,11 +38,19 @@ type TableNames struct {
 	Removals   string
 	Disputes   string
 	Dismissals string
+
+	Addresses     string
+	AddressBlocks string
+
+	Notifications           string
+	NotificationPreferences string
 }
 
-// DefaultTableNames returns comm's eleven production table names — the same
-// names migration 000065_extract_comm_tables.up.sql renamed the gateway's
-// original chat_thread/dm_thread/message_report/etc. tables to.
+// DefaultTableNames returns comm's fifteen production table names — the
+// original eleven are the names migration 000065_extract_comm_tables.up.sql
+// renamed the gateway's original chat_thread/dm_thread/message_report/etc.
+// tables to; the four address/notification tables are new, minted under the
+// same comm_ prefix by this package's own [Migrate].
 func DefaultTableNames() TableNames {
 	return TableNames{
 		ChatThreads:  "comm_chat_thread",
@@ -55,10 +66,16 @@ func DefaultTableNames() TableNames {
 		Removals:   "comm_message_removal",
 		Disputes:   "comm_removal_dispute",
 		Dismissals: "comm_message_report_dismissal",
+
+		Addresses:     "comm_member_address",
+		AddressBlocks: "comm_member_address_block",
+
+		Notifications:           "comm_notification",
+		NotificationPreferences: "comm_notification_preference",
 	}
 }
 
-// Migrate creates or updates the eleven tables t names, via GORM's
+// Migrate creates or updates the fifteen tables t names, via GORM's
 // AutoMigrate scoped to each table name in turn, plus the Postgres
 // SEQUENCEs the id-minting BeforeCreate hooks below read from (see
 // mintID) and the few constraints/indexes AutoMigrate cannot express from
@@ -85,20 +102,55 @@ func Migrate(db *gorm.DB, t TableNames) error {
 		{t.Removals, &RemovalRow{}},
 		{t.Disputes, &DisputeRow{}},
 		{t.Dismissals, &DismissalRow{}},
+		{t.Addresses, &AddressRow{}},
+		{t.AddressBlocks, &AddressBlockRow{}},
+		{t.Notifications, &NotificationRow{}},
+		{t.NotificationPreferences, &NotificationPreferenceRow{}},
 	}
 	for _, m := range migrations {
 		if err := db.Table(m.table).AutoMigrate(m.row); err != nil {
 			return fmt.Errorf("gormstore.Migrate: %s: %w", m.table, err)
 		}
 	}
+	if err := syncNotificationCapIndexes(db, t.Notifications); err != nil {
+		return err
+	}
+	return nil
+}
+
+// syncNotificationCapIndexes creates the two partial unique indexes
+// AutoMigrate cannot express from a struct tag alone: one reminder per
+// (member, subject) and one nudge per (chapter, subject) — G63/G278's two
+// caps. These are what actually enforce the cap on Postgres; Raise's
+// memory-backend twin (a hand-written check under a lock) has no database
+// to lean on and re-derives the same rule in Go. Partial-index syntax is
+// identical on Postgres and sqlite, so one statement per index covers both
+// dialects this package supports.
+func syncNotificationCapIndexes(db *gorm.DB, table string) error {
+	stmts := []string{
+		fmt.Sprintf(
+			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_reminder_per_subject ON %s (member_id, subject_id) WHERE event = 'survey_reminder'`,
+			table, table,
+		),
+		fmt.Sprintf(
+			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_nudge_per_subject ON %s (chapter_id, subject_id) WHERE event = 'survey_nudge'`,
+			table, table,
+		),
+	}
+	for _, stmt := range stmts {
+		if err := db.Exec(stmt).Error; err != nil {
+			return fmt.Errorf("syncNotificationCapIndexes: %w", err)
+		}
+	}
 	return nil
 }
 
 // seqNames is every Postgres SEQUENCE an id-minting BeforeCreate hook reads
-// from (see mintID) — the same nine sequences schema.sql used to declare,
-// carried over unchanged. Not table-name-scoped: comm has no multi-instance
-// mount today (unlike actor's Actors/Groups), so a fixed name matches what
-// already exists in the gateway's live database.
+// from (see mintID) — the original nine sequences schema.sql used to
+// declare, plus one each for notification and notification_preference
+// (address rows mint no id at all — see AddressRow). Not table-name-scoped:
+// comm has no multi-instance mount today (unlike actor's Actors/Groups), so
+// a fixed name matches what already exists in the gateway's live database.
 var seqNames = []string{
 	"comm_chat_thread_seq",
 	"comm_chat_message_seq",
@@ -109,6 +161,8 @@ var seqNames = []string{
 	"comm_message_removal_seq",
 	"comm_removal_dispute_seq",
 	"comm_message_report_dismissal_seq",
+	"comm_notification_seq",
+	"comm_notification_preference_seq",
 }
 
 func createSequences(db *gorm.DB) error {
