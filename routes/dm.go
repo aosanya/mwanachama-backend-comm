@@ -114,7 +114,13 @@ func GetDMThread(dm models.DMRepository, identity Identity) http.HandlerFunc {
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not a participant")
+			// **404, never 403.** A thread that exists but the caller is not
+			// on and a thread that was never minted must be indistinguishable
+			// — this is the byte-identical answer GetThread/ListParticipants
+			// themselves give for "no such thread", so a caller who is not on
+			// the roster learns nothing about whether it exists (the DEV-1137
+			// enumeration-oracle fix this package's port must preserve).
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.GetThread(r.Context(), threadID)
@@ -137,7 +143,13 @@ func ListDMParticipants(dm models.DMRepository, identity Identity) http.HandlerF
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not a participant")
+			// **404, never 403.** A thread that exists but the caller is not
+			// on and a thread that was never minted must be indistinguishable
+			// — this is the byte-identical answer GetThread/ListParticipants
+			// themselves give for "no such thread", so a caller who is not on
+			// the roster learns nothing about whether it exists (the DEV-1137
+			// enumeration-oracle fix this package's port must preserve).
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListParticipants(r.Context(), threadID)

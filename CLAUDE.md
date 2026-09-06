@@ -177,7 +177,39 @@ stores, at the repo root alongside `chat_impl.go` etc.
 - **The gateway's own HTTP cutover for chat/DM/moderation/address/
   notification is tracked as one board**,
   `mwanachama-backend-api-gateway/documentation/3. implementation/todo_comm_absorb.md`
-  (DEV-1664…1669) — not yet done as of this port landing.
+  (DEV-1664…1669).
+- **Two DM route bugs surfaced and were fixed only once the 2026-09-04
+  chat/DM/moderation port was actually wired into a live gateway for the
+  first time, 2026-09-06** — neither had a test inside this repo to catch
+  it, because this repo's own fixtures call each `routes.Xxx` handler
+  directly rather than through a real caller who could be an outsider or a
+  forger:
+  1. `GetDMThread`/`ListDMParticipants` (`dm.go`) and
+     `ListDMMessages`/`ListDMReactions`/`SetDMReaction`/`ClearDMReaction`
+     (`dm_message.go`) answered a caller who is not on a thread's roster
+     with `403 "not a participant"` — the gateway's own pre-port handlers
+     answered `404` with `models.ErrDMNotFound`'s exact message, on purpose
+     (DEV-1137: a thread that exists but the caller is not on and a thread
+     that was never minted must be indistinguishable, or the status code
+     itself becomes an enumeration oracle). Fixed to answer 404 uniformly;
+     see `TestGetDMThreadRefusesAnOutsiderWithNotFound`.
+  2. `PublishDMDeviceKey` decoded into a narrow `publishDeviceKeyBody{KeyID,
+     PublicKey}` struct, so a body naming a claimed `published_by`/
+     `device_id` (DEV-1265's own adversarial case — those two are session
+     facts a client's opinion must be silently overwritten, not honoured)
+     was refused outright as an unknown field under this package's own
+     `readJSON`'s `DisallowUnknownFields`. Fixed by decoding straight into
+     `models.DMDeviceKey` (which has fields for both) and overwriting them
+     after, matching the gateway's original handler exactly; see
+     `TestPublishDMDeviceKeyIgnoresClaimedProvenance`.
+
+  Neither bug is exotic; both are the generic shape "a port's own fixtures
+  called the handler function directly, so a discrepancy visible only to an
+  actual unauthorized caller or an actual forged field went unexercised
+  until a mounting process's own integration tests ran against it." Worth
+  remembering for the next repo's `routes/` port: writing at least one test
+  through an actual HTTP boundary with an adversarial caller, not just a
+  direct handler call with a cooperative one, would have caught both here.
 
 ## Naming: three packages flattened into one
 

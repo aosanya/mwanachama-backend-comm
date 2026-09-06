@@ -94,6 +94,68 @@ func TestChatActivityRouteRejectsBadLimit(t *testing.T) {
 	}
 }
 
+// TestGetDMThreadRefusesAnOutsiderWithNotFound is DEV-1137's own contract:
+// a caller who is not on a thread's roster must get the exact same answer
+// as a thread that was never minted — 404, never 403, or the status code
+// itself becomes an enumeration oracle.
+func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
+	db, tables := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	if err != nil {
+		t.Fatalf("NewDMStore: %v", err)
+	}
+	th, err := dm.CreateThread(context.Background(), models.DMThread{CreatedBy: "m-1"}, nil)
+	if err != nil {
+		t.Fatalf("seed thread: %v", err)
+	}
+
+	outsider := testIdentity{callerID: "m-stranger"}
+	req := httptest.NewRequest(http.MethodGet, "/v1/dm/threads/"+th.ID, nil)
+	req.SetPathValue("threadID", th.ID)
+	w := httptest.NewRecorder()
+	routes.GetDMThread(dm, outsider)(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("outsider status = %d, want 404: %s", w.Code, w.Body.String())
+	}
+
+	absentReq := httptest.NewRequest(http.MethodGet, "/v1/dm/threads/dm-does-not-exist", nil)
+	absentReq.SetPathValue("threadID", "dm-does-not-exist")
+	w2 := httptest.NewRecorder()
+	routes.GetDMThread(dm, outsider)(w2, absentReq)
+	if w2.Code != http.StatusNotFound {
+		t.Fatalf("absent thread status = %d, want 404: %s", w2.Code, w2.Body.String())
+	}
+	if w.Body.String() != w2.Body.String() {
+		t.Fatalf("outsider body %q must be byte-identical to absent-thread body %q, or the status/body pair becomes an oracle", w.Body.String(), w2.Body.String())
+	}
+}
+
+// TestPublishDMDeviceKeyIgnoresClaimedProvenance is DEV-1265: a body naming
+// somebody else's member/device is decoded without error and then silently
+// overwritten, never refused as an unknown field.
+func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
+	db, tables := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	if err != nil {
+		t.Fatalf("NewDMStore: %v", err)
+	}
+	identity := testIdentity{callerID: "m-1", deviceID: "device-1"}
+	req := httptest.NewRequest(http.MethodPost, "/v1/dm/device-keys", jsonBody(t, map[string]string{
+		"public_key":   "pk-1",
+		"published_by": "member-someone-else",
+		"device_id":    "device-someone-else",
+	}))
+	w := httptest.NewRecorder()
+	routes.PublishDMDeviceKey(dm, identity)(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", w.Code, w.Body.String())
+	}
+	out := decodeJSON[models.DMDeviceKey](t, w)
+	if out.PublishedBy != "m-1" || out.DeviceID != "device-1" {
+		t.Fatalf("provenance = %+v, want the session's (m-1/device-1), not the claimed one", out)
+	}
+}
+
 func TestDMInviteAndAcceptRoutes(t *testing.T) {
 	db, tables := newRouteTestDB(t)
 	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)

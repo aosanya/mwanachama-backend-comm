@@ -65,7 +65,8 @@ func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc 
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not an active participant")
+			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListMessages(r.Context(), threadID)
@@ -77,31 +78,29 @@ func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc 
 	}
 }
 
-// publishDeviceKeyBody is the wire shape for PublishDMDeviceKey — an empty
-// KeyID mints a fresh one (see gormstore.DMDeviceKeyRow.BeforeCreate).
-// MemberID/PublishedBy/DeviceID are never read from the body — DEV-1265 —
-// they come from Identity.
-type publishDeviceKeyBody struct {
-	KeyID     string `json:"key_id,omitempty"`
-	PublicKey string `json:"public_key"`
-}
-
 // PublishDMDeviceKey handles POST /v1/dm/device-keys.
+//
+// Decodes straight into [models.DMDeviceKey] rather than a narrower body
+// struct, on purpose: MemberID/PublishedBy/DeviceID/RetiredAt are session
+// facts, and DEV-1265's own rule is that a client's opinion about them is
+// not honoured, not that offering one is a 400. A body claiming someone
+// else's provenance (`{"public_key":"...", "published_by":"someone-else",
+// "device_id":"someone-else's-device"}`) must decode cleanly and then be
+// silently overwritten — decoding into a struct with no field for those
+// names would instead reject the request outright under readJSON's
+// DisallowUnknownFields, which is a different and wrong refusal.
 func PublishDMDeviceKey(dm models.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var body publishDeviceKeyBody
-		if err := readJSON(r, &body); err != nil {
+		var in models.DMDeviceKey
+		if err := readJSON(r, &in); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		caller := identity.CallerID(r)
-		in := models.DMDeviceKey{
-			MemberID:    caller,
-			KeyID:       body.KeyID,
-			PublicKey:   body.PublicKey,
-			PublishedBy: caller,
-			DeviceID:    identity.CallerDeviceID(r),
-		}
+		in.MemberID = caller
+		in.PublishedBy = caller
+		in.DeviceID = identity.CallerDeviceID(r)
+		in.RetiredAt = nil
 		out, err := dm.PublishDeviceKey(r.Context(), in)
 		if err != nil {
 			writeDMErr(w, err)
@@ -145,7 +144,8 @@ func ListDMReactions(dm models.DMRepository, identity Identity) http.HandlerFunc
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not an active participant")
+			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListReactions(r.Context(), threadID)
@@ -176,7 +176,8 @@ func SetDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not an active participant")
+			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		var body reactionBody
@@ -212,7 +213,8 @@ func ClearDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc
 			return
 		}
 		if !ok {
-			writeErr(w, http.StatusForbidden, "not an active participant")
+			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
+			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
 			return
 		}
 		if err := dm.ClearReaction(r.Context(), messageID, caller); err != nil {
