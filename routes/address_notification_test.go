@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 	"github.com/aosanya/mwanachama-backend-comm/routes"
 )
 
@@ -18,7 +17,7 @@ func TestListMyAddressesRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), models.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -29,7 +28,7 @@ func TestListMyAddressesRoute(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
 	}
-	out := decodeJSON[[]models.AddressMine](t, w)
+	out := decodeJSON[[]mwanachamacomm.AddressMine](t, w)
 	if len(out) != 1 || out[0].Index != 0 {
 		t.Fatalf("addresses = %+v, want one row at index 0", out)
 	}
@@ -41,7 +40,7 @@ func TestRetireAddressRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), models.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -86,11 +85,11 @@ func TestNotificationRoutesEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewNotificationStore: %v", err)
 	}
-	if _, err := notif.Raise(context.Background(), models.Notification{
+	if _, err := notif.Raise(context.Background(), mwanachamacomm.Notification{
 		MemberID:    "m-1",
-		Category:    models.CategoryResults,
-		Event:       models.EventResultsPublished,
-		SubjectKind: models.SubjectSurvey,
+		Category:    mwanachamacomm.CategoryResults,
+		Event:       mwanachamacomm.EventResultsPublished,
+		SubjectKind: mwanachamacomm.SubjectSurvey,
 		SubjectID:   "survey-1",
 	}); err != nil {
 		t.Fatalf("seed raise: %v", err)
@@ -195,8 +194,8 @@ func TestSetNotificationPreferenceRoute(t *testing.T) {
 	if err := json.NewDecoder(w4.Body).Decode(&out); err != nil {
 		t.Fatalf("decode preferences: %v", err)
 	}
-	if len(out.Preferences) != len(models.NotificationCategories()) {
-		t.Fatalf("preferences = %+v, want %d rows", out.Preferences, len(models.NotificationCategories()))
+	if len(out.Preferences) != len(mwanachamacomm.NotificationCategories()) {
+		t.Fatalf("preferences = %+v, want %d rows", out.Preferences, len(mwanachamacomm.NotificationCategories()))
 	}
 	for _, p := range out.Preferences {
 		if p.Category == "chat" && (!p.Muted || !p.Set) {

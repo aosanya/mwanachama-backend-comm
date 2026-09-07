@@ -8,7 +8,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-comm"
 )
 
 // dmStatusFor maps a DMRepository error to a status code. Only
@@ -21,11 +21,11 @@ import (
 // doesn't distinguish.
 func dmStatusFor(err error) int {
 	switch {
-	case errors.Is(err, models.ErrDMNotFound):
+	case errors.Is(err, mwanachamacomm.ErrDMNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, models.ErrDMAlreadyActive):
+	case errors.Is(err, mwanachamacomm.ErrDMAlreadyActive):
 		return http.StatusConflict
-	case errors.Is(err, models.ErrDMNotLastToLeave):
+	case errors.Is(err, mwanachamacomm.ErrDMNotLastToLeave):
 		return http.StatusForbidden
 	default:
 		return http.StatusForbidden
@@ -40,9 +40,9 @@ func writeDMErr(w http.ResponseWriter, err error) {
 // OpenedViaAddressIndex/SentFromAddressIndex belongs to them — mirrors the
 // gateway's dm_handlers.go forCaller. OpenedViaAddressIndex/
 // SentFromAddressIndex/the two *Owner fields are already `json:"-"` on
-// models.DMThread, so this is the only thing standing between them and a
+// mwanachamacomm.DMThread, so this is the only thing standing between them and a
 // caller who isn't party to the pair.
-func forCaller(t models.DMThread, callerID string) models.DMThread {
+func forCaller(t mwanachamacomm.DMThread, callerID string) mwanachamacomm.DMThread {
 	switch callerID {
 	case t.OpenedViaAddressOwner:
 		t.MyAddressIndex = t.OpenedViaAddressIndex
@@ -55,7 +55,7 @@ func forCaller(t models.DMThread, callerID string) models.DMThread {
 // isParticipant reports whether callerID has any roster row (any state) on
 // threadID — requireThreadParticipant's DM-internal gate, ported as a
 // composition over ListParticipants rather than a new DMRepository method.
-func isParticipant(dm models.DMRepository, r *http.Request, threadID, callerID string) (bool, error) {
+func isParticipant(dm mwanachamacomm.DMRepository, r *http.Request, threadID, callerID string) (bool, error) {
 	parts, err := dm.ListParticipants(r.Context(), threadID)
 	if err != nil {
 		return false, err
@@ -70,7 +70,7 @@ func isParticipant(dm models.DMRepository, r *http.Request, threadID, callerID s
 
 // DMRoutes is the nine thread+roster DM operations the survey found
 // portable, addressed at the same paths the gateway already serves them at.
-func DMRoutes(dm models.DMRepository, identity Identity) []Route {
+func DMRoutes(dm mwanachamacomm.DMRepository, identity Identity) []Route {
 	return []Route{
 		{Method: http.MethodGet, Path: "/v1/dm/threads", Handler: ListDMThreads(dm, identity)},
 		{Method: http.MethodGet, Path: "/v1/dm/threads/{threadID}", Handler: GetDMThread(dm, identity)},
@@ -86,7 +86,7 @@ func DMRoutes(dm models.DMRepository, identity Identity) []Route {
 
 // ListDMThreads handles GET /v1/dm/threads — every thread the caller is
 // currently invited to or active in.
-func ListDMThreads(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ListDMThreads(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		caller := identity.CallerID(r)
 		out, err := dm.ListThreadsFor(r.Context(), caller)
@@ -94,7 +94,7 @@ func ListDMThreads(dm models.DMRepository, identity Identity) http.HandlerFunc {
 			writeDMErr(w, err)
 			return
 		}
-		projected := make([]models.DMThread, len(out))
+		projected := make([]mwanachamacomm.DMThread, len(out))
 		for i, t := range out {
 			projected[i] = forCaller(t, caller)
 		}
@@ -104,7 +104,7 @@ func ListDMThreads(dm models.DMRepository, identity Identity) http.HandlerFunc {
 
 // GetDMThread handles GET /v1/dm/threads/{threadID} — gated by
 // requireThreadParticipant.
-func GetDMThread(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func GetDMThread(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		threadID := r.PathValue("threadID")
 		caller := identity.CallerID(r)
@@ -120,7 +120,7 @@ func GetDMThread(dm models.DMRepository, identity Identity) http.HandlerFunc {
 			// themselves give for "no such thread", so a caller who is not on
 			// the roster learns nothing about whether it exists (the DEV-1137
 			// enumeration-oracle fix this package's port must preserve).
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.GetThread(r.Context(), threadID)
@@ -134,7 +134,7 @@ func GetDMThread(dm models.DMRepository, identity Identity) http.HandlerFunc {
 
 // ListDMParticipants handles GET /v1/dm/threads/{threadID}/participants —
 // gated by requireThreadParticipant.
-func ListDMParticipants(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ListDMParticipants(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		threadID := r.PathValue("threadID")
 		ok, err := isParticipant(dm, r, threadID, identity.CallerID(r))
@@ -149,7 +149,7 @@ func ListDMParticipants(dm models.DMRepository, identity Identity) http.HandlerF
 			// themselves give for "no such thread", so a caller who is not on
 			// the roster learns nothing about whether it exists (the DEV-1137
 			// enumeration-oracle fix this package's port must preserve).
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListParticipants(r.Context(), threadID)
@@ -169,7 +169,7 @@ type dmMemberBody struct {
 }
 
 // InviteDM handles POST /v1/dm/threads/{threadID}/invite.
-func InviteDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func InviteDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body dmMemberBody
 		if err := readJSON(r, &body); err != nil {
@@ -187,7 +187,7 @@ func InviteDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
 
 // AcceptDM handles POST /v1/dm/threads/{threadID}/accept — the caller
 // accepts their own invite.
-func AcceptDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func AcceptDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		out, err := dm.Accept(r.Context(), r.PathValue("threadID"), identity.CallerID(r))
 		if err != nil {
@@ -199,7 +199,7 @@ func AcceptDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
 }
 
 // LeaveDM handles POST /v1/dm/threads/{threadID}/leave — the caller leaves.
-func LeaveDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func LeaveDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := dm.Leave(r.Context(), r.PathValue("threadID"), identity.CallerID(r)); err != nil {
 			writeDMErr(w, err)
@@ -210,7 +210,7 @@ func LeaveDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
 }
 
 // KickDM handles POST /v1/dm/threads/{threadID}/kick (admin-only).
-func KickDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func KickDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body dmMemberBody
 		if err := readJSON(r, &body); err != nil {
@@ -226,7 +226,7 @@ func KickDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
 }
 
 // PromoteDM handles POST /v1/dm/threads/{threadID}/promote (admin-only).
-func PromoteDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func PromoteDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body dmMemberBody
 		if err := readJSON(r, &body); err != nil {
@@ -243,10 +243,10 @@ func PromoteDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
 }
 
 // ReEnableDM handles POST /v1/dm/threads/{threadID}/re-enable — two acts
-// wearing one route, per models.DMRepository.ReEnable's doc. An omitted
+// wearing one route, per mwanachamacomm.DMRepository.ReEnable's doc. An omitted
 // member_id defaults to the caller's own id, the self-reenable case; an
 // admin restoring somebody else names them explicitly.
-func ReEnableDM(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ReEnableDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body dmMemberBody
 		if err := readJSON(r, &body); err != nil {

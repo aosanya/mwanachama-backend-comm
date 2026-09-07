@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-comm"
 )
 
 // Route is one address this package answers, relative to wherever the
@@ -31,7 +31,7 @@ func (r Route) Pattern(prefix string) string {
 // CapChatActivityRead is not moderation's report-queue gate) calls the six
 // functions separately instead. See doc.go for what is deliberately not
 // included here and why.
-func Routes(chat models.ChatActivityReader, dm models.DMRepository, moderation models.ModerationRepository, addr models.AddressRepository, notif models.NotificationRepository, identity Identity) []Route {
+func Routes(chat mwanachamacomm.ChatActivityReader, dm mwanachamacomm.DMRepository, moderation mwanachamacomm.ModerationRepository, addr mwanachamacomm.AddressRepository, notif mwanachamacomm.NotificationRepository, identity Identity) []Route {
 	out := ChatActivityRoutes(chat)
 	out = append(out, DMRoutes(dm, identity)...)
 	out = append(out, DMMessageRoutes(dm, identity)...)

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 // newTestDB opens a fresh in-memory sqlite database, migrated the same way
@@ -108,14 +107,14 @@ func testActLogCount(t *testing.T, db *gorm.DB, subjectID string) int {
 	return int(n)
 }
 
-// txActWriter is a [models.ActWriter] that writes into test_act_log using
+// txActWriter is a [mwanachamacomm.ActWriter] that writes into test_act_log using
 // the *sql.Tx it's handed — the seam CreateRemoval/DismissReports/
 // DecideDispute use, standing in for the gateway's real custody adapter.
 // fail simulates the act write itself failing, to prove the moderation row
 // rolls back with it.
 type txActWriter struct{ fail bool }
 
-func (w txActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e models.ActEntry) error {
+func (w txActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.ActEntry) error {
 	if w.fail {
 		return errors.New("simulated act-log failure")
 	}

@@ -14,7 +14,6 @@ import (
 	"gorm.io/gorm"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 	"github.com/aosanya/mwanachama-backend-comm/routes"
 )
 
@@ -33,7 +32,9 @@ func (i testIdentity) CallerDeviceID(r *http.Request) string { return i.deviceID
 // covers reads) but ModerationStore's constructor requires a non-nil one.
 type noopActWriter struct{}
 
-func (noopActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e models.ActEntry) error { return nil }
+func (noopActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.ActEntry) error {
+	return nil
+}
 
 func newRouteTestDB(t *testing.T) (*gorm.DB, mwanachamacomm.TableNames) {
 	t.Helper()
@@ -63,7 +64,7 @@ func TestChatActivityRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChatStore: %v", err)
 	}
-	if _, err := chat.Post(context.Background(), models.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "hi"}); err != nil {
+	if _, err := chat.Post(context.Background(), mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "hi"}); err != nil {
 		t.Fatalf("seed post: %v", err)
 	}
 
@@ -74,7 +75,7 @@ func TestChatActivityRoute(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
 	}
-	page := decodeJSON[models.ChatActivityPage](t, w)
+	page := decodeJSON[mwanachamacomm.ChatActivityPage](t, w)
 	if page.Total != 1 || page.Messages != 1 {
 		t.Fatalf("page = %+v, want Total=1 Messages=1", page)
 	}
@@ -104,7 +105,7 @@ func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
-	th, err := dm.CreateThread(context.Background(), models.DMThread{CreatedBy: "m-1"}, nil)
+	th, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil)
 	if err != nil {
 		t.Fatalf("seed thread: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
 	if w.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201: %s", w.Code, w.Body.String())
 	}
-	out := decodeJSON[models.DMDeviceKey](t, w)
+	out := decodeJSON[mwanachamacomm.DMDeviceKey](t, w)
 	if out.PublishedBy != "m-1" || out.DeviceID != "device-1" {
 		t.Fatalf("provenance = %+v, want the session's (m-1/device-1), not the claimed one", out)
 	}
@@ -162,7 +163,7 @@ func TestDMInviteAndAcceptRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
-	th, err := dm.CreateThread(context.Background(), models.DMThread{CreatedBy: "m-1"}, nil)
+	th, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil)
 	if err != nil {
 		t.Fatalf("seed thread: %v", err)
 	}
@@ -184,8 +185,8 @@ func TestDMInviteAndAcceptRoutes(t *testing.T) {
 	if w2.Code != http.StatusOK {
 		t.Fatalf("accept status = %d, want 200: %s", w2.Code, w2.Body.String())
 	}
-	p := decodeJSON[models.DMParticipant](t, w2)
-	if p.State != models.DMStateActive {
+	p := decodeJSON[mwanachamacomm.DMParticipant](t, w2)
+	if p.State != mwanachamacomm.DMStateActive {
 		t.Fatalf("state = %q, want active", p.State)
 	}
 }
@@ -197,7 +198,7 @@ func TestDMInviteRouteMapsAlreadyActiveTo409(t *testing.T) {
 		t.Fatalf("NewDMStore: %v", err)
 	}
 	ctx := context.Background()
-	th, err := dm.CreateThread(ctx, models.DMThread{CreatedBy: "m-1"}, []string{"m-2"})
+	th, err := dm.CreateThread(ctx, mwanachamacomm.DMThread{CreatedBy: "m-1"}, []string{"m-2"})
 	if err != nil {
 		t.Fatalf("seed thread: %v", err)
 	}
@@ -221,7 +222,7 @@ func TestListDMThreadsRouteAppliesForCaller(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
-	if _, err := dm.CreateThread(context.Background(), models.DMThread{CreatedBy: "m-1"}, nil); err != nil {
+	if _, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	identity := testIdentity{callerID: "m-1"}
@@ -231,7 +232,7 @@ func TestListDMThreadsRouteAppliesForCaller(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
 	}
-	out := decodeJSON[[]models.DMThread](t, w)
+	out := decodeJSON[[]mwanachamacomm.DMThread](t, w)
 	if len(out) != 1 {
 		t.Fatalf("threads = %+v, want 1", out)
 	}
@@ -243,8 +244,8 @@ func TestListReportQueueRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewModerationStore: %v", err)
 	}
-	if _, err := mod.FileReport(context.Background(), models.Report{
-		MessageID: "msg-1", ChapterID: "ward-1", ReportedBy: "m-1", Reason: models.ReportReasonAbuse, Excerpt: "...",
+	if _, err := mod.FileReport(context.Background(), mwanachamacomm.Report{
+		MessageID: "msg-1", ChapterID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "...",
 	}); err != nil {
 		t.Fatalf("seed report: %v", err)
 	}
@@ -255,7 +256,7 @@ func TestListReportQueueRoute(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
 	}
-	out := decodeJSON[[]models.Report](t, w)
+	out := decodeJSON[[]mwanachamacomm.Report](t, w)
 	if len(out) != 1 || out[0].MessageID != "msg-1" {
 		t.Fatalf("reports = %+v, want one for msg-1", out)
 	}

@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-comm"
 )
 
 // ChatActivityRoutes is chatActivity, GET /v1/chat/activity.
-func ChatActivityRoutes(reader models.ChatActivityReader) []Route {
+func ChatActivityRoutes(reader mwanachamacomm.ChatActivityReader) []Route {
 	return []Route{
 		{Method: http.MethodGet, Path: "/v1/chat/activity", Handler: ChatActivity(reader)},
 	}
@@ -24,9 +24,9 @@ func ChatActivityRoutes(reader models.ChatActivityReader) []Route {
 // CapChatActivityRead capability check externally (route-table wrapping,
 // the same pattern actor's HierarchyChecker callers use) — this handler
 // answers only "given that a caller may act, here is the summary".
-func ChatActivity(reader models.ChatActivityReader) http.HandlerFunc {
+func ChatActivity(reader mwanachamacomm.ChatActivityReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := models.ChatActivityQuery{ChapterID: r.URL.Query().Get("chapter_id")}
+		q := mwanachamacomm.ChatActivityQuery{ChapterID: r.URL.Query().Get("chapter_id")}
 		if v := r.URL.Query().Get("limit"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n < 0 {

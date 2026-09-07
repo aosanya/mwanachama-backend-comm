@@ -24,7 +24,6 @@ import (
 	"gorm.io/gorm"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 	"github.com/aosanya/mwanachama-backend-shared/postgres"
 )
 
@@ -98,7 +97,7 @@ func TestPostgres_DMLifecycleLive(t *testing.T) {
 		t.Fatalf("NewDMStore: %v", err)
 	}
 	ctx := context.Background()
-	th, err := s.CreateThread(ctx, models.DMThread{Title: "board", CreatedBy: "m-1"}, []string{"m-2"})
+	th, err := s.CreateThread(ctx, mwanachamacomm.DMThread{Title: "board", CreatedBy: "m-1"}, []string{"m-2"})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -108,7 +107,7 @@ func TestPostgres_DMLifecycleLive(t *testing.T) {
 	if _, err := s.Accept(ctx, th.ID, "m-2"); err != nil {
 		t.Fatalf("accept: %v", err)
 	}
-	if _, err := s.Post(ctx, models.DMMessage{ThreadID: th.ID, SenderID: "m-1", PayloadCiphertext: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.DMMessage{ThreadID: th.ID, SenderID: "m-1", PayloadCiphertext: "hi"}); err != nil {
 		t.Fatalf("post: %v", err)
 	}
 	msgs, err := s.ListMessages(ctx, th.ID)
@@ -126,7 +125,7 @@ func TestPostgres_DMLifecycleLive(t *testing.T) {
 // no checked-in schema.sql fixture any more (see this file's package doc).
 type pgTxActWriter struct{ fail bool }
 
-func (w pgTxActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e models.ActEntry) error {
+func (w pgTxActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.ActEntry) error {
 	if w.fail {
 		return errors.New("simulated act-log failure")
 	}
@@ -154,10 +153,10 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewModerationStore: %v", err)
 	}
-	rem, err := okStore.CreateRemoval(ctx, models.Removal{
+	rem, err := okStore.CreateRemoval(ctx, mwanachamacomm.Removal{
 		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1",
-		ActorRoleClass: "Ward coordinator", Reason: models.RemovalReasonAbuse,
-	}, "Ward wall", models.Actor{ID: "mod-1", ChapterID: "ward-1"})
+		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"})
 	if err != nil {
 		t.Fatalf("CreateRemoval: %v", err)
 	}
@@ -173,13 +172,13 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewModerationStore(fail): %v", err)
 	}
-	if _, err := failStore.CreateRemoval(ctx, models.Removal{
+	if _, err := failStore.CreateRemoval(ctx, mwanachamacomm.Removal{
 		MessageID: "msg-2", ChapterID: "ward-1", RemovedBy: "mod-1",
-		ActorRoleClass: "Ward coordinator", Reason: models.RemovalReasonAbuse,
-	}, "Ward wall", models.Actor{ID: "mod-1", ChapterID: "ward-1"}); err == nil {
+		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"}); err == nil {
 		t.Fatal("expected CreateRemoval to fail when the act log write fails")
 	}
-	if _, err := okStore.GetRemovalForMessage(ctx, "msg-2"); !errors.Is(err, models.ErrModerationNotFound) {
+	if _, err := okStore.GetRemovalForMessage(ctx, "msg-2"); !errors.Is(err, mwanachamacomm.ErrModerationNotFound) {
 		t.Fatalf("expected the removal to have rolled back with the failed act write, got %v", err)
 	}
 }
@@ -204,11 +203,11 @@ func TestPostgres_ParticipantOrderMatchesSqliteLive(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	pgTh, err := pg.CreateThread(ctx, models.DMThread{CreatedBy: "a"}, []string{"b", "c"})
+	pgTh, err := pg.CreateThread(ctx, mwanachamacomm.DMThread{CreatedBy: "a"}, []string{"b", "c"})
 	if err != nil {
 		t.Fatalf("pg create: %v", err)
 	}
-	sqTh, err := sq.CreateThread(ctx, models.DMThread{CreatedBy: "a"}, []string{"b", "c"})
+	sqTh, err := sq.CreateThread(ctx, mwanachamacomm.DMThread{CreatedBy: "a"}, []string{"b", "c"})
 	if err != nil {
 		t.Fatalf("sqlite create: %v", err)
 	}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 func newNotificationStore(t *testing.T) *mwanachamacomm.NotificationStore {
@@ -23,11 +22,11 @@ func newNotificationStore(t *testing.T) *mwanachamacomm.NotificationStore {
 func TestNotificationRaiseAndList(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	n, err := s.Raise(ctx, models.Notification{
+	n, err := s.Raise(ctx, mwanachamacomm.Notification{
 		MemberID:    "m-1",
-		Category:    models.CategoryResults,
-		Event:       models.EventResultsPublished,
-		SubjectKind: models.SubjectSurvey,
+		Category:    mwanachamacomm.CategoryResults,
+		Event:       mwanachamacomm.EventResultsPublished,
+		SubjectKind: mwanachamacomm.SubjectSurvey,
 		SubjectID:   "survey-1",
 	})
 	if err != nil {
@@ -48,14 +47,14 @@ func TestNotificationRaiseAndList(t *testing.T) {
 
 func TestNotificationRaiseValidatesShape(t *testing.T) {
 	s := newNotificationStore(t)
-	_, err := s.Raise(context.Background(), models.Notification{
+	_, err := s.Raise(context.Background(), mwanachamacomm.Notification{
 		MemberID:    "m-1",
-		Category:    models.CategoryChat, // wrong category for this event
-		Event:       models.EventResultsPublished,
-		SubjectKind: models.SubjectSurvey,
+		Category:    mwanachamacomm.CategoryChat, // wrong category for this event
+		Event:       mwanachamacomm.EventResultsPublished,
+		SubjectKind: mwanachamacomm.SubjectSurvey,
 		SubjectID:   "survey-1",
 	})
-	if !errors.Is(err, models.ErrNotificationInvalid) {
+	if !errors.Is(err, mwanachamacomm.ErrNotificationInvalid) {
 		t.Fatalf("expected ErrNotificationInvalid, got %v", err)
 	}
 }
@@ -63,17 +62,17 @@ func TestNotificationRaiseValidatesShape(t *testing.T) {
 func TestNotificationRaiseRefusesWhenMuted(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	if _, err := s.SetPreference(ctx, "m-1", models.CategoryResults, true); err != nil {
+	if _, err := s.SetPreference(ctx, "m-1", mwanachamacomm.CategoryResults, true); err != nil {
 		t.Fatalf("SetPreference: %v", err)
 	}
-	_, err := s.Raise(ctx, models.Notification{
+	_, err := s.Raise(ctx, mwanachamacomm.Notification{
 		MemberID:    "m-1",
-		Category:    models.CategoryResults,
-		Event:       models.EventResultsPublished,
-		SubjectKind: models.SubjectSurvey,
+		Category:    mwanachamacomm.CategoryResults,
+		Event:       mwanachamacomm.EventResultsPublished,
+		SubjectKind: mwanachamacomm.SubjectSurvey,
 		SubjectID:   "survey-1",
 	})
-	if !errors.Is(err, models.ErrNotificationMuted) {
+	if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
 		t.Fatalf("expected ErrNotificationMuted, got %v", err)
 	}
 }
@@ -82,11 +81,11 @@ func TestNotificationReminderCapIsOnePerMemberPerSubject(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	raise := func() error {
-		_, err := s.Raise(ctx, models.Notification{
+		_, err := s.Raise(ctx, mwanachamacomm.Notification{
 			MemberID:    "m-1",
-			Category:    models.CategorySurvey,
-			Event:       models.EventSurveyReminder,
-			SubjectKind: models.SubjectSurvey,
+			Category:    mwanachamacomm.CategorySurvey,
+			Event:       mwanachamacomm.EventSurveyReminder,
+			SubjectKind: mwanachamacomm.SubjectSurvey,
 			SubjectID:   "survey-1",
 		})
 		return err
@@ -94,7 +93,7 @@ func TestNotificationReminderCapIsOnePerMemberPerSubject(t *testing.T) {
 	if err := raise(); err != nil {
 		t.Fatalf("first reminder: %v", err)
 	}
-	if err := raise(); !errors.Is(err, models.ErrNotificationCapSpent) {
+	if err := raise(); !errors.Is(err, mwanachamacomm.ErrNotificationCapSpent) {
 		t.Fatalf("second reminder: expected ErrNotificationCapSpent, got %v", err)
 	}
 }
@@ -103,12 +102,12 @@ func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	raise := func(memberID string) error {
-		_, err := s.Raise(ctx, models.Notification{
+		_, err := s.Raise(ctx, mwanachamacomm.Notification{
 			MemberID:    memberID,
 			ChapterID:   "c-1",
-			Category:    models.CategorySurvey,
-			Event:       models.EventSurveyNudge,
-			SubjectKind: models.SubjectSurvey,
+			Category:    mwanachamacomm.CategorySurvey,
+			Event:       mwanachamacomm.EventSurveyNudge,
+			SubjectKind: mwanachamacomm.SubjectSurvey,
 			SubjectID:   "survey-1",
 		})
 		return err
@@ -118,7 +117,7 @@ func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
 	}
 	// Same chapter+subject, different member: still capped, because the
 	// nudge's cap is per (chapter, subject), not per member.
-	if err := raise("m-2"); !errors.Is(err, models.ErrNotificationCapSpent) {
+	if err := raise("m-2"); !errors.Is(err, mwanachamacomm.ErrNotificationCapSpent) {
 		t.Fatalf("second nudge: expected ErrNotificationCapSpent, got %v", err)
 	}
 }
@@ -126,9 +125,9 @@ func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
 func TestNotificationMarkReadIsScopedAndIdempotent(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	n1, _ := s.Raise(ctx, models.Notification{MemberID: "m-1", Category: models.CategoryResults, Event: models.EventResultsPublished, SubjectKind: models.SubjectSurvey, SubjectID: "s-1"})
-	n2, _ := s.Raise(ctx, models.Notification{MemberID: "m-1", Category: models.CategoryResults, Event: models.EventResultsPublished, SubjectKind: models.SubjectSurvey, SubjectID: "s-2"})
-	other, _ := s.Raise(ctx, models.Notification{MemberID: "m-2", Category: models.CategoryResults, Event: models.EventResultsPublished, SubjectKind: models.SubjectSurvey, SubjectID: "s-3"})
+	n1, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-1"})
+	n2, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-2"})
+	other, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-2", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-3"})
 
 	marked, err := s.MarkRead(ctx, "m-1", []string{n1.ID, other.ID, "not-a-real-id"}, time.Now().UTC())
 	if err != nil {
@@ -151,9 +150,9 @@ func TestNotificationMarkReadIsScopedAndIdempotent(t *testing.T) {
 
 func TestNotificationMarkReadOverCapIsRefused(t *testing.T) {
 	s := newNotificationStore(t)
-	ids := make([]string, models.NotificationMaxMarkRead+1)
+	ids := make([]string, mwanachamacomm.NotificationMaxMarkRead+1)
 	_, err := s.MarkRead(context.Background(), "m-1", ids, time.Now().UTC())
-	if !errors.Is(err, models.ErrNotificationInvalid) {
+	if !errors.Is(err, mwanachamacomm.ErrNotificationInvalid) {
 		t.Fatalf("expected ErrNotificationInvalid, got %v", err)
 	}
 }
@@ -161,8 +160,8 @@ func TestNotificationMarkReadOverCapIsRefused(t *testing.T) {
 func TestNotificationSetPreferenceRefusesExemptCategories(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	for _, c := range []models.NotificationCategory{models.CategorySurvey, models.CategorySecurity} {
-		if _, err := s.SetPreference(ctx, "m-1", c, true); !errors.Is(err, models.ErrNotificationCategoryExempt) {
+	for _, c := range []mwanachamacomm.NotificationCategory{mwanachamacomm.CategorySurvey, mwanachamacomm.CategorySecurity} {
+		if _, err := s.SetPreference(ctx, "m-1", c, true); !errors.Is(err, mwanachamacomm.ErrNotificationCategoryExempt) {
 			t.Fatalf("SetPreference(%s): expected ErrNotificationCategoryExempt, got %v", c, err)
 		}
 	}
@@ -171,22 +170,22 @@ func TestNotificationSetPreferenceRefusesExemptCategories(t *testing.T) {
 func TestNotificationSetPreferenceUpserts(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	p1, err := s.SetPreference(ctx, "m-1", models.CategoryChat, true)
+	p1, err := s.SetPreference(ctx, "m-1", mwanachamacomm.CategoryChat, true)
 	if err != nil {
 		t.Fatalf("first SetPreference: %v", err)
 	}
-	muted, err := s.IsMuted(ctx, "m-1", models.CategoryChat)
+	muted, err := s.IsMuted(ctx, "m-1", mwanachamacomm.CategoryChat)
 	if err != nil || !muted {
 		t.Fatalf("IsMuted = %v, err %v, want true", muted, err)
 	}
-	p2, err := s.SetPreference(ctx, "m-1", models.CategoryChat, false)
+	p2, err := s.SetPreference(ctx, "m-1", mwanachamacomm.CategoryChat, false)
 	if err != nil {
 		t.Fatalf("second SetPreference: %v", err)
 	}
 	if p1.ID != p2.ID {
 		t.Fatalf("upsert minted a new id: %q vs %q", p1.ID, p2.ID)
 	}
-	muted, err = s.IsMuted(ctx, "m-1", models.CategoryChat)
+	muted, err = s.IsMuted(ctx, "m-1", mwanachamacomm.CategoryChat)
 	if err != nil || muted {
 		t.Fatalf("IsMuted after unmute = %v, err %v, want false", muted, err)
 	}
@@ -198,7 +197,7 @@ func TestNotificationSetPreferenceUpserts(t *testing.T) {
 
 func TestNotificationIsMutedAbsentMeansOn(t *testing.T) {
 	s := newNotificationStore(t)
-	muted, err := s.IsMuted(context.Background(), "nobody-ever-set-a-preference", models.CategoryChat)
+	muted, err := s.IsMuted(context.Background(), "nobody-ever-set-a-preference", mwanachamacomm.CategoryChat)
 	if err != nil || muted {
 		t.Fatalf("IsMuted for a member with no rows = %v, err %v, want false", muted, err)
 	}

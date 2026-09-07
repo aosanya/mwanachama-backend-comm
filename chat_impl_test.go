@@ -7,7 +7,6 @@ import (
 	"time"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 func newChatStore(t *testing.T) *mwanachamacomm.ChatStore {
@@ -38,7 +37,7 @@ func TestChatMintThreadIsIdempotent(t *testing.T) {
 
 func TestChatResolveThreadNotFound(t *testing.T) {
 	s := newChatStore(t)
-	if _, err := s.ResolveThread(context.Background(), "c-1", "/nope"); !errors.Is(err, models.ErrChatNotFound) {
+	if _, err := s.ResolveThread(context.Background(), "c-1", "/nope"); !errors.Is(err, mwanachamacomm.ErrChatNotFound) {
 		t.Fatalf("expected ErrChatNotFound, got %v", err)
 	}
 }
@@ -50,10 +49,10 @@ func TestChatPostAndListMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mint: %v", err)
 	}
-	if _, err := s.Post(ctx, models.ChatMessage{ChapterID: "c-1", ThreadID: th.ID, AuthorID: "a-1", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", ThreadID: th.ID, AuthorID: "a-1", Body: "hi"}); err != nil {
 		t.Fatalf("post threaded: %v", err)
 	}
-	if _, err := s.Post(ctx, models.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "room level"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "room level"}); err != nil {
 		t.Fatalf("post room-level: %v", err)
 	}
 	all, err := s.ListMessages(ctx, "c-1", "")
@@ -72,7 +71,7 @@ func TestChatPostAndListMessages(t *testing.T) {
 	if err != nil || got.ID != all[0].ID {
 		t.Fatalf("GetMessage = %+v, err %v", got, err)
 	}
-	if _, err := s.GetMessage(ctx, "no-such-message"); !errors.Is(err, models.ErrChatNotFound) {
+	if _, err := s.GetMessage(ctx, "no-such-message"); !errors.Is(err, mwanachamacomm.ErrChatNotFound) {
 		t.Fatalf("expected ErrChatNotFound, got %v", err)
 	}
 }
@@ -86,17 +85,17 @@ func TestChatActivityCountsAndOrdering(t *testing.T) {
 	if _, err := s.MintThread(ctx, "c-1", "/a"); err != nil {
 		t.Fatalf("mint c-1: %v", err)
 	}
-	if _, err := s.Post(ctx, models.ChatMessage{ChapterID: "c-1", AuthorID: "a", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a", Body: "hi"}); err != nil {
 		t.Fatalf("post c-1: %v", err)
 	}
 	if _, err := s.MintThread(ctx, "c-2", "/b"); err != nil {
 		t.Fatalf("mint c-2: %v", err)
 	}
-	if _, err := s.Post(ctx, models.ChatMessage{ChapterID: "c-3", AuthorID: "a", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-3", AuthorID: "a", Body: "hi"}); err != nil {
 		t.Fatalf("post c-3: %v", err)
 	}
 
-	page, err := s.Activity(ctx, models.ChatActivityQuery{})
+	page, err := s.Activity(ctx, mwanachamacomm.ChatActivityQuery{})
 	if err != nil {
 		t.Fatalf("Activity: %v", err)
 	}
@@ -117,7 +116,7 @@ func TestChatActivityCountsAndOrdering(t *testing.T) {
 		}
 	}
 
-	filtered, err := s.Activity(ctx, models.ChatActivityQuery{ChapterID: "c-1"})
+	filtered, err := s.Activity(ctx, mwanachamacomm.ChatActivityQuery{ChapterID: "c-1"})
 	if err != nil {
 		t.Fatalf("Activity filtered: %v", err)
 	}
@@ -126,7 +125,7 @@ func TestChatActivityCountsAndOrdering(t *testing.T) {
 	}
 
 	zero := 0
-	empty, err := s.Activity(ctx, models.ChatActivityQuery{Limit: &zero})
+	empty, err := s.Activity(ctx, mwanachamacomm.ChatActivityQuery{Limit: &zero})
 	if err != nil {
 		t.Fatalf("Activity limit 0: %v", err)
 	}

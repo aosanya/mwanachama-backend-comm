@@ -7,7 +7,6 @@ import (
 	"time"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 func newAddressStore(t *testing.T) *mwanachamacomm.AddressStore {
@@ -25,7 +24,7 @@ func hashOf(s string) []byte { return []byte("hash:" + s) }
 func TestAddressPublishAndResolve(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	a, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("a1"), SaltID: 1, Index: 0})
+	a, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a1"), SaltID: 1, Index: 0})
 	if err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
@@ -46,28 +45,28 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	if _, err := s.Resolve(ctx, hashOf("nope")); !errors.Is(err, models.ErrAddressNotFound) {
+	if _, err := s.Resolve(ctx, hashOf("nope")); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("unknown: expected ErrAddressNotFound, got %v", err)
 	}
 
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("retired"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("retired"), Index: 0}); err != nil {
 		t.Fatalf("publish retired: %v", err)
 	}
 	if err := s.Retire(ctx, "m-1", 0, now); err != nil {
 		t.Fatalf("retire: %v", err)
 	}
-	if _, err := s.Resolve(ctx, hashOf("retired")); !errors.Is(err, models.ErrAddressNotFound) {
+	if _, err := s.Resolve(ctx, hashOf("retired")); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("retired: expected ErrAddressNotFound, got %v", err)
 	}
 
 	past := now.Add(-time.Hour)
-	if _, err := s.Publish(ctx, models.Address{
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{
 		MemberID: "m-1", Hash: hashOf("expired"), Index: 1,
-		AddressSettings: models.AddressSettings{ExpiresAt: &past, ExpiryMode: models.AddressModeClosed},
+		AddressSettings: mwanachamacomm.AddressSettings{ExpiresAt: &past, ExpiryMode: mwanachamacomm.AddressModeClosed},
 	}); err != nil {
 		t.Fatalf("publish expired: %v", err)
 	}
-	if _, err := s.Resolve(ctx, hashOf("expired")); !errors.Is(err, models.ErrAddressNotFound) {
+	if _, err := s.Resolve(ctx, hashOf("expired")); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("expired: expected ErrAddressNotFound, got %v", err)
 	}
 }
@@ -75,10 +74,10 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 func TestAddressPublishRefusesDuplicateHash(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("dup"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("dup"), Index: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-2", Hash: hashOf("dup"), Index: 0}); err == nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-2", Hash: hashOf("dup"), Index: 0}); err == nil {
 		t.Fatalf("expected duplicate hash to be refused")
 	}
 }
@@ -86,10 +85,10 @@ func TestAddressPublishRefusesDuplicateHash(t *testing.T) {
 func TestAddressPublishRefusesDuplicateMemberIndex(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("b"), Index: 0}); err == nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("b"), Index: 0}); err == nil {
 		t.Fatalf("expected duplicate (member,index) to be refused")
 	}
 }
@@ -98,7 +97,7 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
 	for i := 2; i >= 0; i-- {
-		if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf(string(rune('a' + i))), Index: i}); err != nil {
+		if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf(string(rune('a' + i))), Index: i}); err != nil {
 			t.Fatalf("publish %d: %v", i, err)
 		}
 	}
@@ -122,11 +121,11 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	// Naming someone else's address touches nothing.
-	if err := s.Retire(ctx, "m-2", 0, time.Now().UTC()); !errors.Is(err, models.ErrAddressNotFound) {
+	if err := s.Retire(ctx, "m-2", 0, time.Now().UTC()); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("cross-owner retire: expected ErrAddressNotFound, got %v", err)
 	}
 	if err := s.Retire(ctx, "m-1", 0, time.Now().UTC()); err != nil {
@@ -134,7 +133,7 @@ func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 	}
 	// Retiring twice cannot move the timestamp — the second call is a no-op
 	// row match failure, not a second write.
-	if err := s.Retire(ctx, "m-1", 0, time.Now().UTC()); !errors.Is(err, models.ErrAddressNotFound) {
+	if err := s.Retire(ctx, "m-1", 0, time.Now().UTC()); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("second retire: expected ErrAddressNotFound, got %v", err)
 	}
 }
@@ -142,10 +141,10 @@ func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 func TestAddressCountPublicIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if _, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{PublicAddress: "MKU4827YUT3391"}); err != nil {
+	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391"}); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
 	n, err := s.CountPublic(ctx, "m-1")
@@ -164,19 +163,19 @@ func TestAddressCountPublicIncludesRetired(t *testing.T) {
 func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 
 	// Invalid: listed without public.
 	future := time.Now().UTC().Add(time.Hour)
-	_, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{ListedAt: &future})
-	if !errors.Is(err, models.ErrAddressBadSettings) {
+	_, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{ListedAt: &future})
+	if !errors.Is(err, mwanachamacomm.ErrAddressBadSettings) {
 		t.Fatalf("expected ErrAddressBadSettings, got %v", err)
 	}
 
 	// Valid: set public+listed together.
-	updated, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{
+	updated, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{
 		PublicAddress: "MKU4827YUT3391",
 		ListedAt:      &future,
 	})
@@ -189,7 +188,7 @@ func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 
 	// Whole-object write: a second call with none of those fields clears
 	// them, because absent means off.
-	cleared, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{})
+	cleared, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{})
 	if err != nil {
 		t.Fatalf("clearing UpdateSettings: %v", err)
 	}
@@ -201,7 +200,7 @@ func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 	if err := s.Retire(ctx, "m-1", 0, time.Now().UTC()); err != nil {
 		t.Fatalf("retire: %v", err)
 	}
-	if _, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{}); !errors.Is(err, models.ErrAddressNotFound) {
+	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{}); !errors.Is(err, mwanachamacomm.ErrAddressNotFound) {
 		t.Fatalf("UpdateSettings on a retired row: expected ErrAddressNotFound, got %v", err)
 	}
 }
@@ -211,19 +210,19 @@ func TestAddressListListedExcludesUnlistedAndOneMember(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-1", Hash: hashOf("listed"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("listed"), Index: 0}); err != nil {
 		t.Fatalf("publish m-1: %v", err)
 	}
-	if _, err := s.UpdateSettings(ctx, "m-1", 0, models.AddressSettings{PublicAddress: "MKU4827YUT3391", ListedAt: &now}); err != nil {
+	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391", ListedAt: &now}); err != nil {
 		t.Fatalf("list m-1: %v", err)
 	}
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-2", Hash: hashOf("unlisted"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-2", Hash: hashOf("unlisted"), Index: 0}); err != nil {
 		t.Fatalf("publish m-2: %v", err)
 	}
-	if _, err := s.Publish(ctx, models.Address{MemberID: "m-3", Hash: hashOf("also-listed"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-3", Hash: hashOf("also-listed"), Index: 0}); err != nil {
 		t.Fatalf("publish m-3: %v", err)
 	}
-	if _, err := s.UpdateSettings(ctx, "m-3", 0, models.AddressSettings{PublicAddress: "ERL2393NOP1234", ListedAt: &now}); err != nil {
+	if _, err := s.UpdateSettings(ctx, "m-3", 0, mwanachamacomm.AddressSettings{PublicAddress: "ERL2393NOP1234", ListedAt: &now}); err != nil {
 		t.Fatalf("list m-3: %v", err)
 	}
 
@@ -245,10 +244,10 @@ func TestAddressBlockIsIdempotentAndScoped(t *testing.T) {
 	if err != nil || blocked {
 		t.Fatalf("IsBlocked before any block = %v, err %v, want false", blocked, err)
 	}
-	if err := s.Block(ctx, models.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block: %v", err)
 	}
-	if err := s.Block(ctx, models.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block again: %v", err)
 	}
 	blocked, err = s.IsBlocked(ctx, "m-1", hashOf("a"))

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-comm"
 )
 
 // maxReactionRunes mirrors the gateway's own dm_message_handlers.go bound —
@@ -17,13 +17,13 @@ const maxReactionRunes = 8
 // isActiveParticipant reports whether callerID is currently active (not
 // merely invited/left/kicked) on threadID — requireActiveThreadParticipant's
 // gate.
-func isActiveParticipant(dm models.DMRepository, r *http.Request, threadID, callerID string) (bool, error) {
+func isActiveParticipant(dm mwanachamacomm.DMRepository, r *http.Request, threadID, callerID string) (bool, error) {
 	parts, err := dm.ListParticipants(r.Context(), threadID)
 	if err != nil {
 		return false, err
 	}
 	for _, p := range parts {
-		if p.MemberID == callerID && p.State == models.DMStateActive {
+		if p.MemberID == callerID && p.State == mwanachamacomm.DMStateActive {
 			return true, nil
 		}
 	}
@@ -33,7 +33,7 @@ func isActiveParticipant(dm models.DMRepository, r *http.Request, threadID, call
 // requireActiveThreadParticipantForMessage resolves messageID to its
 // thread and applies isActiveParticipant to it — the gate setDMReaction/
 // clearDMReaction use.
-func requireActiveThreadParticipantForMessage(dm models.DMRepository, r *http.Request, messageID, callerID string) (bool, error) {
+func requireActiveThreadParticipantForMessage(dm mwanachamacomm.DMRepository, r *http.Request, messageID, callerID string) (bool, error) {
 	msg, err := dm.GetMessage(r.Context(), messageID)
 	if err != nil {
 		return false, err
@@ -43,7 +43,7 @@ func requireActiveThreadParticipantForMessage(dm models.DMRepository, r *http.Re
 
 // DMMessageRoutes is the six message/device-key/reaction DM operations the
 // survey found portable.
-func DMMessageRoutes(dm models.DMRepository, identity Identity) []Route {
+func DMMessageRoutes(dm mwanachamacomm.DMRepository, identity Identity) []Route {
 	return []Route{
 		{Method: http.MethodGet, Path: "/v1/dm/threads/{threadID}/messages", Handler: ListDMMessages(dm, identity)},
 		{Method: http.MethodPost, Path: "/v1/dm/device-keys", Handler: PublishDMDeviceKey(dm, identity)},
@@ -56,7 +56,7 @@ func DMMessageRoutes(dm models.DMRepository, identity Identity) []Route {
 
 // ListDMMessages handles GET /v1/dm/threads/{threadID}/messages — gated by
 // requireActiveThreadParticipant.
-func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ListDMMessages(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		threadID := r.PathValue("threadID")
 		ok, err := isActiveParticipant(dm, r, threadID, identity.CallerID(r))
@@ -66,7 +66,7 @@ func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc 
 		}
 		if !ok {
 			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListMessages(r.Context(), threadID)
@@ -80,7 +80,7 @@ func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc 
 
 // PublishDMDeviceKey handles POST /v1/dm/device-keys.
 //
-// Decodes straight into [models.DMDeviceKey] rather than a narrower body
+// Decodes straight into [mwanachamacomm.DMDeviceKey] rather than a narrower body
 // struct, on purpose: MemberID/PublishedBy/DeviceID/RetiredAt are session
 // facts, and DEV-1265's own rule is that a client's opinion about them is
 // not honoured, not that offering one is a 400. A body claiming someone
@@ -89,9 +89,9 @@ func ListDMMessages(dm models.DMRepository, identity Identity) http.HandlerFunc 
 // silently overwritten — decoding into a struct with no field for those
 // names would instead reject the request outright under readJSON's
 // DisallowUnknownFields, which is a different and wrong refusal.
-func PublishDMDeviceKey(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func PublishDMDeviceKey(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var in models.DMDeviceKey
+		var in mwanachamacomm.DMDeviceKey
 		if err := readJSON(r, &in); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
@@ -117,7 +117,7 @@ type lookupDeviceKeysBody struct {
 
 // LookupDMDeviceKeys handles POST /v1/dm/device-keys/lookup — a plain
 // shell, no caller identity needed.
-func LookupDMDeviceKeys(dm models.DMRepository) http.HandlerFunc {
+func LookupDMDeviceKeys(dm mwanachamacomm.DMRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body lookupDeviceKeysBody
 		if err := readJSON(r, &body); err != nil {
@@ -135,7 +135,7 @@ func LookupDMDeviceKeys(dm models.DMRepository) http.HandlerFunc {
 
 // ListDMReactions handles GET /v1/dm/threads/{threadID}/reactions — gated
 // by requireActiveThreadParticipant.
-func ListDMReactions(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ListDMReactions(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		threadID := r.PathValue("threadID")
 		ok, err := isActiveParticipant(dm, r, threadID, identity.CallerID(r))
@@ -145,7 +145,7 @@ func ListDMReactions(dm models.DMRepository, identity Identity) http.HandlerFunc
 		}
 		if !ok {
 			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		out, err := dm.ListReactions(r.Context(), threadID)
@@ -166,7 +166,7 @@ type reactionBody struct {
 // requireActiveThreadParticipantForMessage. emoji is required and capped at
 // maxReactionRunes, validated here (pure, no domain read) the same way the
 // gateway's own handler does before it ever reaches SetReaction.
-func SetDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func SetDMReaction(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		messageID := r.PathValue("messageID")
 		caller := identity.CallerID(r)
@@ -177,7 +177,7 @@ func SetDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
 		}
 		if !ok {
 			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		var body reactionBody
@@ -193,7 +193,7 @@ func SetDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
 			writeErr(w, http.StatusBadRequest, "emoji is too long")
 			return
 		}
-		if err := dm.SetReaction(r.Context(), models.DMReaction{MessageID: messageID, MemberID: caller, Emoji: body.Emoji}); err != nil {
+		if err := dm.SetReaction(r.Context(), mwanachamacomm.DMReaction{MessageID: messageID, MemberID: caller, Emoji: body.Emoji}); err != nil {
 			writeDMErr(w, err)
 			return
 		}
@@ -203,7 +203,7 @@ func SetDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
 
 // ClearDMReaction handles DELETE /v1/dm/messages/{messageID}/reaction —
 // same gate as SetDMReaction.
-func ClearDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc {
+func ClearDMReaction(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		messageID := r.PathValue("messageID")
 		caller := identity.CallerID(r)
@@ -214,7 +214,7 @@ func ClearDMReaction(dm models.DMRepository, identity Identity) http.HandlerFunc
 		}
 		if !ok {
 			// 404, never 403 — see dm.go's identical note; the same byte-identical answer a nonexistent thread or message gives.
-			writeErr(w, http.StatusNotFound, models.ErrDMNotFound.Error())
+			writeErr(w, http.StatusNotFound, mwanachamacomm.ErrDMNotFound.Error())
 			return
 		}
 		if err := dm.ClearReaction(r.Context(), messageID, caller); err != nil {

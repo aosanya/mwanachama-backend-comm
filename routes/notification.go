@@ -12,17 +12,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-comm"
 )
 
 // maxNotificationPage bounds one List call from the wire, independent of
-// models.NotificationDefaultPage (the fallback when no limit is given at
+// mwanachamacomm.NotificationDefaultPage (the fallback when no limit is given at
 // all).
 const maxNotificationPage = 500
 
 // NotificationRoutes is every notification and notification-preference
 // route, at the same paths the gateway already serves them at.
-func NotificationRoutes(notif models.NotificationRepository, identity Identity) []Route {
+func NotificationRoutes(notif mwanachamacomm.NotificationRepository, identity Identity) []Route {
 	return []Route{
 		{Method: http.MethodGet, Path: "/v1/notifications", Handler: ListNotifications(notif, identity)},
 		{Method: http.MethodGet, Path: "/v1/notifications/unread", Handler: NotificationUnreadCount(notif, identity)},
@@ -48,7 +48,7 @@ type notificationJSON struct {
 	SMS            bool    `json:"sms"`
 }
 
-func toNotificationJSON(n models.Notification) notificationJSON {
+func toNotificationJSON(n mwanachamacomm.Notification) notificationJSON {
 	out := notificationJSON{
 		ID:             n.ID,
 		Event:          string(n.Event),
@@ -60,7 +60,7 @@ func toNotificationJSON(n models.Notification) notificationJSON {
 		SeatRoleKindID: n.SeatRoleKindID,
 		SeatChapterID:  n.SeatChapterID,
 		CreatedAt:      n.CreatedAt.UTC().Format(time.RFC3339),
-		SMS:            models.NotificationSMSChannel(n.Category),
+		SMS:            mwanachamacomm.NotificationSMSChannel(n.Category),
 	}
 	if n.ReadAt != nil {
 		s := n.ReadAt.UTC().Format(time.RFC3339)
@@ -81,13 +81,13 @@ type preferenceJSON struct {
 
 func writeNotificationErr(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, models.ErrNotificationNotFound):
+	case errors.Is(err, mwanachamacomm.ErrNotificationNotFound):
 		writeErr(w, http.StatusNotFound, "not found")
-	case errors.Is(err, models.ErrNotificationCategoryExempt):
+	case errors.Is(err, mwanachamacomm.ErrNotificationCategoryExempt):
 		writeErr(w, http.StatusConflict, err.Error())
-	case errors.Is(err, models.ErrNotificationCapSpent):
+	case errors.Is(err, mwanachamacomm.ErrNotificationCapSpent):
 		writeErr(w, http.StatusConflict, "that cap is already spent for this subject")
-	case errors.Is(err, models.ErrNotificationInvalid):
+	case errors.Is(err, mwanachamacomm.ErrNotificationInvalid):
 		writeErr(w, http.StatusBadRequest, err.Error())
 	default:
 		writeErr(w, http.StatusInternalServerError, "notifications unavailable")
@@ -96,9 +96,9 @@ func writeNotificationErr(w http.ResponseWriter, err error) {
 
 // ListNotifications handles GET /v1/notifications?limit= — the caller's
 // own list, newest first, plus their unread badge in the same response.
-func ListNotifications(notif models.NotificationRepository, identity Identity) http.HandlerFunc {
+func ListNotifications(notif mwanachamacomm.NotificationRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		limit := models.NotificationDefaultPage
+		limit := mwanachamacomm.NotificationDefaultPage
 		if v := r.URL.Query().Get("limit"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n <= 0 {
@@ -127,7 +127,7 @@ func ListNotifications(notif models.NotificationRepository, identity Identity) h
 }
 
 // NotificationUnreadCount handles GET /v1/notifications/unread — the badge.
-func NotificationUnreadCount(notif models.NotificationRepository, identity Identity) http.HandlerFunc {
+func NotificationUnreadCount(notif mwanachamacomm.NotificationRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		unread, err := notif.UnreadCount(r.Context(), identity.CallerID(r))
 		if err != nil {
@@ -146,7 +146,7 @@ type markNotificationsReadBody struct {
 
 // MarkNotificationsRead handles POST /v1/notifications/read — stamps
 // read_at on the caller's own named rows.
-func MarkNotificationsRead(notif models.NotificationRepository, identity Identity) http.HandlerFunc {
+func MarkNotificationsRead(notif mwanachamacomm.NotificationRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body markNotificationsReadBody
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -162,8 +162,8 @@ func MarkNotificationsRead(notif models.NotificationRepository, identity Identit
 			}
 			readAt = t.UTC()
 		}
-		if len(body.IDs) > models.NotificationMaxMarkRead {
-			writeErr(w, http.StatusBadRequest, "at most "+strconv.Itoa(models.NotificationMaxMarkRead)+" notifications in one call")
+		if len(body.IDs) > mwanachamacomm.NotificationMaxMarkRead {
+			writeErr(w, http.StatusBadRequest, "at most "+strconv.Itoa(mwanachamacomm.NotificationMaxMarkRead)+" notifications in one call")
 			return
 		}
 		marked, err := notif.MarkRead(r.Context(), identity.CallerID(r), body.IDs, readAt)
@@ -178,24 +178,24 @@ func MarkNotificationsRead(notif models.NotificationRepository, identity Identit
 // ListNotificationPreferences handles GET /v1/notification-preferences —
 // one row per category, always, even where the caller never wrote one:
 // absence means on.
-func ListNotificationPreferences(notif models.NotificationRepository, identity Identity) http.HandlerFunc {
+func ListNotificationPreferences(notif mwanachamacomm.NotificationRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := notif.ListPreferences(r.Context(), identity.CallerID(r))
 		if err != nil {
 			writeNotificationErr(w, err)
 			return
 		}
-		byCategory := make(map[models.NotificationCategory]models.NotificationPreference, len(rows))
+		byCategory := make(map[mwanachamacomm.NotificationCategory]mwanachamacomm.NotificationPreference, len(rows))
 		for _, p := range rows {
 			byCategory[p.Category] = p
 		}
-		out := make([]preferenceJSON, 0, len(models.NotificationCategories()))
-		for _, c := range models.NotificationCategories() {
+		out := make([]preferenceJSON, 0, len(mwanachamacomm.NotificationCategories()))
+		for _, c := range mwanachamacomm.NotificationCategories() {
 			p, set := byCategory[c]
 			pj := preferenceJSON{
 				Category: string(c),
-				Exempt:   models.IsNotificationCategoryExempt(c),
-				SMS:      models.NotificationSMSChannel(c),
+				Exempt:   mwanachamacomm.IsNotificationCategoryExempt(c),
+				SMS:      mwanachamacomm.NotificationSMSChannel(c),
 			}
 			if set {
 				pj.Muted = p.Muted
@@ -217,15 +217,15 @@ type setNotificationPreferenceBody struct {
 // SetNotificationPreference handles PUT
 // /v1/notification-preferences/{category} — mutes or unmutes one category
 // for the caller. `survey` and `security` are refused with the reason.
-func SetNotificationPreference(notif models.NotificationRepository, identity Identity) http.HandlerFunc {
+func SetNotificationPreference(notif mwanachamacomm.NotificationRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body setNotificationPreferenceBody
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Muted == nil {
 			writeErr(w, http.StatusBadRequest, "body must carry a boolean `muted`")
 			return
 		}
-		category := models.NotificationCategory(r.PathValue("category"))
-		if !models.IsNotificationCategory(category) {
+		category := mwanachamacomm.NotificationCategory(r.PathValue("category"))
+		if !mwanachamacomm.IsNotificationCategory(category) {
 			writeErr(w, http.StatusNotFound, "no such notification category")
 			return
 		}
@@ -238,8 +238,8 @@ func SetNotificationPreference(notif models.NotificationRepository, identity Ide
 			Category:  string(p.Category),
 			Muted:     p.Muted,
 			Set:       true,
-			Exempt:    models.IsNotificationCategoryExempt(p.Category),
-			SMS:       models.NotificationSMSChannel(p.Category),
+			Exempt:    mwanachamacomm.IsNotificationCategoryExempt(p.Category),
+			SMS:       mwanachamacomm.NotificationSMSChannel(p.Category),
 			ChangedAt: p.ChangedAt.UTC().Format(time.RFC3339),
 		})
 	}
