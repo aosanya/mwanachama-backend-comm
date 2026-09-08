@@ -43,44 +43,27 @@ func monotonicClock(start time.Time) mwanachamacomm.Clock {
 	}
 }
 
-// testMembersTable is the name this package's tests use for the stand-in
-// member table [createTestMembers] creates — deliberately not
-// [mwanachamacomm.DefaultMembersTable] ("member_actors"), so a test never
-// silently passes by matching the production name instead of exercising
-// the injected membersTable parameter AddressDirectoryStore actually takes.
-const testMembersTable = "test_member_actors"
+const testActorsTable = "test_member_actors"
 
-// createTestMembers creates the fast-test stand-in for
-// mwanachama-backend-actor's real member_actors table — just the two
-// columns AddressDirectoryStore's join ever reads (id, display_name).
-// Mirrors createTestActLog's reasoning: this repo cannot import another
-// product repo's schema, so its own tests build the minimal shape the
-// query in address_directory_impl.go actually depends on.
-func createTestMembers(t *testing.T, db *gorm.DB) {
+func createTestActors(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	ddl := `CREATE TABLE IF NOT EXISTS ` + testMembersTable + ` (
+	ddl := `CREATE TABLE IF NOT EXISTS ` + testActorsTable + ` (
 		id TEXT PRIMARY KEY,
 		display_name TEXT
 	)`
 	if err := db.Exec(ddl).Error; err != nil {
-		t.Fatalf("createTestMembers: %v", err)
+		t.Fatalf("createTestActors: %v", err)
 	}
 }
 
-// insertTestMember inserts one row into the stand-in member table.
-func insertTestMember(t *testing.T, db *gorm.DB, id, displayName string) {
+func insertTestActor(t *testing.T, db *gorm.DB, id, displayName string) {
 	t.Helper()
-	err := db.Exec(`INSERT INTO `+testMembersTable+` (id, display_name) VALUES (?, ?)`, id, displayName).Error
+	err := db.Exec(`INSERT INTO `+testActorsTable+` (id, display_name) VALUES (?, ?)`, id, displayName).Error
 	if err != nil {
-		t.Fatalf("insertTestMember: %v", err)
+		t.Fatalf("insertTestActor: %v", err)
 	}
 }
 
-// createTestActLog creates the fast-test stand-in for the gateway's real
-// chapter_act_log_entry table — sqlite-specific DDL, since this only ever
-// runs against the in-memory sqlite db newTestDB opens (the Postgres
-// integration test builds its own equivalent, since Postgres autoincrement
-// syntax differs).
 func createTestActLog(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	const ddl = `CREATE TABLE IF NOT EXISTS test_act_log (
@@ -120,6 +103,6 @@ func (w txActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.
 	}
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO test_act_log (chapter_id, kind, actor_id, subject_id) VALUES (?, ?, ?, ?)`,
-		e.ChapterID, string(e.Kind), e.ActorID, e.SubjectID)
+		e.StructureID, string(e.Kind), e.ActorID, e.SubjectID)
 	return err
 }

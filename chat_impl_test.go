@@ -49,10 +49,10 @@ func TestChatPostAndListMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mint: %v", err)
 	}
-	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", ThreadID: th.ID, AuthorID: "a-1", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{StructureID: "c-1", ThreadID: th.ID, AuthorID: "a-1", Body: "hi"}); err != nil {
 		t.Fatalf("post threaded: %v", err)
 	}
-	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "room level"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{StructureID: "c-1", AuthorID: "a-1", Body: "room level"}); err != nil {
 		t.Fatalf("post room-level: %v", err)
 	}
 	all, err := s.ListMessages(ctx, "c-1", "")
@@ -85,13 +85,13 @@ func TestChatActivityCountsAndOrdering(t *testing.T) {
 	if _, err := s.MintThread(ctx, "c-1", "/a"); err != nil {
 		t.Fatalf("mint c-1: %v", err)
 	}
-	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{StructureID: "c-1", AuthorID: "a", Body: "hi"}); err != nil {
 		t.Fatalf("post c-1: %v", err)
 	}
 	if _, err := s.MintThread(ctx, "c-2", "/b"); err != nil {
 		t.Fatalf("mint c-2: %v", err)
 	}
-	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{ChapterID: "c-3", AuthorID: "a", Body: "hi"}); err != nil {
+	if _, err := s.Post(ctx, mwanachamacomm.ChatMessage{StructureID: "c-3", AuthorID: "a", Body: "hi"}); err != nil {
 		t.Fatalf("post c-3: %v", err)
 	}
 
@@ -107,20 +107,20 @@ func TestChatActivityCountsAndOrdering(t *testing.T) {
 	}
 	// c-1 posted most recently (Post ran after c-2's thread mint), so it
 	// sorts first; c-2 has no post at all and sorts last.
-	if page.Rows[len(page.Rows)-1].ChapterID != "c-2" {
+	if page.Rows[len(page.Rows)-1].StructureID != "c-2" {
 		t.Fatalf("expected c-2 (no posts) last, got rows %+v", page.Rows)
 	}
 	for _, r := range page.Rows {
-		if r.ChapterID == "c-2" && r.LastPostAt != nil {
+		if r.StructureID == "c-2" && r.LastPostAt != nil {
 			t.Fatalf("c-2 has no posts, LastPostAt should be nil: %+v", r)
 		}
 	}
 
-	filtered, err := s.Activity(ctx, mwanachamacomm.ChatActivityQuery{ChapterID: "c-1"})
+	filtered, err := s.Activity(ctx, mwanachamacomm.ChatActivityQuery{StructureID: "c-1"})
 	if err != nil {
 		t.Fatalf("Activity filtered: %v", err)
 	}
-	if filtered.Total != 1 || filtered.Rows[0].ChapterID != "c-1" {
+	if filtered.Total != 1 || filtered.Rows[0].StructureID != "c-1" {
 		t.Fatalf("filtered Activity = %+v, want only c-1", filtered)
 	}
 

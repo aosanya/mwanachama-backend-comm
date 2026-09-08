@@ -41,7 +41,6 @@ func NewNotificationStore(db *gorm.DB, t TableNames, clock Clock) (*Notification
 	return &NotificationStore{db: db, tables: t, clock: clock}, nil
 }
 
-// List returns one member's notifications, newest first.
 func (s *NotificationStore) List(ctx context.Context, memberID string, limit int) ([]models.Notification, error) {
 	if limit <= 0 {
 		limit = models.NotificationDefaultPage
@@ -62,7 +61,6 @@ func (s *NotificationStore) List(ctx context.Context, memberID string, limit int
 	return out, nil
 }
 
-// UnreadCount is the badge: count(*) where read_at is null, per member.
 func (s *NotificationStore) UnreadCount(ctx context.Context, memberID string) (int, error) {
 	var n int64
 	err := s.db.WithContext(ctx).Table(s.tables.Notifications).
@@ -74,9 +72,6 @@ func (s *NotificationStore) UnreadCount(ctx context.Context, memberID string) (i
 	return int(n), nil
 }
 
-// MarkRead stamps read_at on the caller's own unread rows named by ids and
-// returns how many it changed. Ids that are not this member's, or that are
-// already read, are silently skipped rather than refused.
 func (s *NotificationStore) MarkRead(ctx context.Context, memberID string, ids []string, readAt time.Time) (int, error) {
 	if len(ids) > models.NotificationMaxMarkRead {
 		return 0, fmt.Errorf("%w: at most %d notifications in one call", models.ErrNotificationInvalid, models.NotificationMaxMarkRead)
@@ -100,7 +95,7 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 	if err := n.Validate(); err != nil {
 		return models.Notification{}, err
 	}
-	muted, err := s.IsMuted(ctx, n.MemberID, n.Category)
+	muted, err := s.IsMuted(ctx, n.ActorID, n.Category)
 	if err != nil {
 		return models.Notification{}, err
 	}
@@ -136,8 +131,6 @@ func classifyNotificationWrite(err error) error {
 	return classify(err)
 }
 
-// ListPreferences returns the rows one member has actually written, sorted
-// by category. Absence means on — see [models.NotificationRepository.ListPreferences].
 func (s *NotificationStore) ListPreferences(ctx context.Context, memberID string) ([]models.NotificationPreference, error) {
 	var rows []gormstore.NotificationPreferenceRow
 	err := s.db.WithContext(ctx).Table(s.tables.NotificationPreferences).
@@ -154,10 +147,8 @@ func (s *NotificationStore) ListPreferences(ctx context.Context, memberID string
 	return out, nil
 }
 
-// SetPreference upserts on (member_id, category) — Validate refuses
-// `survey`/`security` before this ever reaches the table.
-func (s *NotificationStore) SetPreference(ctx context.Context, memberID string, category models.NotificationCategory, muted bool) (models.NotificationPreference, error) {
-	p := models.NotificationPreference{MemberID: memberID, Category: category, Muted: muted, ChangedAt: s.clock()}
+func (s *NotificationStore) SetPreference(ctx context.Context, actorID string, category models.NotificationCategory, muted bool) (models.NotificationPreference, error) {
+	p := models.NotificationPreference{ActorID: actorID, Category: category, Muted: muted, ChangedAt: s.clock()}
 	if err := p.Validate(); err != nil {
 		return models.NotificationPreference{}, err
 	}
@@ -176,7 +167,7 @@ func (s *NotificationStore) SetPreference(ctx context.Context, memberID string, 
 	// RETURNING clause back onto a conflicted row identically.
 	var out gormstore.NotificationPreferenceRow
 	err = s.db.WithContext(ctx).Table(s.tables.NotificationPreferences).
-		Where("member_id = ? AND category = ?", memberID, string(category)).
+		Where("member_id = ? AND category = ?", actorID, string(category)).
 		First(&out).Error
 	if err != nil {
 		return models.NotificationPreference{}, classify(err)

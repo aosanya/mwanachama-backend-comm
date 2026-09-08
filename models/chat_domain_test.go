@@ -7,7 +7,7 @@ import (
 )
 
 func TestChatThreadJSONFields(t *testing.T) {
-	th := ChatThread{ID: "t1", ChapterID: "c1", TagPath: "events/2026", CreatedAt: time.Unix(0, 0).UTC()}
+	th := ChatThread{ID: "t1", StructureID: "c1", TagPath: "events/2026", CreatedAt: time.Unix(0, 0).UTC()}
 	b, err := json.Marshal(th)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -16,7 +16,7 @@ func TestChatThreadJSONFields(t *testing.T) {
 	if err := json.Unmarshal(b, &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	for _, key := range []string{"id", "chapter_id", "tag_path", "created_at"} {
+	for _, key := range []string{"id", "structure_id", "tag_path", "created_at"} {
 		if _, ok := got[key]; !ok {
 			t.Errorf("ChatThread missing key %q: %s", key, b)
 		}
@@ -26,7 +26,7 @@ func TestChatThreadJSONFields(t *testing.T) {
 // A room-level message (not in a thread) must not carry a thread_id key —
 // the client uses its absence to render it outside any thread.
 func TestChatMessageThreadIDOmittedForRoomLevelPost(t *testing.T) {
-	m := ChatMessage{ID: "m1", ChapterID: "c1", AuthorID: "a1", Body: "hi", CreatedAt: time.Unix(0, 0).UTC()}
+	m := ChatMessage{ID: "m1", StructureID: "c1", AuthorID: "a1", Body: "hi", CreatedAt: time.Unix(0, 0).UTC()}
 	b, err := json.Marshal(m)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)

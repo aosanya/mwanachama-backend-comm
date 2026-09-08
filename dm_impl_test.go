@@ -46,7 +46,7 @@ func TestDMLifecycle(t *testing.T) {
 	}
 }
 
-func TestDMInviteRefusesOverwritingAnActiveMember(t *testing.T) {
+func TestDMInviteRefusesOverwritingAnActiveActor(t *testing.T) {
 	s := newDMStore(t)
 	ctx := context.Background()
 	th, err := s.CreateThread(ctx, mwanachamacomm.DMThread{CreatedBy: "m-1"}, []string{"m-2"})
@@ -57,17 +57,15 @@ func TestDMInviteRefusesOverwritingAnActiveMember(t *testing.T) {
 		t.Fatalf("accept: %v", err)
 	}
 	if _, err := s.Invite(ctx, th.ID, "m-2", "m-1"); !errors.Is(err, mwanachamacomm.ErrDMAlreadyActive) {
-		t.Fatalf("re-inviting an active member: got %v, want ErrDMAlreadyActive", err)
+		t.Fatalf("re-inviting an active actor: got %v, want ErrDMAlreadyActive", err)
 	}
 	// Re-inviting somebody still pending stays allowed and idempotent.
 	if _, err := s.Invite(ctx, th.ID, "m-2", "m-1"); err != nil && !errors.Is(err, mwanachamacomm.ErrDMAlreadyActive) {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Confirm the active member kept their acceptance (BUG-20260827-006/007's
-	// whole point).
 	parts, _ := s.ListParticipants(ctx, th.ID)
 	for _, p := range parts {
-		if p.MemberID == "m-2" && p.State != mwanachamacomm.DMStateActive {
+		if p.ActorID == "m-2" && p.State != mwanachamacomm.DMStateActive {
 			t.Fatalf("m-2's acceptance must survive a repeat invite, got state %q", p.State)
 		}
 	}
@@ -138,11 +136,11 @@ func TestDMPromoteMissingParticipantIsNotFound(t *testing.T) {
 func TestDMDeviceKeyRepublishRetiresSiblingsOnTheSameDevice(t *testing.T) {
 	s := newDMStore(t)
 	ctx := context.Background()
-	k1, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{MemberID: "m-1", PublicKey: "pk1", DeviceID: "phone-1"})
+	k1, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{ActorID: "m-1", PublicKey: "pk1", DeviceID: "phone-1"})
 	if err != nil {
 		t.Fatalf("publish 1: %v", err)
 	}
-	if _, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{MemberID: "m-1", PublicKey: "pk2", DeviceID: "phone-1"}); err != nil {
+	if _, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{ActorID: "m-1", PublicKey: "pk2", DeviceID: "phone-1"}); err != nil {
 		t.Fatalf("publish 2: %v", err)
 	}
 	live, err := s.LookupDeviceKeys(ctx, []string{"m-1"})
@@ -158,8 +156,7 @@ func TestDMDeviceKeyRepublishRetiresSiblingsOnTheSameDevice(t *testing.T) {
 		}
 	}
 
-	// A second handset for the same member keeps its own key live.
-	if _, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{MemberID: "m-1", PublicKey: "pk-other-phone", DeviceID: "phone-2"}); err != nil {
+	if _, err := s.PublishDeviceKey(ctx, mwanachamacomm.DMDeviceKey{ActorID: "m-1", PublicKey: "pk-other-phone", DeviceID: "phone-2"}); err != nil {
 		t.Fatalf("publish other device: %v", err)
 	}
 	live2, err := s.LookupDeviceKeys(ctx, []string{"m-1"})
@@ -179,10 +176,10 @@ func TestDMReactionsReplaceNotAccumulate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("post: %v", err)
 	}
-	if err := s.SetReaction(ctx, mwanachamacomm.DMReaction{MessageID: msg.ID, MemberID: "m-1", Emoji: "👍"}); err != nil {
+	if err := s.SetReaction(ctx, mwanachamacomm.DMReaction{MessageID: msg.ID, ActorID: "m-1", Emoji: "👍"}); err != nil {
 		t.Fatalf("set reaction: %v", err)
 	}
-	if err := s.SetReaction(ctx, mwanachamacomm.DMReaction{MessageID: msg.ID, MemberID: "m-1", Emoji: "🎉"}); err != nil {
+	if err := s.SetReaction(ctx, mwanachamacomm.DMReaction{MessageID: msg.ID, ActorID: "m-1", Emoji: "🎉"}); err != nil {
 		t.Fatalf("replace reaction: %v", err)
 	}
 	rs, err := s.ListReactions(ctx, th.ID)

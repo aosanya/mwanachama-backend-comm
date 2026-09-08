@@ -34,33 +34,33 @@ func NotificationRoutes(notif mwanachamacomm.NotificationRepository, identity Id
 
 // notificationJSON is the wire shape of one notification.
 type notificationJSON struct {
-	ID             string  `json:"id"`
-	Event          string  `json:"event"`
-	Category       string  `json:"category"`
-	SubjectKind    string  `json:"subject_kind"`
-	SubjectID      string  `json:"subject_id"`
-	ChapterID      string  `json:"chapter_id,omitempty"`
-	AuthorMemberID string  `json:"author_member_id,omitempty"`
-	SeatRoleKindID string  `json:"seat_role_kind_id,omitempty"`
-	SeatChapterID  string  `json:"seat_chapter_id,omitempty"`
-	CreatedAt      string  `json:"created_at"`
-	ReadAt         *string `json:"read_at"`
-	SMS            bool    `json:"sms"`
+	ID              string  `json:"id"`
+	Event           string  `json:"event"`
+	Category        string  `json:"category"`
+	SubjectKind     string  `json:"subject_kind"`
+	SubjectID       string  `json:"subject_id"`
+	StructureID     string  `json:"structure_id,omitempty"`
+	AuthorActorID   string  `json:"author_actor_id,omitempty"`
+	SeatRoleKindID  string  `json:"seat_role_kind_id,omitempty"`
+	SeatStructureID string  `json:"seat_structure_id,omitempty"`
+	CreatedAt       string  `json:"created_at"`
+	ReadAt          *string `json:"read_at"`
+	SMS             bool    `json:"sms"`
 }
 
 func toNotificationJSON(n mwanachamacomm.Notification) notificationJSON {
 	out := notificationJSON{
-		ID:             n.ID,
-		Event:          string(n.Event),
-		Category:       string(n.Category),
-		SubjectKind:    string(n.SubjectKind),
-		SubjectID:      n.SubjectID,
-		ChapterID:      n.ChapterID,
-		AuthorMemberID: n.AuthorMemberID,
-		SeatRoleKindID: n.SeatRoleKindID,
-		SeatChapterID:  n.SeatChapterID,
-		CreatedAt:      n.CreatedAt.UTC().Format(time.RFC3339),
-		SMS:            mwanachamacomm.NotificationSMSChannel(n.Category),
+		ID:              n.ID,
+		Event:           string(n.Event),
+		Category:        string(n.Category),
+		SubjectKind:     string(n.SubjectKind),
+		SubjectID:       n.SubjectID,
+		StructureID:     n.StructureID,
+		AuthorActorID:   n.AuthorActorID,
+		SeatRoleKindID:  n.SeatRoleKindID,
+		SeatStructureID: n.SeatStructureID,
+		CreatedAt:       n.CreatedAt.UTC().Format(time.RFC3339),
+		SMS:             mwanachamacomm.NotificationSMSChannel(n.Category),
 	}
 	if n.ReadAt != nil {
 		s := n.ReadAt.UTC().Format(time.RFC3339)

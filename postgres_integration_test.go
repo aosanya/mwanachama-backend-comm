@@ -131,7 +131,7 @@ func (w pgTxActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacom
 	}
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO commi_test_act_log (chapter_id, kind, actor_id, subject_id) VALUES ($1, $2, $3, $4)`,
-		e.ChapterID, string(e.Kind), e.ActorID, e.SubjectID)
+		e.StructureID, string(e.Kind), e.ActorID, e.SubjectID)
 	return err
 }
 
@@ -154,9 +154,9 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 		t.Fatalf("NewModerationStore: %v", err)
 	}
 	rem, err := okStore.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1",
+		MessageID: "msg-1", StructureID: "ward-1", RemovedBy: "mod-1",
 		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
-	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"})
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", StructureID: "ward-1"})
 	if err != nil {
 		t.Fatalf("CreateRemoval: %v", err)
 	}
@@ -173,9 +173,9 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 		t.Fatalf("NewModerationStore(fail): %v", err)
 	}
 	if _, err := failStore.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-2", ChapterID: "ward-1", RemovedBy: "mod-1",
+		MessageID: "msg-2", StructureID: "ward-1", RemovedBy: "mod-1",
 		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
-	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"}); err == nil {
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", StructureID: "ward-1"}); err == nil {
 		t.Fatal("expected CreateRemoval to fail when the act log write fails")
 	}
 	if _, err := okStore.GetRemovalForMessage(ctx, "msg-2"); !errors.Is(err, mwanachamacomm.ErrModerationNotFound) {
@@ -183,13 +183,6 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 	}
 }
 
-// TestPostgres_ParticipantOrderMatchesSqliteLive proves Postgres and
-// sqlite (this package's other dialect) agree on `ORDER BY updated_at,
-// member_id` for the same sequence of roster changes — the parity the old
-// store_postgres_dm.go/store_memory_dm.go split needed a dedicated test to
-// prove; a single GORM store removes the question by construction, but this
-// keeps a live check that Postgres's actual column ordering behaves as
-// expected under real timestamps.
 func TestPostgres_ParticipantOrderMatchesSqliteLive(t *testing.T) {
 	pgDB, pgTables := newPostgresDB(t)
 	pg, err := mwanachamacomm.NewDMStore(pgDB, pgTables, nil)
@@ -231,8 +224,8 @@ func TestPostgres_ParticipantOrderMatchesSqliteLive(t *testing.T) {
 		t.Fatalf("participant count mismatch: pg=%d sqlite=%d", len(pgParts), len(sqParts))
 	}
 	for i := range pgParts {
-		if pgParts[i].MemberID != sqParts[i].MemberID {
-			t.Fatalf("order mismatch at %d: pg=%q sqlite=%q", i, pgParts[i].MemberID, sqParts[i].MemberID)
+		if pgParts[i].ActorID != sqParts[i].ActorID {
+			t.Fatalf("order mismatch at %d: pg=%q sqlite=%q", i, pgParts[i].ActorID, sqParts[i].ActorID)
 		}
 	}
 }

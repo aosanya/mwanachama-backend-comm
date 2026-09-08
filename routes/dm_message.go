@@ -23,7 +23,7 @@ func isActiveParticipant(dm mwanachamacomm.DMRepository, r *http.Request, thread
 		return false, err
 	}
 	for _, p := range parts {
-		if p.MemberID == callerID && p.State == mwanachamacomm.DMStateActive {
+		if p.ActorID == callerID && p.State == mwanachamacomm.DMStateActive {
 			return true, nil
 		}
 	}
@@ -78,17 +78,6 @@ func ListDMMessages(dm mwanachamacomm.DMRepository, identity Identity) http.Hand
 	}
 }
 
-// PublishDMDeviceKey handles POST /v1/dm/device-keys.
-//
-// Decodes straight into [mwanachamacomm.DMDeviceKey] rather than a narrower body
-// struct, on purpose: MemberID/PublishedBy/DeviceID/RetiredAt are session
-// facts, and DEV-1265's own rule is that a client's opinion about them is
-// not honoured, not that offering one is a 400. A body claiming someone
-// else's provenance (`{"public_key":"...", "published_by":"someone-else",
-// "device_id":"someone-else's-device"}`) must decode cleanly and then be
-// silently overwritten — decoding into a struct with no field for those
-// names would instead reject the request outright under readJSON's
-// DisallowUnknownFields, which is a different and wrong refusal.
 func PublishDMDeviceKey(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var in mwanachamacomm.DMDeviceKey
@@ -97,7 +86,7 @@ func PublishDMDeviceKey(dm mwanachamacomm.DMRepository, identity Identity) http.
 			return
 		}
 		caller := identity.CallerID(r)
-		in.MemberID = caller
+		in.ActorID = caller
 		in.PublishedBy = caller
 		in.DeviceID = identity.CallerDeviceID(r)
 		in.RetiredAt = nil
@@ -112,7 +101,7 @@ func PublishDMDeviceKey(dm mwanachamacomm.DMRepository, identity Identity) http.
 
 // lookupDeviceKeysBody is the wire shape for LookupDMDeviceKeys.
 type lookupDeviceKeysBody struct {
-	MemberIDs []string `json:"member_ids"`
+	ActorIDs []string `json:"actor_ids"`
 }
 
 // LookupDMDeviceKeys handles POST /v1/dm/device-keys/lookup — a plain
@@ -124,7 +113,7 @@ func LookupDMDeviceKeys(dm mwanachamacomm.DMRepository) http.HandlerFunc {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		out, err := dm.LookupDeviceKeys(r.Context(), body.MemberIDs)
+		out, err := dm.LookupDeviceKeys(r.Context(), body.ActorIDs)
 		if err != nil {
 			writeDMErr(w, err)
 			return
@@ -193,7 +182,7 @@ func SetDMReaction(dm mwanachamacomm.DMRepository, identity Identity) http.Handl
 			writeErr(w, http.StatusBadRequest, "emoji is too long")
 			return
 		}
-		if err := dm.SetReaction(r.Context(), mwanachamacomm.DMReaction{MessageID: messageID, MemberID: caller, Emoji: body.Emoji}); err != nil {
+		if err := dm.SetReaction(r.Context(), mwanachamacomm.DMReaction{MessageID: messageID, ActorID: caller, Emoji: body.Emoji}); err != nil {
 			writeDMErr(w, err)
 			return
 		}

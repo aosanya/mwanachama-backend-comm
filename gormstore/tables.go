@@ -13,17 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TableNames configures which physical tables a store reads and writes.
-// Unlike mwanachama-backend-actor's TableNames (which is instance-scoped —
-// member/chapter had no fixed production name before this move), comm's
-// original eleven tables already existed in the gateway's Postgres under
-// the fixed comm_-prefixed names migration 000065 renamed them to; the four
-// added for address and notification (given/decided 2026-09-06 — see this
-// repo's CLAUDE.md) are new tables this package's own [Migrate] creates,
-// under the same comm_ prefix — see [DefaultTableNames]. The struct still
-// exists, rather than hard-coding the names, so a test can migrate a
-// differently-named scratch set without colliding with a concurrent test
-// run.
 type TableNames struct {
 	ChatThreads  string
 	ChatMessages string
@@ -118,14 +107,6 @@ func Migrate(db *gorm.DB, t TableNames) error {
 	return nil
 }
 
-// syncNotificationCapIndexes creates the two partial unique indexes
-// AutoMigrate cannot express from a struct tag alone: one reminder per
-// (member, subject) and one nudge per (chapter, subject) — G63/G278's two
-// caps. These are what actually enforce the cap on Postgres; Raise's
-// memory-backend twin (a hand-written check under a lock) has no database
-// to lean on and re-derives the same rule in Go. Partial-index syntax is
-// identical on Postgres and sqlite, so one statement per index covers both
-// dialects this package supports.
 func syncNotificationCapIndexes(db *gorm.DB, table string) error {
 	stmts := []string{
 		fmt.Sprintf(

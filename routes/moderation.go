@@ -1,10 +1,3 @@
-// moderation.go — the two portable moderation reads. Every write
-// (reportMessage/removeMessage/dismissReports/disputeRemoval/decideDispute)
-// and every other read (messageRemovalStatus/messageReportOutcome/
-// getRemoval/getDispute) resolves something gateway-internal in its own
-// body (chapter.Repository/member.Repository/role.Repository, or an
-// in-body capability check with no external route-table wrapper) and stays
-// in the gateway — see doc.go.
 package routes
 
 import (

@@ -19,15 +19,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// ModerationStore is the GORM implementation of [models.ModerationRepository].
-//
-// actWriter is the seam CreateRemoval/DismissReports/DecideDispute use to
-// write the gateway's chapter act log in the same transaction as the
-// moderation row — see models/moderation_act.go's package doc for why this
-// store cannot write chapter_act_log_entry itself. Its contract
-// (WriteAct(ctx, *sql.Tx, ActEntry)) predates this store's move to GORM and
-// is unaffected by it: sqlTxFrom recovers the *sql.Tx a GORM transaction
-// wraps so actWriter never needs to know GORM is involved.
 type ModerationStore struct {
 	db        *gorm.DB
 	tables    TableNames
@@ -90,8 +81,6 @@ func (s *ModerationStore) ListReportsForMessage(ctx context.Context, messageID s
 	return out, nil
 }
 
-// ListReportQueue returns every report filed against a message in
-// chapterID, newest first.
 func (s *ModerationStore) ListReportQueue(ctx context.Context, chapterID string) ([]models.Report, error) {
 	var rows []gormstore.ReportRow
 	err := s.db.WithContext(ctx).Table(s.tables.Reports).
@@ -106,10 +95,6 @@ func (s *ModerationStore) ListReportQueue(ctx context.Context, chapterID string)
 	return out, nil
 }
 
-// CreateRemoval inserts a removal row and writes the chapter's act-log row
-// in the same transaction — DEV-1341. The conflict (unique message_id)
-// returns before the log is touched, since the failed Create aborts the
-// transaction before the act write runs.
 func (s *ModerationStore) CreateRemoval(ctx context.Context, rem models.Removal, wall string, actor models.Actor) (models.Removal, error) {
 	if rem.RemovedAt.IsZero() {
 		rem.RemovedAt = s.clock()
@@ -159,11 +144,11 @@ func (s *ModerationStore) GetRemovalForMessage(ctx context.Context, messageID st
 	return gormstore.RemovalFromRow(row), nil
 }
 
-// ListRemovalsForChapter returns every removal at chapterID, newest first.
-func (s *ModerationStore) ListRemovalsForChapter(ctx context.Context, chapterID string) ([]models.Removal, error) {
+// ListRemovalsForStructure returns every removal at structureID, newest first.
+func (s *ModerationStore) ListRemovalsForStructure(ctx context.Context, structureID string) ([]models.Removal, error) {
 	var rows []gormstore.RemovalRow
 	err := s.db.WithContext(ctx).Table(s.tables.Removals).
-		Where("chapter_id = ?", chapterID).Order("removed_at DESC, id DESC").Find(&rows).Error
+		Where("chapter_id = ?", structureID).Order("removed_at DESC, id DESC").Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}

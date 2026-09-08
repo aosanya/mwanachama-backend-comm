@@ -7,11 +7,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// AddressRow is the GORM row for an [models.Address]. Unlike this
-// package's other rows, it mints no id: the primary key is Hash itself
-// (bytea on Postgres), exactly as the gateway's original member_address
-// table had it, so there is no BeforeCreate hook here and no sequence in
-// [seqNames] for this table.
 type AddressRow struct {
 	Hash              []byte `gorm:"primaryKey"`
 	SaltID            int
@@ -38,7 +33,7 @@ func AddressToRow(a models.Address) (AddressRow, error) {
 	return AddressRow{
 		Hash:              a.Hash,
 		SaltID:            a.SaltID,
-		MemberID:          a.MemberID,
+		MemberID:          a.ActorID,
 		AddressIndex:      a.Index,
 		CreatedAt:         a.CreatedAt,
 		RetiredAt:         a.RetiredAt,
@@ -61,7 +56,7 @@ func AddressToRow(a models.Address) (AddressRow, error) {
 // moved, is a worse answer than one shown as open while somebody fixes it.
 func AddressFromRow(r AddressRow) models.Address {
 	a := models.Address{
-		MemberID:  r.MemberID,
+		ActorID:   r.MemberID,
 		Hash:      r.Hash,
 		SaltID:    r.SaltID,
 		Index:     r.AddressIndex,
@@ -96,10 +91,6 @@ func marshalAddressHours(h *models.AddressHours) ([]byte, error) {
 	return json.Marshal(h)
 }
 
-// AddressBlockRow is the GORM row for a [models.AddressBlock]. Composite
-// primary key (member_id, address_hash), matching the gateway's original
-// member_address_block table — idempotent by construction, since Block is
-// meant to be pressed more than once.
 type AddressBlockRow struct {
 	MemberID  string `gorm:"primaryKey"`
 	Hash      []byte `gorm:"primaryKey"`
@@ -108,5 +99,5 @@ type AddressBlockRow struct {
 
 // AddressBlockToRow converts a domain AddressBlock to its row shape.
 func AddressBlockToRow(b models.AddressBlock) AddressBlockRow {
-	return AddressBlockRow{MemberID: b.MemberID, Hash: b.Hash, CreatedAt: b.CreatedAt}
+	return AddressBlockRow{MemberID: b.ActorID, Hash: b.Hash, CreatedAt: b.CreatedAt}
 }

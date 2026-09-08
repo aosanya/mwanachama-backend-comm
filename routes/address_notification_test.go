@@ -17,7 +17,7 @@ func TestListMyAddressesRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -40,7 +40,7 @@ func TestRetireAddressRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{MemberID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestNotificationRoutesEndToEnd(t *testing.T) {
 		t.Fatalf("NewNotificationStore: %v", err)
 	}
 	if _, err := notif.Raise(context.Background(), mwanachamacomm.Notification{
-		MemberID:    "m-1",
+		ActorID:     "m-1",
 		Category:    mwanachamacomm.CategoryResults,
 		Event:       mwanachamacomm.EventResultsPublished,
 		SubjectKind: mwanachamacomm.SubjectSurvey,

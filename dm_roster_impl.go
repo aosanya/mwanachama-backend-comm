@@ -17,8 +17,6 @@ import (
 
 var errNotAdmin = errors.New("directmessage: not admin")
 
-// findParticipant returns the roster row for (threadID, memberID), if one
-// exists.
 func (s *DMStore) findParticipant(ctx context.Context, threadID, memberID string) (gormstore.DMParticipantRow, bool, error) {
 	var row gormstore.DMParticipantRow
 	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
@@ -40,10 +38,6 @@ func (s *DMStore) isAdmin(ctx context.Context, threadID, memberID string) (bool,
 	return row.IsAdmin && row.State == string(models.DMStateActive), nil
 }
 
-// Invite adds an invited member (admin-only). Re-inviting somebody still
-// pending flips state back to invited and stamps updated_at; re-inviting
-// somebody who has already accepted is refused (ErrDMAlreadyActive) rather
-// than silently taking their acceptance away.
 func (s *DMStore) Invite(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
@@ -62,18 +56,15 @@ func (s *DMStore) Invite(ctx context.Context, threadID, memberID, by string) (mo
 	return s.upsertParticipant(ctx, threadID, memberID)
 }
 
-// Accept turns an invite into active membership.
 func (s *DMStore) Accept(ctx context.Context, threadID, memberID string) (models.DMParticipant, error) {
 	return s.setState(ctx, threadID, memberID, models.DMStateActive)
 }
 
-// Leave marks the member as having left.
 func (s *DMStore) Leave(ctx context.Context, threadID, memberID string) error {
 	_, err := s.setState(ctx, threadID, memberID, models.DMStateLeft)
 	return err
 }
 
-// Kick marks the member as removed by an admin.
 func (s *DMStore) Kick(ctx context.Context, threadID, memberID, by string) error {
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
@@ -120,10 +111,6 @@ func (s *DMStore) Promote(ctx context.Context, threadID, memberID, by string) (m
 	return gormstore.DMParticipantFromRow(row), nil
 }
 
-// ReEnable is the two acts documented on [models.DMRepository.ReEnable]: the
-// member who was last to leave bringing the thread back active (memberID ==
-// by, nobody else active, their own row `left`), and an admin restoring
-// somebody else to `invited`.
 func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
 	row, found, err := s.findParticipant(ctx, threadID, memberID)
 	if err != nil {

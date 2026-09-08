@@ -38,11 +38,6 @@ func NewAddressStore(db *gorm.DB, t TableNames, clock Clock) (*AddressStore, err
 	return &AddressStore{db: db, tables: t, clock: clock}, nil
 }
 
-// Publish records an address, refusing a duplicate.
-//
-// The refusal comes from the primary key (Hash) and the
-// (member_id, address_index) unique index rather than a read-then-write,
-// so two devices racing on the same address cannot both win.
 func (s *AddressStore) Publish(ctx context.Context, a models.Address) (models.Address, error) {
 	if a.CreatedAt.IsZero() {
 		a.CreatedAt = s.clock()
@@ -57,9 +52,6 @@ func (s *AddressStore) Publish(ctx context.Context, a models.Address) (models.Ad
 	return gormstore.AddressFromRow(row), nil
 }
 
-// ListFor returns every address a member holds, retired included — the
-// member's own view of their several phones, and a retired one they can
-// still see is how they know it is retired.
 func (s *AddressStore) ListFor(ctx context.Context, memberID string) ([]models.Address, error) {
 	var rows []gormstore.AddressRow
 	err := s.db.WithContext(ctx).Table(s.tables.Addresses).
@@ -122,8 +114,6 @@ func (s *AddressStore) Retire(ctx context.Context, memberID string, index int, a
 	return nil
 }
 
-// CountPublic returns how many of a member's rows hold a plaintext
-// address. Retired rows included, deliberately — see the interface doc.
 func (s *AddressStore) CountPublic(ctx context.Context, memberID string) (int, error) {
 	var n int64
 	err := s.db.WithContext(ctx).Table(s.tables.Addresses).
@@ -135,15 +125,6 @@ func (s *AddressStore) CountPublic(ctx context.Context, memberID string) (int, e
 	return int(n), nil
 }
 
-// UpdateSettings replaces every setting on one of a member's own addresses.
-//
-// **One UPDATE, whole-object.** The caller sends the state it wants;
-// absent means off, so every settings column is written on every call
-// (via a map, not a struct — GORM's struct-based Updates skips Go zero
-// values, which would make "cleared" and "unmentioned" indistinguishable
-// here). Scoped to its owner in the WHERE clause; retired rows are
-// excluded, since an address the member turned off has no terms left
-// worth setting.
 func (s *AddressStore) UpdateSettings(ctx context.Context, memberID string, index int, set models.AddressSettings) (models.Address, error) {
 	if err := set.Validate(); err != nil {
 		return models.Address{}, err
@@ -186,10 +167,6 @@ func (s *AddressStore) UpdateSettings(ctx context.Context, memberID string, inde
 	return gormstore.AddressFromRow(row), nil
 }
 
-// Block records that a member refuses to be reached at an address.
-//
-// Idempotent by primary key: a member pressing Block again has asked for
-// the state that already holds.
 func (s *AddressStore) Block(ctx context.Context, b models.AddressBlock) error {
 	if b.CreatedAt.IsZero() {
 		b.CreatedAt = s.clock()
@@ -204,7 +181,6 @@ func (s *AddressStore) Block(ctx context.Context, b models.AddressBlock) error {
 	return nil
 }
 
-// IsBlocked reports whether memberID has blocked addr.
 func (s *AddressStore) IsBlocked(ctx context.Context, memberID string, hash []byte) (bool, error) {
 	var n int64
 	err := s.db.WithContext(ctx).Table(s.tables.AddressBlocks).
@@ -216,17 +192,6 @@ func (s *AddressStore) IsBlocked(ctx context.Context, memberID string, hash []by
 	return n > 0, nil
 }
 
-// ListListed returns every address that belongs in the directory — listed
-// by its owner and not permanently stopped — with one member's own rows
-// left out (empty excludeMemberID excludes nothing).
-//
-// Not part of [models.AddressRepository]: it exists for a caller building
-// its own [models.AddressDirectory] by composing this method with a
-// member-name lookup, rather than through [AddressDirectoryStore]'s SQL
-// join — the shape a deployment needs when address's table and the
-// member table it joins against do not share one physical database (the
-// gateway's own memory-backend wiring is exactly this case; see that
-// repo's internal/store/memory/address_directory.go).
 func (s *AddressStore) ListListed(ctx context.Context, excludeMemberID string, now time.Time) ([]models.Address, error) {
 	var rows []gormstore.AddressRow
 	q := s.db.WithContext(ctx).Table(s.tables.Addresses).

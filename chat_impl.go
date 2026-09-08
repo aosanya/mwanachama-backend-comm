@@ -38,19 +38,13 @@ func NewChatStore(db *gorm.DB, t TableNames, clock Clock) (*ChatStore, error) {
 	return &ChatStore{db: db, tables: t, clock: clock}, nil
 }
 
-// MintThread returns the existing thread for a (chapter, tag_path) or
-// creates one. Implemented as a plain check-then-insert rather than an
-// ON CONFLICT upsert, so the get-or-create contract holds identically on
-// both dialects this package supports (Postgres and, in tests, sqlite) —
-// a losing insert on the unique(chapter_id, tag_path) index just means a
-// concurrent MintThread won the race, and this returns their row.
 func (s *ChatStore) MintThread(ctx context.Context, chapterID, tagPath string) (models.ChatThread, error) {
 	if t, err := s.ResolveThread(ctx, chapterID, tagPath); err == nil {
 		return t, nil
 	} else if !errors.Is(err, models.ErrChatNotFound) {
 		return models.ChatThread{}, err
 	}
-	row := gormstore.ChatThreadToRow(models.ChatThread{ChapterID: chapterID, TagPath: tagPath, CreatedAt: s.clock()})
+	row := gormstore.ChatThreadToRow(models.ChatThread{StructureID: chapterID, TagPath: tagPath, CreatedAt: s.clock()})
 	if err := s.db.WithContext(ctx).Table(s.tables.ChatThreads).Create(&row).Error; err != nil {
 		if t, rerr := s.ResolveThread(ctx, chapterID, tagPath); rerr == nil {
 			return t, nil
@@ -74,7 +68,6 @@ func (s *ChatStore) ResolveThread(ctx context.Context, chapterID, tagPath string
 	return gormstore.ChatThreadFromRow(row), nil
 }
 
-// ListThreads returns every thread in a chapter, oldest first.
 func (s *ChatStore) ListThreads(ctx context.Context, chapterID string) ([]models.ChatThread, error) {
 	var rows []gormstore.ChatThreadRow
 	err := s.db.WithContext(ctx).Table(s.tables.ChatThreads).
@@ -114,8 +107,6 @@ func (s *ChatStore) GetMessage(ctx context.Context, id string) (models.ChatMessa
 	return gormstore.ChatMessageFromRow(row), nil
 }
 
-// ListMessages returns messages in a chapter room; when threadID is set,
-// only that thread's messages.
 func (s *ChatStore) ListMessages(ctx context.Context, chapterID, threadID string) ([]models.ChatMessage, error) {
 	q := s.db.WithContext(ctx).Table(s.tables.ChatMessages).Where("chapter_id = ?", chapterID)
 	if threadID != "" {
@@ -134,10 +125,6 @@ func (s *ChatStore) ListMessages(ctx context.Context, chapterID, threadID string
 
 var _ models.ChatRepository = (*ChatStore)(nil)
 
-// chatRoomFilter is the placeholder the caller's predicate replaces on BOTH
-// sides of the join in Activity's query — a filter applied to one and not
-// the other would count one chapter's threads against another chapter's
-// messages.
 const chatRoomFilter = "/*room*/"
 
 // chatActivitySQL is built against s.tables at call time (the table names
@@ -163,12 +150,12 @@ func chatActivitySQL(threads, messages string) string {
 func (s *ChatStore) Activity(ctx context.Context, q models.ChatActivityQuery) (models.ChatActivityPage, error) {
 	where := ""
 	var args []any
-	if q.ChapterID != "" {
+	if q.StructureID != "" {
 		// chatRoomFilter is substituted on BOTH sides of the join below, so
 		// the "?" placeholder it introduces appears twice in the finished
 		// query — bind the same value twice to match, positionally (unlike
 		// Postgres's $1, a plain "?" placeholder can't be reused by index).
-		args = append(args, q.ChapterID, q.ChapterID)
+		args = append(args, q.StructureID, q.StructureID)
 		where = "WHERE chapter_id = ?"
 	}
 	// (m.last_post_at IS NULL) ASC sorts populated rows before NULL ones —
@@ -191,7 +178,7 @@ func (s *ChatStore) Activity(ctx context.Context, q models.ChatActivityQuery) (m
 			r    models.ChatActivityRow
 			last flexTime
 		)
-		if err := rows.Scan(&r.ChapterID, &r.Threads, &r.Messages, &last); err != nil {
+		if err := rows.Scan(&r.StructureID, &r.Threads, &r.Messages, &last); err != nil {
 			return models.ChatActivityPage{}, err
 		}
 		if last.Valid {

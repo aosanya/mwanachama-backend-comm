@@ -25,7 +25,7 @@ func newModerationStore(t *testing.T, actWriter mwanachamacomm.ActWriter) (*mwan
 func TestModerationFileReportConflict(t *testing.T) {
 	s, _ := newModerationStore(t, txActWriter{})
 	ctx := context.Background()
-	r := mwanachamacomm.Report{MessageID: "msg-1", ChapterID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "..."}
+	r := mwanachamacomm.Report{MessageID: "msg-1", StructureID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "..."}
 	if _, err := s.FileReport(ctx, r); err != nil {
 		t.Fatalf("first report: %v", err)
 	}
@@ -39,9 +39,9 @@ func TestModerationCreateRemovalWritesActLogInSameTransaction(t *testing.T) {
 	ctx := context.Background()
 
 	rem, err := s.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1",
+		MessageID: "msg-1", StructureID: "ward-1", RemovedBy: "mod-1",
 		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
-	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"})
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", StructureID: "ward-1"})
 	if err != nil {
 		t.Fatalf("CreateRemoval: %v", err)
 	}
@@ -52,9 +52,9 @@ func TestModerationCreateRemovalWritesActLogInSameTransaction(t *testing.T) {
 	// A second removal of an already-withheld post is refused before the
 	// log is touched a second time.
 	if _, err := s.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1",
+		MessageID: "msg-1", StructureID: "ward-1", RemovedBy: "mod-1",
 		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
-	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"}); !errors.Is(err, mwanachamacomm.ErrConflict) {
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", StructureID: "ward-1"}); !errors.Is(err, mwanachamacomm.ErrConflict) {
 		t.Fatalf("second removal of the same message: got %v, want ErrConflict", err)
 	}
 	if got := testActLogCount(t, db, rem.MessageID); got != 1 {
@@ -67,9 +67,9 @@ func TestModerationCreateRemovalRollsBackWhenActWriterFails(t *testing.T) {
 	ctx := context.Background()
 
 	if _, err := s.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-2", ChapterID: "ward-1", RemovedBy: "mod-1",
+		MessageID: "msg-2", StructureID: "ward-1", RemovedBy: "mod-1",
 		ActorRoleClass: "Ward coordinator", Reason: mwanachamacomm.RemovalReasonAbuse,
-	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", ChapterID: "ward-1"}); err == nil {
+	}, "Ward wall", mwanachamacomm.Actor{ID: "mod-1", StructureID: "ward-1"}); err == nil {
 		t.Fatal("expected CreateRemoval to fail when the act log write fails")
 	}
 	if _, err := s.GetRemovalForMessage(ctx, "msg-2"); !errors.Is(err, mwanachamacomm.ErrModerationNotFound) {
@@ -84,12 +84,12 @@ func TestModerationDismissReportsRefusesAnAlreadyWithheldMessage(t *testing.T) {
 	s, _ := newModerationStore(t, txActWriter{})
 	ctx := context.Background()
 	if _, err := s.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse,
+		MessageID: "msg-1", StructureID: "ward-1", RemovedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse,
 	}, "wall", mwanachamacomm.Actor{ID: "mod-1"}); err != nil {
 		t.Fatalf("CreateRemoval: %v", err)
 	}
 	_, err := s.DismissReports(ctx, mwanachamacomm.Dismissal{
-		MessageID: "msg-1", ChapterID: "ward-1", DismissedBy: "mod-2", Reason: mwanachamacomm.RemovalReasonAbuse,
+		MessageID: "msg-1", StructureID: "ward-1", DismissedBy: "mod-2", Reason: mwanachamacomm.RemovalReasonAbuse,
 	}, "wall", mwanachamacomm.Actor{ID: "mod-2"})
 	if !errors.Is(err, mwanachamacomm.ErrAlreadyRemoved) {
 		t.Fatalf("dismissing reports on a withheld message: got %v, want ErrAlreadyRemoved", err)
@@ -99,7 +99,7 @@ func TestModerationDismissReportsRefusesAnAlreadyWithheldMessage(t *testing.T) {
 func TestModerationDismissReportsIsOnePerMessage(t *testing.T) {
 	s, db := newModerationStore(t, txActWriter{})
 	ctx := context.Background()
-	d := mwanachamacomm.Dismissal{MessageID: "msg-1", ChapterID: "ward-1", DismissedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse}
+	d := mwanachamacomm.Dismissal{MessageID: "msg-1", StructureID: "ward-1", DismissedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse}
 	out, err := s.DismissReports(ctx, d, "wall", mwanachamacomm.Actor{ID: "mod-1"})
 	if err != nil {
 		t.Fatalf("first dismiss: %v", err)
@@ -116,12 +116,12 @@ func TestModerationDecideDisputeEnforcesG62(t *testing.T) {
 	s, _ := newModerationStore(t, txActWriter{})
 	ctx := context.Background()
 	rem, err := s.CreateRemoval(ctx, mwanachamacomm.Removal{
-		MessageID: "msg-1", ChapterID: "ward-1", RemovedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse,
+		MessageID: "msg-1", StructureID: "ward-1", RemovedBy: "mod-1", Reason: mwanachamacomm.RemovalReasonAbuse,
 	}, "wall", mwanachamacomm.Actor{ID: "mod-1"})
 	if err != nil {
 		t.Fatalf("CreateRemoval: %v", err)
 	}
-	d, err := s.CreateDispute(ctx, mwanachamacomm.Dispute{RemovalID: rem.ID, RaisedBy: "author-1", Statement: "wasn't abuse", ReviewChapterID: "region-1"})
+	d, err := s.CreateDispute(ctx, mwanachamacomm.Dispute{RemovalID: rem.ID, RaisedBy: "author-1", Statement: "wasn't abuse", ReviewStructureID: "region-1"})
 	if err != nil {
 		t.Fatalf("CreateDispute: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestModerationDecideDisputeEnforcesG62(t *testing.T) {
 func TestModerationCreateDisputeRequiresAnExistingRemoval(t *testing.T) {
 	s, _ := newModerationStore(t, txActWriter{})
 	ctx := context.Background()
-	if _, err := s.CreateDispute(ctx, mwanachamacomm.Dispute{RemovalID: "no-such-removal", RaisedBy: "a", Statement: "x", ReviewChapterID: "r"}); !errors.Is(err, mwanachamacomm.ErrInvalidReference) {
+	if _, err := s.CreateDispute(ctx, mwanachamacomm.Dispute{RemovalID: "no-such-removal", RaisedBy: "a", Statement: "x", ReviewStructureID: "r"}); !errors.Is(err, mwanachamacomm.ErrInvalidReference) {
 		t.Fatalf("dispute against a non-existent removal: got %v, want ErrInvalidReference", err)
 	}
 }

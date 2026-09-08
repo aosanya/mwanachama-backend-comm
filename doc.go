@@ -1,39 +1,7 @@
-// Package mwanachamacomm models chapter chat rooms, N-member direct/group
-// threads, and message moderation for mwanachama-backend-api-gateway,
-// storing them via GORM.
-//
-// Layout, mirroring mwanachama-backend-actor's split:
-//   - models/    — domain types (ChatThread, DMThread, Report, ...) and the
-//     repository interfaces (ChatRepository, DMRepository,
-//     ModerationRepository) they're read and written through
-//   - gormstore/ — GORM row structs, row<->domain conversion, migration
-//   - doc.go (this file), tables.go — table-name/migrate wrappers; this file
-//     also aliases every models/ identifier a caller outside this module
-//     actually names, mirroring mwanachama-backend-shared's orgsettings/
-//     orgpolicy convention, so a caller needs only this package's import,
-//     never models's directly — see the alias blocks below
-//   - errors.go            — ErrInvalidReference/ErrConflict + classify()
-//   - ids.go                — Clock, the one storage-agnostic helper left
-//   - chat_impl.go, dm_impl.go, dm_message_impl.go, moderation_impl.go,
-//     moderation_dismissal_impl.go — the GORM-backed store implementations
-//   - routes/    — this package's own HTTP surface for the operations that
-//     carry no gateway-only policy; see routes/doc.go for scope
-//
-// Ported from mwanachama-backend-api-gateway's internal/domain/{chat,
-// directmessage,moderation} and internal/store/{postgres,memory}. See this
-// repo's CLAUDE.md for what changed along the way, in particular why
-// moderation's act-log write still doesn't import the gateway's custody
-// package (unaffected by the storage swap this package went through
-// 2026-09-04).
 package mwanachamacomm
 
 import "github.com/aosanya/mwanachama-backend-comm/models"
 
-// Address is one published address of one member, and AddressSettings,
-// AddressBlock, AddressMine, AddressListing, AddressDirectoryQuery are its
-// surrounding shapes; AddressRepository and AddressDirectory are the
-// persistence boundaries over them. Aliases of their models. counterparts —
-// see [models.Address] et al.
 type (
 	Address               = models.Address
 	AddressSettings       = models.AddressSettings
@@ -112,12 +80,6 @@ var (
 	ErrDMNotLastToLeave = models.ErrDMNotLastToLeave
 )
 
-// Report, Removal, Dismissal and Dispute are moderation's own shapes; Actor
-// is who performed an act; ReportReason, RemovalReason and DisputeState are
-// their closed vocabularies; ModerationRepository is the persistence
-// boundary over all four. ActKind, ActEntry and ActWriter are the chapter
-// act-log seam (see models/moderation_act.go). Aliases of their models.
-// counterparts.
 type (
 	Report               = models.Report
 	Removal              = models.Removal

@@ -25,8 +25,8 @@ func TestReasonAndStateValues(t *testing.T) {
 // forgetful renderer.
 func TestRoomProjectionStripsRemovedBy(t *testing.T) {
 	full := Removal{
-		ID: "removal-1", MessageID: "msg-1", ChapterID: "chapter-1",
-		RemovedBy: "member-mod", ActorRoleClass: "Ward coordinator",
+		ID: "removal-1", MessageID: "msg-1", StructureID: "structure-1",
+		RemovedBy: "actor-mod", ActorRoleClass: "Ward coordinator",
 		Reason: RemovalReasonAbuse,
 	}
 	room := full.Room()
@@ -37,7 +37,7 @@ func TestRoomProjectionStripsRemovedBy(t *testing.T) {
 		t.Fatalf("Room() must keep the room-safe fields: got %+v", room)
 	}
 	// The original value is untouched — Room() must not mutate the receiver.
-	if full.RemovedBy != "member-mod" {
+	if full.RemovedBy != "actor-mod" {
 		t.Fatalf("Room() must not mutate its receiver, got %q", full.RemovedBy)
 	}
 

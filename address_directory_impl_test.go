@@ -10,31 +10,26 @@ import (
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 )
 
-// newAddressDirectoryStore builds an AddressStore and an
-// AddressDirectoryStore over the same scratch *gorm.DB (sqlite's
-// ":memory:" DSN is one isolated database per open, so both stores and the
-// stand-in member table must share this one connection, not each open
-// their own).
 func newAddressDirectoryStore(t *testing.T) (*mwanachamacomm.AddressDirectoryStore, *mwanachamacomm.AddressStore, *gorm.DB) {
 	t.Helper()
 	db, tables := newTestDB(t)
-	createTestMembers(t, db)
+	createTestActors(t, db)
 	clock := monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	addrs, err := mwanachamacomm.NewAddressStore(db, tables, clock)
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	dir := mwanachamacomm.NewAddressDirectoryStore(db, tables, testMembersTable, clock)
+	dir := mwanachamacomm.NewAddressDirectoryStore(db, tables, testActorsTable, clock)
 	return dir, addrs, db
 }
 
-func publishListed(t *testing.T, addrs *mwanachamacomm.AddressStore, memberID string, index int, publicAddr string, listedAt time.Time) {
+func publishListed(t *testing.T, addrs *mwanachamacomm.AddressStore, actorID string, index int, publicAddr string, listedAt time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{MemberID: memberID, Hash: hashOf(memberID + publicAddr), Index: index}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: actorID, Hash: hashOf(actorID + publicAddr), Index: index}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
-	if _, err := addrs.UpdateSettings(ctx, memberID, index, mwanachamacomm.AddressSettings{
+	if _, err := addrs.UpdateSettings(ctx, actorID, index, mwanachamacomm.AddressSettings{
 		PublicAddress: publicAddr,
 		ListedAt:      &listedAt,
 	}); err != nil {
@@ -46,14 +41,14 @@ func TestAddressDirectorySearchOnlyListsPublicAndListed(t *testing.T) {
 	dir, addrs, db := newAddressDirectoryStore(t)
 	ctx := context.Background()
 
-	insertTestMember(t, db, "m-1", "Alice")
-	insertTestMember(t, db, "m-2", "Bob")
+	insertTestActor(t, db, "m-1", "Alice")
+	insertTestActor(t, db, "m-2", "Bob")
 
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	publishListed(t, addrs, "m-1", 0, "MKU4827YUT3391", now)
 
 	// m-2 publishes an address but never lists it — must not appear.
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{MemberID: "m-2", Hash: hashOf("m-2-unlisted"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("m-2-unlisted"), Index: 0}); err != nil {
 		t.Fatalf("publish unlisted: %v", err)
 	}
 	if _, err := addrs.UpdateSettings(ctx, "m-2", 0, mwanachamacomm.AddressSettings{PublicAddress: "ERL2393NOP1234"}); err != nil {
@@ -67,7 +62,7 @@ func TestAddressDirectorySearchOnlyListsPublicAndListed(t *testing.T) {
 	if len(out) != 1 {
 		t.Fatalf("Search = %+v, want 1 listed row", out)
 	}
-	if out[0].Address != "MKU4827YUT3391" || out[0].MemberID != "m-1" || out[0].DisplayName != "Alice" {
+	if out[0].Address != "MKU4827YUT3391" || out[0].ActorID != "m-1" || out[0].DisplayName != "Alice" {
 		t.Fatalf("Search[0] = %+v, want Alice's MKU4827YUT3391", out[0])
 	}
 	if !out[0].Available {
@@ -78,28 +73,28 @@ func TestAddressDirectorySearchOnlyListsPublicAndListed(t *testing.T) {
 func TestAddressDirectorySearchExcludesCallerAndMatchesEitherField(t *testing.T) {
 	dir, addrs, db := newAddressDirectoryStore(t)
 	ctx := context.Background()
-	insertTestMember(t, db, "m-1", "Alice Wanjiru")
-	insertTestMember(t, db, "m-2", "Bob Otieno")
+	insertTestActor(t, db, "m-1", "Alice Wanjiru")
+	insertTestActor(t, db, "m-2", "Bob Otieno")
 
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	publishListed(t, addrs, "m-1", 0, "MKU4827YUT3391", now)
 	publishListed(t, addrs, "m-2", 0, "ERL2393NOP1234", now.Add(time.Minute))
 
 	// Excluding m-1 drops Alice's row.
-	out, err := dir.Search(ctx, mwanachamacomm.AddressDirectoryQuery{ExcludeMemberID: "m-1"})
-	if err != nil || len(out) != 1 || out[0].MemberID != "m-2" {
+	out, err := dir.Search(ctx, mwanachamacomm.AddressDirectoryQuery{ExcludeActorID: "m-1"})
+	if err != nil || len(out) != 1 || out[0].ActorID != "m-2" {
 		t.Fatalf("Search(exclude m-1) = %+v, err %v, want just m-2", out, err)
 	}
 
 	// Name search, case-insensitive.
 	out, err = dir.Search(ctx, mwanachamacomm.AddressDirectoryQuery{Search: "wanjiru"})
-	if err != nil || len(out) != 1 || out[0].MemberID != "m-1" {
+	if err != nil || len(out) != 1 || out[0].ActorID != "m-1" {
 		t.Fatalf("Search(name) = %+v, err %v, want just m-1", out, err)
 	}
 
 	// Address search, punctuation-and-case tolerant.
 	out, err = dir.Search(ctx, mwanachamacomm.AddressDirectoryQuery{Search: "erl 2393"})
-	if err != nil || len(out) != 1 || out[0].MemberID != "m-2" {
+	if err != nil || len(out) != 1 || out[0].ActorID != "m-2" {
 		t.Fatalf("Search(address fragment) = %+v, err %v, want just m-2", out, err)
 	}
 }
@@ -107,8 +102,8 @@ func TestAddressDirectorySearchExcludesCallerAndMatchesEitherField(t *testing.T)
 func TestAddressDirectorySearchOrdersNewestListedFirst(t *testing.T) {
 	dir, addrs, db := newAddressDirectoryStore(t)
 	ctx := context.Background()
-	insertTestMember(t, db, "m-1", "Alice")
-	insertTestMember(t, db, "m-2", "Bob")
+	insertTestActor(t, db, "m-1", "Alice")
+	insertTestActor(t, db, "m-2", "Bob")
 
 	base := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	publishListed(t, addrs, "m-1", 0, "MKU4827YUT3391", base)
@@ -118,7 +113,7 @@ func TestAddressDirectorySearchOrdersNewestListedFirst(t *testing.T) {
 	if err != nil || len(out) != 2 {
 		t.Fatalf("Search = %+v, err %v, want 2", out, err)
 	}
-	if out[0].MemberID != "m-2" {
+	if out[0].ActorID != "m-2" {
 		t.Fatalf("Search[0] = %+v, want the most recently listed (m-2) first", out[0])
 	}
 }
@@ -126,10 +121,10 @@ func TestAddressDirectorySearchOrdersNewestListedFirst(t *testing.T) {
 func TestAddressDirectorySearchShowsUnavailableRatherThanHiding(t *testing.T) {
 	dir, addrs, db := newAddressDirectoryStore(t)
 	ctx := context.Background()
-	insertTestMember(t, db, "m-1", "Alice")
+	insertTestActor(t, db, "m-1", "Alice")
 
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("m-1-switched-off"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("m-1-switched-off"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if _, err := addrs.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{

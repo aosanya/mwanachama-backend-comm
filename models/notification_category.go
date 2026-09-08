@@ -6,9 +6,6 @@ package models
 // vocabulary a notification is described in lives together, separate from
 // the rows and their Validate.
 
-// NotificationCategory is the opt-out unit. It is a stored column and not
-// a kind derived from Event, because the member switches a *category* off
-// and the enum grows with the product.
 type NotificationCategory string
 
 const (
@@ -23,15 +20,7 @@ const (
 	// CategoryMerchandise — stock recorded against your name.
 	CategoryMerchandise NotificationCategory = "merchandise"
 	// CategoryChat — a removal receipt.
-	CategoryChat NotificationCategory = "chat"
-	// CategoryMembership — the member's own registration: transfers,
-	// consent versions, number changes.
-	//
-	// `membership`, not `identity`: a member switching off a category
-	// called *identity* would switch off transfers, consent versions and
-	// phone changes while the review of their ID number carried on — the
-	// ID-case notices live in CategorySecurity, which is what makes them
-	// exempt. A category names the object it holds.
+	CategoryChat       NotificationCategory = "chat"
 	CategoryMembership NotificationCategory = "membership"
 	// CategorySecurity — OTP, device recovery, duplicate-ID case notices.
 	// The only category with an SMS channel, and exempt from muting.
@@ -70,16 +59,8 @@ func notificationExempt(c NotificationCategory) bool {
 	return c == CategorySurvey || c == CategorySecurity
 }
 
-// IsNotificationCategoryExempt reports whether a category always reaches
-// the member.
 func IsNotificationCategoryExempt(c NotificationCategory) bool { return notificationExempt(c) }
 
-// NotificationSMSChannel reports whether a category also goes out over
-// SMS.
-//
-// Not a column, and it must not become one: a channel column is a channel
-// somebody can widen, and per-member SMS cost must not scale with
-// engagement — so the rule is a function whose only input is the category.
 func NotificationSMSChannel(c NotificationCategory) bool { return c == CategorySecurity }
 
 // NotificationEvent is the specific act a row is the by-product of. The
@@ -89,13 +70,9 @@ type NotificationEvent string
 
 const (
 	// EventSurveyReached — "New survey reached you".
-	EventSurveyReached NotificationEvent = "survey_reached"
-	// EventSurveyReminder — the reminder sent to one member. Capped one
-	// per member per survey.
+	EventSurveyReached  NotificationEvent = "survey_reached"
 	EventSurveyReminder NotificationEvent = "survey_reminder"
-	// EventSurveyNudge — the chapter-scoped half of one reminder press.
-	// Capped one per chapter per survey.
-	EventSurveyNudge NotificationEvent = "survey_nudge"
+	EventSurveyNudge    NotificationEvent = "survey_nudge"
 	// EventResultsPublished — "You said, we heard".
 	EventResultsPublished NotificationEvent = "results_published"
 	// EventContributionMatched — "Contribution matched".
@@ -113,9 +90,7 @@ const (
 	EventMerchandiseRecorded NotificationEvent = "merchandise_recorded"
 	// EventMessageRemoved — a removal receipt, which never names the
 	// moderator.
-	EventMessageRemoved NotificationEvent = "message_removed"
-	// EventIdentityCaseOpened — a case notice, which never names the other
-	// member.
+	EventMessageRemoved     NotificationEvent = "message_removed"
 	EventIdentityCaseOpened NotificationEvent = "identity_case_opened"
 	// EventIdentityCaseClosed — the same case, ended.
 	EventIdentityCaseClosed NotificationEvent = "identity_case_closed"
@@ -124,8 +99,7 @@ const (
 	// the successor, because the successor's identifier may not cross
 	// into a notice.
 	EventEnrollmentKeyRotated NotificationEvent = "enrollment_key_rotated"
-	// EventMemberTransferred — a transfer notice.
-	EventMemberTransferred NotificationEvent = "member_transferred"
+	EventActorTransferred     NotificationEvent = "actor_transferred"
 	// EventConsentVersionPublished — a new consent version.
 	EventConsentVersionPublished NotificationEvent = "consent_version_published"
 	// EventNumberChanged — a number-on-file change.
@@ -155,17 +129,12 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventIdentityCaseOpened:        CategorySecurity,
 	EventIdentityCaseClosed:        CategorySecurity,
 	EventEnrollmentKeyRotated:      CategoryMembership,
-	EventMemberTransferred:         CategoryMembership,
+	EventActorTransferred:          CategoryMembership,
 	EventConsentVersionPublished:   CategoryMembership,
 	EventNumberChanged:             CategoryMembership,
 	EventDeviceSignedOut:           CategorySecurity,
 }
 
-// NotificationCategoryOf returns the category an event is opted out under,
-// and whether the event is known at all.
-//
-// The caller never chooses the category: it is derived here so that an
-// event cannot be raised under a category that would let a member mute it.
 func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
 	c, ok := notificationEventCategory[e]
 	return c, ok
@@ -184,13 +153,13 @@ const (
 	SubjectIdentityCase       NotificationSubjectKind = "identity_case"
 	SubjectDevice             NotificationSubjectKind = "device"
 	SubjectEnrollmentKey      NotificationSubjectKind = "enrollment_key"
-	SubjectMemberRegistration NotificationSubjectKind = "member_registration"
+	SubjectActorRegistration  NotificationSubjectKind = "actor_registration"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectSurvey, SubjectContribution, SubjectContributionReport,
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
-	SubjectEnrollmentKey, SubjectMemberRegistration,
+	SubjectEnrollmentKey, SubjectActorRegistration,
 }
 
 // IsNotificationSubjectKind reports whether k is one of the nine.

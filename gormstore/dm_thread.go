@@ -82,10 +82,6 @@ func DMThreadFromRow(r DMThreadRow) models.DMThread {
 	}
 }
 
-// DMParticipantRow is the GORM row for a [models.DMParticipant]. The
-// composite primary key (thread_id, member_id) gives natural (thread,
-// member) uniqueness for free, the same way actor's ActorGroupAssignmentRow
-// does for (actor_id, group_id).
 type DMParticipantRow struct {
 	ThreadID  string `gorm:"primaryKey"`
 	MemberID  string `gorm:"primaryKey;index:comm_dm_participant_member_idx,priority:1"`
@@ -98,7 +94,7 @@ type DMParticipantRow struct {
 func DMParticipantToRow(p models.DMParticipant) DMParticipantRow {
 	return DMParticipantRow{
 		ThreadID:  p.ThreadID,
-		MemberID:  p.MemberID,
+		MemberID:  p.ActorID,
 		State:     string(p.State),
 		IsAdmin:   p.IsAdmin,
 		UpdatedAt: p.UpdatedAt,
@@ -109,7 +105,7 @@ func DMParticipantToRow(p models.DMParticipant) DMParticipantRow {
 func DMParticipantFromRow(r DMParticipantRow) models.DMParticipant {
 	return models.DMParticipant{
 		ThreadID:  r.ThreadID,
-		MemberID:  r.MemberID,
+		ActorID:   r.MemberID,
 		State:     models.DMParticipantState(r.State),
 		IsAdmin:   r.IsAdmin,
 		UpdatedAt: r.UpdatedAt,

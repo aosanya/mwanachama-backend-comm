@@ -81,10 +81,6 @@ func (s *DMStore) GetMessage(ctx context.Context, id string) (models.DMMessage, 
 	return gormstore.DMMessageFromRow(row), nil
 }
 
-// PublishDeviceKey upserts a member's active public device key. An empty
-// KeyID always mints a fresh one (see gormstore.DMDeviceKeyRow.BeforeCreate)
-// rather than conflicting with an existing row, matching both original
-// stores' "no id means a new key" contract.
 func (s *DMStore) PublishDeviceKey(ctx context.Context, k models.DMDeviceKey) (models.DMDeviceKey, error) {
 	if k.CreatedAt.IsZero() {
 		k.CreatedAt = s.clock()
@@ -111,13 +107,10 @@ func (s *DMStore) PublishDeviceKey(ctx context.Context, k models.DMDeviceKey) (m
 	}
 	published := gormstore.DMDeviceKeyFromRow(out)
 
-	// DEV-1265 · a handset publishing a new key retires that handset's
-	// previous one. Scoped to DeviceID and not to the member — a member with
-	// two handsets holds two live keys at once and a sender must wrap to both.
 	if published.DeviceID != "" {
 		err := s.db.WithContext(ctx).Table(s.tables.DMDeviceKeys).
 			Where("member_id = ? AND device_id = ? AND key_id <> ? AND retired_at IS NULL",
-				published.MemberID, published.DeviceID, published.KeyID).
+				published.ActorID, published.DeviceID, published.KeyID).
 			Updates(map[string]any{"retired_at": s.clock()}).Error
 		if err != nil {
 			return models.DMDeviceKey{}, classify(err)
@@ -126,8 +119,6 @@ func (s *DMStore) PublishDeviceKey(ctx context.Context, k models.DMDeviceKey) (m
 	return published, nil
 }
 
-// LookupDeviceKeys returns every live device key held for the requested
-// members. DEV-1265 · a retired key is never returned.
 func (s *DMStore) LookupDeviceKeys(ctx context.Context, memberIDs []string) ([]models.DMDeviceKey, error) {
 	if len(memberIDs) == 0 {
 		return []models.DMDeviceKey{}, nil
@@ -166,11 +157,6 @@ func (s *DMStore) RetireDeviceKeysForDevice(ctx context.Context, deviceID string
 	return int(res.RowsAffected), nil
 }
 
-// SetReaction records one member's emoji on one message, replacing any
-// earlier one from the same member. Checks the message exists first
-// (ErrDMNotFound if not) rather than relying on a database foreign key —
-// see gormstore's GroupRow doc (actor) for why a row whose table name is
-// runtime-configurable (TableNames) doesn't declare a GORM association.
 func (s *DMStore) SetReaction(ctx context.Context, r models.DMReaction) error {
 	if _, err := s.GetMessage(ctx, r.MessageID); err != nil {
 		return err
@@ -187,8 +173,6 @@ func (s *DMStore) SetReaction(ctx context.Context, r models.DMReaction) error {
 	return classify(err)
 }
 
-// ClearReaction removes a member's reaction. Removing one that is not there
-// is not an error — the caller asked for a state and it already holds.
 func (s *DMStore) ClearReaction(ctx context.Context, messageID, memberID string) error {
 	err := s.db.WithContext(ctx).Table(s.tables.DMReactions).
 		Where("message_id = ? AND member_id = ?", messageID, memberID).

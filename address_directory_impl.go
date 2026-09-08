@@ -14,39 +14,16 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// AddressDirectoryStore answers the public-address directory in SQL.
-//
-// **One statement, joining two things.** A listing is an address's
-// plaintext and its owner's display name, and that row exists in neither
-// table this package owns. The join reaches the gateway's member table by
-// its fixed physical name (`member_actors`, mwanachama-backend-actor's own
-// production table for its "member" mounted instance) rather than by
-// importing that module's Go types — this package cannot depend on
-// another product repo's package, but every domain the gateway composes
-// shares one physical Postgres database, and reaching a table by name is
-// not a Go import. moderation_impl.go's `REFERENCES member_actors (id)`
-// FKs in this repo's own migrations/000002_comm_tables.up.sql already
-// lean on the identical fact.
 type AddressDirectoryStore struct {
 	db     *gorm.DB
 	tables TableNames
 	clock  Clock
 
-	// membersTable is the fixed name of the gateway's member table —
-	// "member_actors" in production. Overridable only so this package's
-	// own tests can point it at a scratch stand-in table (see
-	// testdb_test.go); every real caller uses [DefaultMembersTable].
 	membersTable string
 }
 
-// DefaultMembersTable is mwanachama-backend-actor's production table name
-// for the gateway's one mounted "member" instance
-// (gormstore.DefaultTableNames("member").Actors, over there).
 const DefaultMembersTable = "member_actors"
 
-// NewAddressDirectoryStore constructs an AddressDirectoryStore backed by
-// db, joining against membersTable (see [DefaultMembersTable] for the
-// production value). clock defaults to [SystemClock] when nil.
 func NewAddressDirectoryStore(db *gorm.DB, t TableNames, membersTable string, clock Clock) *AddressDirectoryStore {
 	if clock == nil {
 		clock = SystemClock
@@ -107,7 +84,7 @@ SELECT a.public_address, a.member_id, m.display_name, a.listed_at, a.disabled_at
 	addrFrag := q.AddressSearch()
 	rows, err := s.db.WithContext(ctx).Raw(query,
 		now,
-		q.ExcludeMemberID, q.ExcludeMemberID,
+		q.ExcludeActorID, q.ExcludeActorID,
 		q.Search, "%"+nameFrag+"%", addrFrag, "%"+addrFrag+"%",
 		q.Limit, q.Offset,
 	).Rows()
@@ -122,7 +99,7 @@ SELECT a.public_address, a.member_id, m.display_name, a.listed_at, a.disabled_at
 		var disabled flexTime
 		var listed flexTime
 		var hours []byte
-		if err := rows.Scan(&l.Address, &l.MemberID, &l.DisplayName, &listed, &disabled, &hours); err != nil {
+		if err := rows.Scan(&l.Address, &l.ActorID, &l.DisplayName, &listed, &disabled, &hours); err != nil {
 			return nil, classify(err)
 		}
 		if listed.Valid {

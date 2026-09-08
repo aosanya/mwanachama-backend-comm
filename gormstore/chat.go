@@ -29,12 +29,12 @@ func (r *ChatThreadRow) BeforeCreate(tx *gorm.DB) error {
 
 // ChatThreadToRow converts a domain ChatThread to its row shape.
 func ChatThreadToRow(t models.ChatThread) ChatThreadRow {
-	return ChatThreadRow{ID: t.ID, ChapterID: t.ChapterID, TagPath: t.TagPath, CreatedAt: t.CreatedAt}
+	return ChatThreadRow{ID: t.ID, ChapterID: t.StructureID, TagPath: t.TagPath, CreatedAt: t.CreatedAt}
 }
 
 // ChatThreadFromRow converts a row back to the domain ChatThread.
 func ChatThreadFromRow(r ChatThreadRow) models.ChatThread {
-	return models.ChatThread{ID: r.ID, ChapterID: r.ChapterID, TagPath: r.TagPath, CreatedAt: r.CreatedAt}
+	return models.ChatThread{ID: r.ID, StructureID: r.ChapterID, TagPath: r.TagPath, CreatedAt: r.CreatedAt}
 }
 
 // ChatMessageRow is the GORM row for a [models.ChatMessage]. ThreadID is
@@ -63,7 +63,7 @@ func (r *ChatMessageRow) BeforeCreate(tx *gorm.DB) error {
 func ChatMessageToRow(m models.ChatMessage) ChatMessageRow {
 	return ChatMessageRow{
 		ID:        m.ID,
-		ChapterID: m.ChapterID,
+		ChapterID: m.StructureID,
 		ThreadID:  StringToNullable(m.ThreadID),
 		AuthorID:  m.AuthorID,
 		Body:      m.Body,
@@ -74,12 +74,12 @@ func ChatMessageToRow(m models.ChatMessage) ChatMessageRow {
 // ChatMessageFromRow converts a row back to the domain ChatMessage.
 func ChatMessageFromRow(r ChatMessageRow) models.ChatMessage {
 	return models.ChatMessage{
-		ID:        r.ID,
-		ChapterID: r.ChapterID,
-		ThreadID:  NullableToString(r.ThreadID),
-		AuthorID:  r.AuthorID,
-		Body:      r.Body,
-		CreatedAt: r.CreatedAt,
+		ID:          r.ID,
+		StructureID: r.ChapterID,
+		ThreadID:    NullableToString(r.ThreadID),
+		AuthorID:    r.AuthorID,
+		Body:        r.Body,
+		CreatedAt:   r.CreatedAt,
 	}
 }
 

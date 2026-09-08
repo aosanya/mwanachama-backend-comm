@@ -23,7 +23,7 @@ func TestNotificationRaiseAndList(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	n, err := s.Raise(ctx, mwanachamacomm.Notification{
-		MemberID:    "m-1",
+		ActorID:     "m-1",
 		Category:    mwanachamacomm.CategoryResults,
 		Event:       mwanachamacomm.EventResultsPublished,
 		SubjectKind: mwanachamacomm.SubjectSurvey,
@@ -48,7 +48,7 @@ func TestNotificationRaiseAndList(t *testing.T) {
 func TestNotificationRaiseValidatesShape(t *testing.T) {
 	s := newNotificationStore(t)
 	_, err := s.Raise(context.Background(), mwanachamacomm.Notification{
-		MemberID:    "m-1",
+		ActorID:     "m-1",
 		Category:    mwanachamacomm.CategoryChat, // wrong category for this event
 		Event:       mwanachamacomm.EventResultsPublished,
 		SubjectKind: mwanachamacomm.SubjectSurvey,
@@ -66,7 +66,7 @@ func TestNotificationRaiseRefusesWhenMuted(t *testing.T) {
 		t.Fatalf("SetPreference: %v", err)
 	}
 	_, err := s.Raise(ctx, mwanachamacomm.Notification{
-		MemberID:    "m-1",
+		ActorID:     "m-1",
 		Category:    mwanachamacomm.CategoryResults,
 		Event:       mwanachamacomm.EventResultsPublished,
 		SubjectKind: mwanachamacomm.SubjectSurvey,
@@ -77,12 +77,12 @@ func TestNotificationRaiseRefusesWhenMuted(t *testing.T) {
 	}
 }
 
-func TestNotificationReminderCapIsOnePerMemberPerSubject(t *testing.T) {
+func TestNotificationReminderCapIsOnePerActorPerSubject(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	raise := func() error {
 		_, err := s.Raise(ctx, mwanachamacomm.Notification{
-			MemberID:    "m-1",
+			ActorID:     "m-1",
 			Category:    mwanachamacomm.CategorySurvey,
 			Event:       mwanachamacomm.EventSurveyReminder,
 			SubjectKind: mwanachamacomm.SubjectSurvey,
@@ -98,13 +98,13 @@ func TestNotificationReminderCapIsOnePerMemberPerSubject(t *testing.T) {
 	}
 }
 
-func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
+func TestNotificationNudgeCapIsOnePerStructurePerSubject(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	raise := func(memberID string) error {
+	raise := func(actorID string) error {
 		_, err := s.Raise(ctx, mwanachamacomm.Notification{
-			MemberID:    memberID,
-			ChapterID:   "c-1",
+			ActorID:     actorID,
+			StructureID: "c-1",
 			Category:    mwanachamacomm.CategorySurvey,
 			Event:       mwanachamacomm.EventSurveyNudge,
 			SubjectKind: mwanachamacomm.SubjectSurvey,
@@ -115,8 +115,6 @@ func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
 	if err := raise("m-1"); err != nil {
 		t.Fatalf("first nudge: %v", err)
 	}
-	// Same chapter+subject, different member: still capped, because the
-	// nudge's cap is per (chapter, subject), not per member.
 	if err := raise("m-2"); !errors.Is(err, mwanachamacomm.ErrNotificationCapSpent) {
 		t.Fatalf("second nudge: expected ErrNotificationCapSpent, got %v", err)
 	}
@@ -125,9 +123,9 @@ func TestNotificationNudgeCapIsOnePerChapterPerSubject(t *testing.T) {
 func TestNotificationMarkReadIsScopedAndIdempotent(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
-	n1, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-1"})
-	n2, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-2"})
-	other, _ := s.Raise(ctx, mwanachamacomm.Notification{MemberID: "m-2", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-3"})
+	n1, _ := s.Raise(ctx, mwanachamacomm.Notification{ActorID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-1"})
+	n2, _ := s.Raise(ctx, mwanachamacomm.Notification{ActorID: "m-1", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-2"})
+	other, _ := s.Raise(ctx, mwanachamacomm.Notification{ActorID: "m-2", Category: mwanachamacomm.CategoryResults, Event: mwanachamacomm.EventResultsPublished, SubjectKind: mwanachamacomm.SubjectSurvey, SubjectID: "s-3"})
 
 	marked, err := s.MarkRead(ctx, "m-1", []string{n1.ID, other.ID, "not-a-real-id"}, time.Now().UTC())
 	if err != nil {
@@ -199,6 +197,6 @@ func TestNotificationIsMutedAbsentMeansOn(t *testing.T) {
 	s := newNotificationStore(t)
 	muted, err := s.IsMuted(context.Background(), "nobody-ever-set-a-preference", mwanachamacomm.CategoryChat)
 	if err != nil || muted {
-		t.Fatalf("IsMuted for a member with no rows = %v, err %v, want false", muted, err)
+		t.Fatalf("IsMuted for a actor with no rows = %v, err %v, want false", muted, err)
 	}
 }

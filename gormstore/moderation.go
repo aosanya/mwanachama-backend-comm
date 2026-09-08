@@ -39,7 +39,7 @@ func ReportToRow(r models.Report) ReportRow {
 	return ReportRow{
 		ID:                r.ID,
 		MessageID:         r.MessageID,
-		ChapterID:         r.ChapterID,
+		ChapterID:         r.StructureID,
 		ReportedBy:        r.ReportedBy,
 		ReporterRoleClass: r.ReporterRoleClass,
 		Reason:            string(r.Reason),
@@ -54,7 +54,7 @@ func ReportFromRow(r ReportRow) models.Report {
 	return models.Report{
 		ID:                r.ID,
 		MessageID:         r.MessageID,
-		ChapterID:         r.ChapterID,
+		StructureID:       r.ChapterID,
 		ReportedBy:        r.ReportedBy,
 		ReporterRoleClass: r.ReporterRoleClass,
 		Reason:            models.ReportReason(r.Reason),
@@ -92,7 +92,7 @@ func RemovalToRow(r models.Removal) RemovalRow {
 	return RemovalRow{
 		ID:             r.ID,
 		MessageID:      r.MessageID,
-		ChapterID:      r.ChapterID,
+		ChapterID:      r.StructureID,
 		RemovedBy:      r.RemovedBy,
 		ActorRoleClass: r.ActorRoleClass,
 		Reason:         string(r.Reason),
@@ -105,7 +105,7 @@ func RemovalFromRow(r RemovalRow) models.Removal {
 	return models.Removal{
 		ID:             r.ID,
 		MessageID:      r.MessageID,
-		ChapterID:      r.ChapterID,
+		StructureID:    r.ChapterID,
 		RemovedBy:      r.RemovedBy,
 		ActorRoleClass: r.ActorRoleClass,
 		Reason:         models.RemovalReason(r.Reason),
@@ -146,7 +146,7 @@ func DisputeToRow(d models.Dispute) DisputeRow {
 		RemovalID:       d.RemovalID,
 		RaisedBy:        d.RaisedBy,
 		Statement:       d.Statement,
-		ReviewChapterID: d.ReviewChapterID,
+		ReviewChapterID: d.ReviewStructureID,
 		HeldSince:       d.HeldSince,
 		RaisedAt:        d.RaisedAt,
 		State:           string(d.State),
@@ -158,15 +158,15 @@ func DisputeToRow(d models.Dispute) DisputeRow {
 // DisputeFromRow converts a row back to the domain Dispute.
 func DisputeFromRow(r DisputeRow) models.Dispute {
 	return models.Dispute{
-		ID:              r.ID,
-		RemovalID:       r.RemovalID,
-		RaisedBy:        r.RaisedBy,
-		Statement:       r.Statement,
-		ReviewChapterID: r.ReviewChapterID,
-		HeldSince:       r.HeldSince,
-		RaisedAt:        r.RaisedAt,
-		State:           models.DisputeState(r.State),
-		DecidedBy:       NullableToString(r.DecidedBy),
-		DecidedAt:       r.DecidedAt,
+		ID:                r.ID,
+		RemovalID:         r.RemovalID,
+		RaisedBy:          r.RaisedBy,
+		Statement:         r.Statement,
+		ReviewStructureID: r.ReviewChapterID,
+		HeldSince:         r.HeldSince,
+		RaisedAt:          r.RaisedAt,
+		State:             models.DisputeState(r.State),
+		DecidedBy:         NullableToString(r.DecidedBy),
+		DecidedAt:         r.DecidedAt,
 	}
 }

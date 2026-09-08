@@ -61,7 +61,7 @@ func isParticipant(dm mwanachamacomm.DMRepository, r *http.Request, threadID, ca
 		return false, err
 	}
 	for _, p := range parts {
-		if p.MemberID == callerID {
+		if p.ActorID == callerID {
 			return true, nil
 		}
 	}
@@ -161,22 +161,19 @@ func ListDMParticipants(dm mwanachamacomm.DMRepository, identity Identity) http.
 	}
 }
 
-// dmMemberBody is the wire shape every roster write but accept/leave takes:
-// the target member, from the request body — the caller's own id comes from
-// Identity, never the body.
-type dmMemberBody struct {
-	MemberID string `json:"member_id"`
+type dmActorBody struct {
+	ActorID string `json:"actor_id"`
 }
 
 // InviteDM handles POST /v1/dm/threads/{threadID}/invite.
 func InviteDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var body dmMemberBody
+		var body dmActorBody
 		if err := readJSON(r, &body); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		out, err := dm.Invite(r.Context(), r.PathValue("threadID"), body.MemberID, identity.CallerID(r))
+		out, err := dm.Invite(r.Context(), r.PathValue("threadID"), body.ActorID, identity.CallerID(r))
 		if err != nil {
 			writeDMErr(w, err)
 			return
@@ -212,12 +209,12 @@ func LeaveDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc
 // KickDM handles POST /v1/dm/threads/{threadID}/kick (admin-only).
 func KickDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var body dmMemberBody
+		var body dmActorBody
 		if err := readJSON(r, &body); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err := dm.Kick(r.Context(), r.PathValue("threadID"), body.MemberID, identity.CallerID(r)); err != nil {
+		if err := dm.Kick(r.Context(), r.PathValue("threadID"), body.ActorID, identity.CallerID(r)); err != nil {
 			writeDMErr(w, err)
 			return
 		}
@@ -228,12 +225,12 @@ func KickDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc 
 // PromoteDM handles POST /v1/dm/threads/{threadID}/promote (admin-only).
 func PromoteDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var body dmMemberBody
+		var body dmActorBody
 		if err := readJSON(r, &body); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		out, err := dm.Promote(r.Context(), r.PathValue("threadID"), body.MemberID, identity.CallerID(r))
+		out, err := dm.Promote(r.Context(), r.PathValue("threadID"), body.ActorID, identity.CallerID(r))
 		if err != nil {
 			writeDMErr(w, err)
 			return
@@ -242,19 +239,15 @@ func PromoteDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFu
 	}
 }
 
-// ReEnableDM handles POST /v1/dm/threads/{threadID}/re-enable — two acts
-// wearing one route, per mwanachamacomm.DMRepository.ReEnable's doc. An omitted
-// member_id defaults to the caller's own id, the self-reenable case; an
-// admin restoring somebody else names them explicitly.
 func ReEnableDM(dm mwanachamacomm.DMRepository, identity Identity) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var body dmMemberBody
+		var body dmActorBody
 		if err := readJSON(r, &body); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		caller := identity.CallerID(r)
-		target := body.MemberID
+		target := body.ActorID
 		if target == "" {
 			target = caller
 		}

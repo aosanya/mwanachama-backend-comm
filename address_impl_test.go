@@ -24,7 +24,7 @@ func hashOf(s string) []byte { return []byte("hash:" + s) }
 func TestAddressPublishAndResolve(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	a, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a1"), SaltID: 1, Index: 0})
+	a, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a1"), SaltID: 1, Index: 0})
 	if err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
@@ -35,8 +35,8 @@ func TestAddressPublishAndResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if got.MemberID != "m-1" {
-		t.Fatalf("Resolve.MemberID = %q, want m-1", got.MemberID)
+	if got.ActorID != "m-1" {
+		t.Fatalf("Resolve.ActorID = %q, want m-1", got.ActorID)
 	}
 }
 
@@ -49,7 +49,7 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 		t.Fatalf("unknown: expected ErrAddressNotFound, got %v", err)
 	}
 
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("retired"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("retired"), Index: 0}); err != nil {
 		t.Fatalf("publish retired: %v", err)
 	}
 	if err := s.Retire(ctx, "m-1", 0, now); err != nil {
@@ -61,7 +61,7 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 
 	past := now.Add(-time.Hour)
 	if _, err := s.Publish(ctx, mwanachamacomm.Address{
-		MemberID: "m-1", Hash: hashOf("expired"), Index: 1,
+		ActorID: "m-1", Hash: hashOf("expired"), Index: 1,
 		AddressSettings: mwanachamacomm.AddressSettings{ExpiresAt: &past, ExpiryMode: mwanachamacomm.AddressModeClosed},
 	}); err != nil {
 		t.Fatalf("publish expired: %v", err)
@@ -74,22 +74,22 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 func TestAddressPublishRefusesDuplicateHash(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("dup"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("dup"), Index: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-2", Hash: hashOf("dup"), Index: 0}); err == nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("dup"), Index: 0}); err == nil {
 		t.Fatalf("expected duplicate hash to be refused")
 	}
 }
 
-func TestAddressPublishRefusesDuplicateMemberIndex(t *testing.T) {
+func TestAddressPublishRefusesDuplicateActorIndex(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("b"), Index: 0}); err == nil {
-		t.Fatalf("expected duplicate (member,index) to be refused")
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("b"), Index: 0}); err == nil {
+		t.Fatalf("expected duplicate (actor,index) to be refused")
 	}
 }
 
@@ -97,7 +97,7 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
 	for i := 2; i >= 0; i-- {
-		if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf(string(rune('a' + i))), Index: i}); err != nil {
+		if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf(string(rune('a' + i))), Index: i}); err != nil {
 			t.Fatalf("publish %d: %v", i, err)
 		}
 	}
@@ -121,7 +121,7 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	// Naming someone else's address touches nothing.
@@ -141,7 +141,7 @@ func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 func TestAddressCountPublicIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391"}); err != nil {
@@ -163,7 +163,7 @@ func TestAddressCountPublicIncludesRetired(t *testing.T) {
 func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), Index: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 
@@ -205,21 +205,21 @@ func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 	}
 }
 
-func TestAddressListListedExcludesUnlistedAndOneMember(t *testing.T) {
+func TestAddressListListedExcludesUnlistedAndOneActor(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-1", Hash: hashOf("listed"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("listed"), Index: 0}); err != nil {
 		t.Fatalf("publish m-1: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391", ListedAt: &now}); err != nil {
 		t.Fatalf("list m-1: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-2", Hash: hashOf("unlisted"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("unlisted"), Index: 0}); err != nil {
 		t.Fatalf("publish m-2: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{MemberID: "m-3", Hash: hashOf("also-listed"), Index: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-3", Hash: hashOf("also-listed"), Index: 0}); err != nil {
 		t.Fatalf("publish m-3: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-3", 0, mwanachamacomm.AddressSettings{PublicAddress: "ERL2393NOP1234", ListedAt: &now}); err != nil {
@@ -232,7 +232,7 @@ func TestAddressListListedExcludesUnlistedAndOneMember(t *testing.T) {
 	}
 
 	out, err = s.ListListed(ctx, "m-3", now)
-	if err != nil || len(out) != 1 || out[0].MemberID != "m-1" {
+	if err != nil || len(out) != 1 || out[0].ActorID != "m-1" {
 		t.Fatalf("ListListed(exclude m-3) = %+v, err %v, want just m-1", out, err)
 	}
 }
@@ -244,10 +244,10 @@ func TestAddressBlockIsIdempotentAndScoped(t *testing.T) {
 	if err != nil || blocked {
 		t.Fatalf("IsBlocked before any block = %v, err %v, want false", blocked, err)
 	}
-	if err := s.Block(ctx, mwanachamacomm.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block: %v", err)
 	}
-	if err := s.Block(ctx, mwanachamacomm.AddressBlock{MemberID: "m-1", Hash: hashOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block again: %v", err)
 	}
 	blocked, err = s.IsBlocked(ctx, "m-1", hashOf("a"))
@@ -256,6 +256,6 @@ func TestAddressBlockIsIdempotentAndScoped(t *testing.T) {
 	}
 	blocked, err = s.IsBlocked(ctx, "m-2", hashOf("a"))
 	if err != nil || blocked {
-		t.Fatalf("IsBlocked for a different member = %v, err %v, want false", blocked, err)
+		t.Fatalf("IsBlocked for a different actor = %v, err %v, want false", blocked, err)
 	}
 }

@@ -64,7 +64,7 @@ func TestChatActivityRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChatStore: %v", err)
 	}
-	if _, err := chat.Post(context.Background(), mwanachamacomm.ChatMessage{ChapterID: "c-1", AuthorID: "a-1", Body: "hi"}); err != nil {
+	if _, err := chat.Post(context.Background(), mwanachamacomm.ChatMessage{StructureID: "c-1", AuthorID: "a-1", Body: "hi"}); err != nil {
 		t.Fatalf("seed post: %v", err)
 	}
 
@@ -131,9 +131,6 @@ func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
 	}
 }
 
-// TestPublishDMDeviceKeyIgnoresClaimedProvenance is DEV-1265: a body naming
-// somebody else's member/device is decoded without error and then silently
-// overwritten, never refused as an unknown field.
 func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
 	db, tables := newRouteTestDB(t)
 	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
@@ -143,7 +140,7 @@ func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
 	identity := testIdentity{callerID: "m-1", deviceID: "device-1"}
 	req := httptest.NewRequest(http.MethodPost, "/v1/dm/device-keys", jsonBody(t, map[string]string{
 		"public_key":   "pk-1",
-		"published_by": "member-someone-else",
+		"published_by": "actor-someone-else",
 		"device_id":    "device-someone-else",
 	}))
 	w := httptest.NewRecorder()
@@ -169,7 +166,7 @@ func TestDMInviteAndAcceptRoutes(t *testing.T) {
 	}
 
 	asAdmin := testIdentity{callerID: "m-1"}
-	inviteReq := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"member_id": "m-2"}))
+	inviteReq := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"actor_id": "m-2"}))
 	inviteReq.SetPathValue("threadID", th.ID)
 	w := httptest.NewRecorder()
 	routes.InviteDM(dm, asAdmin)(w, inviteReq)
@@ -207,7 +204,7 @@ func TestDMInviteRouteMapsAlreadyActiveTo409(t *testing.T) {
 	}
 
 	identity := testIdentity{callerID: "m-1"}
-	req := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"member_id": "m-2"}))
+	req := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"actor_id": "m-2"}))
 	req.SetPathValue("threadID", th.ID)
 	w := httptest.NewRecorder()
 	routes.InviteDM(dm, identity)(w, req)
@@ -245,7 +242,7 @@ func TestListReportQueueRoute(t *testing.T) {
 		t.Fatalf("NewModerationStore: %v", err)
 	}
 	if _, err := mod.FileReport(context.Background(), mwanachamacomm.Report{
-		MessageID: "msg-1", ChapterID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "...",
+		MessageID: "msg-1", StructureID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "...",
 	}); err != nil {
 		t.Fatalf("seed report: %v", err)
 	}

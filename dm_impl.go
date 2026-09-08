@@ -36,9 +36,6 @@ func NewDMStore(db *gorm.DB, t TableNames, clock Clock) (*DMStore, error) {
 	return &DMStore{db: db, tables: t, clock: clock}, nil
 }
 
-// CreateThread inserts a thread and seeds the initial roster (creator =
-// active admin; other initial members = invited), in one transaction so a
-// participant-insert failure rolls back the empty thread.
 func (s *DMStore) CreateThread(ctx context.Context, t models.DMThread, initial []string) (models.DMThread, error) {
 	if t.CreatedAt.IsZero() {
 		t.CreatedAt = s.clock()
@@ -84,8 +81,6 @@ func (s *DMStore) GetThread(ctx context.Context, id string) (models.DMThread, er
 	return gormstore.DMThreadFromRow(row), nil
 }
 
-// ListThreadsFor returns every thread the member is currently invited to or
-// active in.
 func (s *DMStore) ListThreadsFor(ctx context.Context, memberID string) ([]models.DMThread, error) {
 	var rows []gormstore.DMThreadRow
 	err := s.db.WithContext(ctx).Table(s.tables.DMThreads+" AS t").

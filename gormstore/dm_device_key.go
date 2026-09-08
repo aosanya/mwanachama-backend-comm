@@ -8,17 +8,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// DMDeviceKeyRow is the GORM row for a [models.DMDeviceKey]. Composite
-// primary key (member_id, key_id).
-//
-// The original schema.sql declared three PARTIAL indexes (live keys only,
-// WHERE retired_at IS NULL) — a query-selectivity optimisation, not a
-// constraint GORM's struct tags express. Plain (non-partial) indexes here
-// instead: every lookup this repo runs (LookupDeviceKeys,
-// RetireDeviceKeysForDevice) still filters retired_at in the WHERE clause
-// itself, so correctness is unaffected; only a Postgres deployment with a
-// very large retired-key backlog would notice the missing partial-index
-// selectivity, and nothing in this repo's tests exercise that scale.
 type DMDeviceKeyRow struct {
 	MemberID    string `gorm:"primaryKey"`
 	KeyID       string `gorm:"primaryKey"`
@@ -48,7 +37,7 @@ func (r *DMDeviceKeyRow) BeforeCreate(tx *gorm.DB) error {
 // DMDeviceKeyToRow converts a domain DMDeviceKey to its row shape.
 func DMDeviceKeyToRow(k models.DMDeviceKey) DMDeviceKeyRow {
 	return DMDeviceKeyRow{
-		MemberID:    k.MemberID,
+		MemberID:    k.ActorID,
 		KeyID:       k.KeyID,
 		PublicKey:   k.PublicKey,
 		CreatedAt:   k.CreatedAt,
@@ -61,7 +50,7 @@ func DMDeviceKeyToRow(k models.DMDeviceKey) DMDeviceKeyRow {
 // DMDeviceKeyFromRow converts a row back to the domain DMDeviceKey.
 func DMDeviceKeyFromRow(r DMDeviceKeyRow) models.DMDeviceKey {
 	return models.DMDeviceKey{
-		MemberID:    r.MemberID,
+		ActorID:     r.MemberID,
 		KeyID:       r.KeyID,
 		PublicKey:   r.PublicKey,
 		CreatedAt:   r.CreatedAt,

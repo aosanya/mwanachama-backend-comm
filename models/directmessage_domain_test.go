@@ -20,9 +20,6 @@ func TestDMParticipantStateValues(t *testing.T) {
 	}
 }
 
-// A thread with no title (a plain N-member group with no name set) must
-// omit the key rather than send an empty string, matching Chapter.ParentID's
-// convention elsewhere in the gateway.
 func TestDMThreadTitleOmittedWhenEmpty(t *testing.T) {
 	th := DMThread{ID: "t1", CreatedBy: "m1", CreatedAt: time.Unix(0, 0).UTC()}
 	b, err := json.Marshal(th)
@@ -52,7 +49,7 @@ func TestDMThreadTitleOmittedWhenEmpty(t *testing.T) {
 }
 
 func TestDMParticipantJSONFields(t *testing.T) {
-	p := DMParticipant{ThreadID: "t1", MemberID: "m1", State: DMStateActive, IsAdmin: true, UpdatedAt: time.Unix(0, 0).UTC()}
+	p := DMParticipant{ThreadID: "t1", ActorID: "m1", State: DMStateActive, IsAdmin: true, UpdatedAt: time.Unix(0, 0).UTC()}
 	b, err := json.Marshal(p)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -61,7 +58,7 @@ func TestDMParticipantJSONFields(t *testing.T) {
 	if err := json.Unmarshal(b, &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	for _, key := range []string{"thread_id", "member_id", "state", "is_admin", "updated_at"} {
+	for _, key := range []string{"thread_id", "actor_id", "state", "is_admin", "updated_at"} {
 		if _, ok := got[key]; !ok {
 			t.Errorf("DMParticipant missing key %q: %s", key, b)
 		}
@@ -97,7 +94,7 @@ func TestDMMessageCiphertextRoundTrips(t *testing.T) {
 }
 
 func TestDMDeviceKeyJSONFields(t *testing.T) {
-	k := DMDeviceKey{MemberID: "m1", KeyID: "k1", PublicKey: "pk", CreatedAt: time.Unix(0, 0).UTC()}
+	k := DMDeviceKey{ActorID: "m1", KeyID: "k1", PublicKey: "pk", CreatedAt: time.Unix(0, 0).UTC()}
 	b, err := json.Marshal(k)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -106,7 +103,7 @@ func TestDMDeviceKeyJSONFields(t *testing.T) {
 	if err := json.Unmarshal(b, &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	for _, key := range []string{"member_id", "key_id", "public_key", "created_at"} {
+	for _, key := range []string{"actor_id", "key_id", "public_key", "created_at"} {
 		if _, ok := got[key]; !ok {
 			t.Errorf("DMDeviceKey missing key %q: %s", key, b)
 		}

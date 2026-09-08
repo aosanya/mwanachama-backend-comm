@@ -42,7 +42,7 @@ func DismissalToRow(d models.Dismissal) DismissalRow {
 	return DismissalRow{
 		ID:             d.ID,
 		MessageID:      d.MessageID,
-		ChapterID:      d.ChapterID,
+		ChapterID:      d.StructureID,
 		DismissedBy:    d.DismissedBy,
 		ActorRoleClass: d.ActorRoleClass,
 		Reason:         string(d.Reason),
@@ -56,7 +56,7 @@ func DismissalFromRow(r DismissalRow) models.Dismissal {
 	return models.Dismissal{
 		ID:             r.ID,
 		MessageID:      r.MessageID,
-		ChapterID:      r.ChapterID,
+		StructureID:    r.ChapterID,
 		DismissedBy:    r.DismissedBy,
 		ActorRoleClass: r.ActorRoleClass,
 		Reason:         models.RemovalReason(r.Reason),

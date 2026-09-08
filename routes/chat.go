@@ -1,8 +1,3 @@
-// chat.go — the one portable chat operation. Every other chat handler
-// (mintChatThread/listChatThreads/resolveChatThread/postChatMessage/
-// listChatMessages/chatStream) calls requireChapterMember in its own body
-// — member.Repository + chapter.Repository, gateway-internal — and stays in
-// the gateway; see doc.go.
 package routes
 
 import (
@@ -19,14 +14,14 @@ func ChatActivityRoutes(reader mwanachamacomm.ChatActivityReader) []Route {
 	}
 }
 
-// ChatActivity handles GET /v1/chat/activity — decode chapter_id/limit/
+// ChatActivity handles GET /v1/chat/activity — decode structure_id/limit/
 // offset, call, encode. The gateway wraps this with its own
 // CapChatActivityRead capability check externally (route-table wrapping,
 // the same pattern actor's HierarchyChecker callers use) — this handler
 // answers only "given that a caller may act, here is the summary".
 func ChatActivity(reader mwanachamacomm.ChatActivityReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := mwanachamacomm.ChatActivityQuery{ChapterID: r.URL.Query().Get("chapter_id")}
+		q := mwanachamacomm.ChatActivityQuery{StructureID: r.URL.Query().Get("structure_id")}
 		if v := r.URL.Query().Get("limit"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n < 0 {
