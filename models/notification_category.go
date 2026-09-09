@@ -25,6 +25,9 @@ const (
 	// CategorySecurity — OTP, device recovery, duplicate-ID case notices.
 	// The only category with an SMS channel, and exempt from muting.
 	CategorySecurity NotificationCategory = "security"
+	// CategoryApproval — an agent-proposed write is waiting on the actor
+	// named Accountable for it (mwanachama-backend-api-kazi's K6).
+	CategoryApproval NotificationCategory = "approval"
 )
 
 // notificationCategories is the whole vocabulary, in the order the object
@@ -32,6 +35,7 @@ const (
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
+	CategoryApproval,
 }
 
 // NotificationCategories returns the vocabulary. A copy, so a caller
@@ -107,6 +111,9 @@ const (
 	// EventDeviceSignedOut — a security notice: a bare fact with no link,
 	// no control, no person, no place.
 	EventDeviceSignedOut NotificationEvent = "device_signed_out"
+	// EventApprovalRequested — an agent's proposed write named this actor
+	// Accountable and is waiting on their decision.
+	EventApprovalRequested NotificationEvent = "approval_requested"
 )
 
 // notificationEventCategory is the whole vocabulary of events, each mapped
@@ -133,6 +140,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventConsentVersionPublished:   CategoryMembership,
 	EventNumberChanged:             CategoryMembership,
 	EventDeviceSignedOut:           CategorySecurity,
+	EventApprovalRequested:         CategoryApproval,
 }
 
 func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
@@ -154,12 +162,15 @@ const (
 	SubjectDevice             NotificationSubjectKind = "device"
 	SubjectEnrollmentKey      NotificationSubjectKind = "enrollment_key"
 	SubjectActorRegistration  NotificationSubjectKind = "actor_registration"
+	// SubjectPendingApproval — the row is a
+	// mwanachama-backend-api-shared PendingApproval id.
+	SubjectPendingApproval NotificationSubjectKind = "pending_approval"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectSurvey, SubjectContribution, SubjectContributionReport,
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
-	SubjectEnrollmentKey, SubjectActorRegistration,
+	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
 }
 
 // IsNotificationSubjectKind reports whether k is one of the nine.
