@@ -277,6 +277,44 @@ instead of the old root-package `moderation_act.go`.
   the same `*sql.DB`/custody store the gateway's own custody code uses**, or
   the transaction guarantee breaks silently.
 
+## First outside producer of Notification — 2026-09-09
+
+`mwanachama-backend-api-kazi`'s K6 (agent-proposed writes needing human
+approval) is the first real caller of `NotificationRepository.Raise`
+anywhere — before this, only this repo's own tests called it; nothing in
+the gateway's business logic raises one yet. Added a new, closed-vocabulary
+entry to `models/notification_category.go` for it: `CategoryApproval`,
+`EventApprovalRequested`, `SubjectPendingApproval` (the subject is a
+`mwanachama-backend-api-shared` `PendingApproval` id). No schema/migration
+change — category/event/subject_kind are validated in Go only, no Postgres
+CHECK constraint enforces the vocabulary (confirmed against
+`internal/store/postgres/migrations/000002_comm_tables.up.sql` in the
+gateway repo, which in fact doesn't carry a `comm_notification`/
+`comm_notification_preference` table at all yet — a pre-existing gap in
+that migration mirror, flagged here but not fixed, since it's unrelated to
+this vocabulary addition and not this repo's file to fix unprompted).
+
+kazi is a separate deployable with its own isolated Postgres database
+(blast-radius isolation, its own K9/K13 decision) — for a raised
+notification to reach a real human's inbox it has to land in the SAME
+`comm_notification` table this repo's own `NotificationStore` and the
+gateway's `/v1/notifications` route read from, not a copy in kazi's own
+database. kazi's `cmd/server/stores.go` (`buildNotifications`,
+`GATEWAY_POSTGRES_URL`) opens a second connection into the gateway's own
+database for exactly this one table, the mirror image of the gateway's own
+`buildApprovalsStore`/`KAZI_POSTGRES_URL` (which reaches into kazi's
+database for `PendingApproval`, the one table that needs to flow the other
+way). Same caveat as that one: `STORE_BACKEND=memory` gives kazi a private,
+disconnected sqlite database for `Notifications` — real cross-service
+delivery only happens under `STORE_BACKEND=postgres` with
+`GATEWAY_POSTGRES_URL` actually pointed at the gateway's real database.
+
+There is still no renderer wired up for `approval_requested` — this
+package's own design (`Notification` has no stored title/body; "the client
+renders both from Event and the subject it names") means a Flutter/web
+client needs its own copy for this event before a human sees anything
+readable, not a backend concern and not built here.
+
 ## Conventions
 
 - Task status lives on
