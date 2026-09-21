@@ -12,8 +12,8 @@ import (
 )
 
 // dmStatusFor maps a DMRepository error to a status code. Only
-// ErrDMNotFound and ErrDMAlreadyActive/ErrDMNotLastToLeave get a specific
-// code; everything else (most commonly the unexported "not admin" refusal
+// ErrDMNotFound, ErrDMAlreadyActive/ErrDMSelfKick/ErrDMLastAdmin and
+// ErrDMNotLastToLeave get a specific code; everything else (most commonly the unexported "not admin" refusal
 // every roster write can return) is a 403 — the gateway's own inviteDM only
 // branches ErrDMAlreadyActive->409 from a blanket 403, and every other
 // roster handler is undecorated further still, so this package matches
@@ -23,7 +23,9 @@ func dmStatusFor(err error) int {
 	switch {
 	case errors.Is(err, mwanachamacomm.ErrDMNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, mwanachamacomm.ErrDMAlreadyActive):
+	case errors.Is(err, mwanachamacomm.ErrDMAlreadyActive),
+		errors.Is(err, mwanachamacomm.ErrDMSelfKick),
+		errors.Is(err, mwanachamacomm.ErrDMLastAdmin):
 		return http.StatusConflict
 	case errors.Is(err, mwanachamacomm.ErrDMNotLastToLeave):
 		return http.StatusForbidden

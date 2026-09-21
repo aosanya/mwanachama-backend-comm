@@ -72,12 +72,14 @@ const (
 	DMStateKicked  DMParticipantState = models.DMStateKicked
 )
 
-// ErrDMNotFound, ErrDMAlreadyActive and ErrDMNotLastToLeave are aliases of
-// their models. counterparts.
+// ErrDMNotFound, ErrDMAlreadyActive, ErrDMNotLastToLeave, ErrDMSelfKick and
+// ErrDMLastAdmin are aliases of their models. counterparts.
 var (
 	ErrDMNotFound       = models.ErrDMNotFound
 	ErrDMAlreadyActive  = models.ErrDMAlreadyActive
 	ErrDMNotLastToLeave = models.ErrDMNotLastToLeave
+	ErrDMSelfKick       = models.ErrDMSelfKick
+	ErrDMLastAdmin      = models.ErrDMLastAdmin
 )
 
 type (

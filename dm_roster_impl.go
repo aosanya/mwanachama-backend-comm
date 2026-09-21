@@ -60,12 +60,36 @@ func (s *DMStore) Accept(ctx context.Context, threadID, memberID string) (models
 	return s.setState(ctx, threadID, memberID, models.DMStateActive)
 }
 
+// Leave refuses with [models.ErrDMLastAdmin] when memberID is the thread's
+// only active admin and other participants are still active, since every
+// roster write needs an active admin and nobody could restore one.
 func (s *DMStore) Leave(ctx context.Context, threadID, memberID string) error {
-	_, err := s.setState(ctx, threadID, memberID, models.DMStateLeft)
+	admin, err := s.isAdmin(ctx, threadID, memberID)
+	if err != nil {
+		return err
+	}
+	if admin {
+		var activeAdmins, active int64
+		base := s.db.WithContext(ctx).Table(s.tables.DMParticipants).Where("thread_id = ? AND state = ?", threadID, string(models.DMStateActive))
+		if err := base.Session(&gorm.Session{}).Where("is_admin = ?", true).Count(&activeAdmins).Error; err != nil {
+			return err
+		}
+		if err := base.Session(&gorm.Session{}).Count(&active).Error; err != nil {
+			return err
+		}
+		if activeAdmins == 1 && active > 1 {
+			return models.ErrDMLastAdmin
+		}
+	}
+	_, err = s.setState(ctx, threadID, memberID, models.DMStateLeft)
 	return err
 }
 
+// Kick refuses a self-kick with [models.ErrDMSelfKick].
 func (s *DMStore) Kick(ctx context.Context, threadID, memberID, by string) error {
+	if memberID == by {
+		return models.ErrDMSelfKick
+	}
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
 		return err

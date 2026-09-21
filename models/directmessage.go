@@ -13,6 +13,15 @@ var ErrDMNotFound = errors.New("directmessage: not found")
 
 var ErrDMAlreadyActive = errors.New("directmessage: already an active participant")
 
+// ErrDMSelfKick is returned when an admin tries to kick themselves; leaving is
+// Leave's job, and Leave guards against stranding the thread.
+var ErrDMSelfKick = errors.New("directmessage: cannot kick yourself")
+
+// ErrDMLastAdmin is returned when the thread's only active admin tries to
+// leave while other participants are still active — nobody would be left who
+// can promote, invite or kick. Promote a successor first.
+var ErrDMLastAdmin = errors.New("directmessage: the last admin cannot leave while others remain; promote a successor first")
+
 var ErrDMNotLastToLeave = errors.New("directmessage: only the actor who was last to leave can bring this thread back")
 
 type DMParticipantState string
