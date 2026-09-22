@@ -25,6 +25,8 @@ package routes_test
 // own convention for pinning tests (see w14_dm_admin_lockout_httptest_test.go).
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -33,6 +35,32 @@ import (
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-comm/routes"
 )
+
+// dmHTTPGetParticipants used to live in w14_dm_admin_lockout_httptest_test.go
+// and was removed there when W14's fix landed (2026-09-21) and that file's
+// own pins were rewritten without needing it. This file is now its only
+// caller, so it moved here rather than being reinvented.
+func dmHTTPGetParticipants(t *testing.T, client *http.Client, url, caller string) (int, []map[string]any) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set(testCallerHeader, caller)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	var out []map[string]any
+	raw, _ := io.ReadAll(resp.Body)
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &out); err != nil {
+			t.Fatalf("decode response %q: %v", raw, err)
+		}
+	}
+	return resp.StatusCode, out
+}
 
 // newDMTestServerPinnedW15 is newDMTestServer but pins the underlying
 // sqlite :memory: connection to exactly one connection. Without this, the
@@ -99,9 +127,19 @@ func TestPinsW15_ConcurrentSelfReEnableCanBothSucceed(t *testing.T) {
 			}
 		}
 
+		// W14 (fixed 2026-09-21) now refuses an active admin's own Leave
+		// while another participant is still active and no other admin
+		// exists — admin-1 leaving last, as before, would 409. Promote
+		// member-2 to admin first so admin-1's leave is no longer the
+		// last-admin case, then leave in an order where the only admin
+		// ever leaves as the sole remaining participant (always allowed).
+		if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/promote", "admin-1", map[string]string{"actor_id": "member-2"}); st != http.StatusOK {
+			t.Fatalf("promote member-2: status=%d body=%v", st, body)
+		}
+
 		// Everyone leaves, one at a time — no race here — so the thread
 		// ends with nobody active and every participant in DMStateLeft.
-		for _, m := range []string{"admin-1", "member-2", "member-3"} {
+		for _, m := range []string{"admin-1", "member-3", "member-2"} {
 			if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/leave", m, nil); st != http.StatusNoContent {
 				t.Fatalf("leave %s: status=%d body=%v", m, st, body)
 			}
