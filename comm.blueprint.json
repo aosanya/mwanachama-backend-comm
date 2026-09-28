@@ -1,0 +1,958 @@
+{
+  "module": "comm",
+  "objects": [
+    {
+      "role": "chat_thread",
+      "description": "One named conversation inside a structure's room. Resolved by its tag path rather than by id, because a client knows the topic it wants and not the thread that was minted for it.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose room this thread belongs to. Every read is scoped by it.",
+          "required": true
+        },
+        {
+          "name": "tag_path",
+          "type": "string",
+          "description": "The topic this thread is the conversation for, as a dotted path. Unique within a structure, and the only way a thread is looked up.",
+          "required": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When the thread was minted."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "structure_tag_path",
+          "description": "Resolves a topic to its thread, which is the read every post makes first. Unique, so one topic cannot end up with two threads.",
+          "fields": [
+            "structure_id",
+            "tag_path"
+          ],
+          "unique": true
+        },
+        {
+          "name": "structure",
+          "description": "Lists every thread in one room.",
+          "fields": [
+            "structure_id"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "chat_message",
+      "description": "One post in a structure's room. A post with no thread is a room-level post, which is a real state rather than a missing value.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose room this was posted in.",
+          "required": true
+        },
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread this belongs to. Empty for a room-level post, which is a real state rather than a missing value — this module has no post that belongs to a thread whose id is nothing."
+        },
+        {
+          "name": "author_id",
+          "type": "string",
+          "description": "The actor who posted it.",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "description": "The post itself, as written. Never edited and never deleted — a withheld post is a removal row beside it, not a change here."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was posted. Second half of both listing indexes, because a room is always read in time order."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "structure_created",
+          "description": "Reads one room's posts in time order, and is what the activity summary counts over.",
+          "fields": [
+            "structure_id",
+            "created_at"
+          ]
+        },
+        {
+          "name": "thread_created",
+          "description": "Reads one thread's posts in time order.",
+          "fields": [
+            "thread_id",
+            "created_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "dm_thread",
+      "description": "One direct conversation. A group is a thread with more than one recipient rather than a separate concept, so there is no group object anywhere in this module.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "description": "What the participants call this conversation. Empty for a thread nobody has named, which is the usual case for two people."
+        },
+        {
+          "name": "created_by",
+          "type": "string",
+          "description": "The actor who opened it."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was opened."
+        },
+        {
+          "name": "opened_via_address_hash",
+          "type": "string",
+          "description": "The keyed hash of the address this thread was opened through, hex-encoded, or empty if it was opened directly. What a reader gets is the bare fact that an address opened the thread, never this value — it is what makes Block possible and all that does."
+        },
+        {
+          "name": "opened_via_address_owner",
+          "type": "string",
+          "description": "The actor who owns the address the thread was opened through."
+        },
+        {
+          "name": "opened_via_address_index",
+          "type": "int",
+          "description": "Which of that owner's addresses was used. Nullable rather than zero-defaulted because address 0 is a real address: a missing value and the first address must stay different things.",
+          "nullable": true
+        },
+        {
+          "name": "sent_from_address_owner",
+          "type": "string",
+          "description": "The sender's side of the pair — the actor who owns the address they chose to write from."
+        },
+        {
+          "name": "sent_from_address_index",
+          "type": "int",
+          "description": "Which of the sender's own addresses they wrote from. Nullable for the same reason as the other index: zero is an address, not an absence.",
+          "nullable": true
+        },
+        {
+          "name": "sent_from_address_sealed",
+          "type": "json",
+          "description": "The sender's own address, encrypted to the recipient's devices. Opaque here — this module stores it and serves it back and holds no key to it."
+        },
+        {
+          "name": "message_ttl_seconds",
+          "type": "int",
+          "description": "The disappearing-message timer, frozen onto the thread from the address's own setting at open. Absent means off, which is why it is nullable: zero seconds would mean every message vanishes instantly.",
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "role": "dm_participant",
+      "description": "One actor's standing on one thread. The roster is the authorization fence for every read and write against the thread.",
+      "fields": [
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread. First half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The actor. Second half of the composite key, so an actor appears on a thread once.",
+          "primary": true
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "description": "Where this actor stands. Invited has not accepted yet and does not count as active; left is their own act and can be undone by re-enabling; kicked is an admin's and cannot.",
+          "default": "invited",
+          "values": [
+            "invited",
+            "active",
+            "left",
+            "kicked"
+          ]
+        },
+        {
+          "name": "is_admin",
+          "type": "bool",
+          "description": "Whether this actor may invite, kick and promote. The last active admin may not leave while others remain."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "description": "When this standing last changed."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_state",
+          "description": "Lists one actor's threads by standing, which is the inbox read.",
+          "fields": [
+            "actor_id",
+            "state"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "dm_message",
+      "description": "One end-to-end encrypted message on a thread. This module stores ciphertext and the wrapped keys and can read neither.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread it was sent on.",
+          "required": true
+        },
+        {
+          "name": "sender_id",
+          "type": "string",
+          "description": "The actor who sent it."
+        },
+        {
+          "name": "sender_device_key_id",
+          "type": "string",
+          "description": "Which of the sender's device keys signed it, so a recipient knows which key to verify against."
+        },
+        {
+          "name": "payload_ciphertext",
+          "type": "text",
+          "description": "The message body, encrypted. Opaque to this module."
+        },
+        {
+          "name": "per_recipient_keys",
+          "type": "json",
+          "description": "The content key wrapped once per recipient device key, keyed by device key id. A recipient whose key is missing cannot read the message, which is by construction and not an error this module reports."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was sent. Second half of the listing index, because a conversation is always read in time order."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "thread_created",
+          "description": "Reads one conversation in time order.",
+          "fields": [
+            "thread_id",
+            "created_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "dm_reaction",
+      "description": "One actor's reaction to one message. At most one per actor per message, so reacting again replaces rather than accumulates.",
+      "fields": [
+        {
+          "name": "message_id",
+          "type": "string",
+          "description": "The message reacted to. First half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The actor reacting. Second half of the composite key, which is what makes one reaction per actor per message a stored rule rather than a checked one.",
+          "primary": true
+        },
+        {
+          "name": "emoji",
+          "type": "string",
+          "description": "The reaction itself. Not a closed set — this module does not curate which emoji people may use."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was set."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "message",
+          "description": "Reads every reaction on one message, and with the thread's messages known, every reaction on a conversation in one query rather than one per message.",
+          "fields": [
+            "message_id"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "dm_device_key",
+      "description": "One published public key for one of an actor's handsets. A sender wraps the content key to every live key an actor holds.",
+      "fields": [
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The actor who owns the handset. First half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "key_id",
+          "type": "string",
+          "description": "The key's own identifier. Second half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "public_key",
+          "type": "text",
+          "description": "The published key material, as the device published it. Hashed and compared verbatim, so the two sides cannot disagree about padding."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was published."
+        },
+        {
+          "name": "published_by",
+          "type": "string",
+          "description": "The session that published it. A session fact, overwritten from the session rather than read from the request."
+        },
+        {
+          "name": "device_id",
+          "type": "string",
+          "description": "The handset the key belongs to, from the same session. Absent is legitimate: a session minted by the phone flow carries no device."
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp",
+          "description": "When this key stopped being one to seal to, set when the same handset publishes a different key. A lookup never returns a retired key, because a sender who wraps to one produces a message that is undecryptable by construction with no error anywhere.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "device",
+          "description": "Finds every key one handset published, which is what retiring a device's keys walks.",
+          "fields": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "published_by",
+          "description": "Finds the keys one session published.",
+          "fields": [
+            "published_by"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "report",
+      "description": "One actor asking a moderator to look at one message. Many reports may name one message, and the queue aggregates by the message rather than by the report.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "message_id",
+          "type": "string",
+          "description": "The message reported.",
+          "required": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose moderators own the queue this lands in.",
+          "required": true
+        },
+        {
+          "name": "reported_by",
+          "type": "string",
+          "description": "Who reported it. Shown to the moderator and never to the author.",
+          "required": true
+        },
+        {
+          "name": "reporter_role_class",
+          "type": "string",
+          "description": "The reporter's role class, snapshotted at report time. A reporter promoted next month must not re-write how last month's report reads."
+        },
+        {
+          "name": "reason",
+          "type": "enum",
+          "description": "The ground the reporter names. One more than a removal allows: spam is a reason to ask a moderator to look, not itself a ground to withhold a message on.",
+          "values": [
+            "threats",
+            "abuse",
+            "false_claim",
+            "spam"
+          ]
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "description": "The reporter's own words, additive and never a substitute for the reason. Empty where they gave none."
+        },
+        {
+          "name": "excerpt",
+          "type": "text",
+          "description": "The reported text, cut from the message body at report time and frozen. Editing the message afterwards does not change what the moderator reads."
+        },
+        {
+          "name": "reported_at",
+          "type": "timestamp",
+          "description": "When it was reported."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "message_reporter",
+          "description": "One open report per message per reporter. Unique, so the rule is stored rather than checked.",
+          "fields": [
+            "message_id",
+            "reported_by"
+          ],
+          "unique": true
+        },
+        {
+          "name": "queue",
+          "description": "The moderator's queue for one structure, aggregated by message.",
+          "fields": [
+            "structure_id",
+            "message_id"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "removal",
+      "description": "The act of withholding one message from a room. Not a delete: the row is additive evidence beside a message this module never edits or deletes either, and 'removed' is the existence of this row.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "message_id",
+          "type": "string",
+          "description": "The message withheld. Unique: one removal per message.",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure the message was posted in.",
+          "required": true
+        },
+        {
+          "name": "removed_by",
+          "type": "string",
+          "description": "The moderator who withheld it. Named upward and in the act log, never in the room and never to the author — the room-safe projection blanks it rather than a client choosing not to render it."
+        },
+        {
+          "name": "actor_role_class",
+          "type": "string",
+          "description": "The only identity the room and the author ever see. Snapshotted at removal time, so a later role change does not re-write it."
+        },
+        {
+          "name": "reason",
+          "type": "enum",
+          "description": "The class the message was withheld under. Three, not the report's four — spam is not a ground to withhold on.",
+          "values": [
+            "threats",
+            "abuse",
+            "false_claim"
+          ]
+        },
+        {
+          "name": "removed_at",
+          "type": "timestamp",
+          "description": "When it was withheld."
+        }
+      ]
+    },
+    {
+      "role": "dismissal",
+      "description": "A moderator looking at a message's reports and leaving the post standing. Keyed on the message rather than on a report: six people reporting one post do not each get their own outcome.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "message_id",
+          "type": "string",
+          "description": "The message left standing. Unique: one dismissal per message, and 'left standing' is the existence of this row.",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure the message was posted in.",
+          "required": true
+        },
+        {
+          "name": "dismissed_by",
+          "type": "string",
+          "description": "The moderator who decided. Named upward and in the act log, never to the reporters — the same asymmetry a removal carries, enforced the same way."
+        },
+        {
+          "name": "actor_role_class",
+          "type": "string",
+          "description": "The only identity a reporter ever sees."
+        },
+        {
+          "name": "reason",
+          "type": "enum",
+          "description": "Required, and the removal vocabulary rather than the report one on purpose: the reason lives in the ancestor-readable act log, never in the reporter's receipt.",
+          "values": [
+            "threats",
+            "abuse",
+            "false_claim"
+          ]
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "description": "The moderator's own words, additive and, like the reason, upward-only. Empty where they gave none."
+        },
+        {
+          "name": "dismissed_at",
+          "type": "timestamp",
+          "description": "When it was decided. Second half of the structure index, because the register is read newest first."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "structure_dismissed",
+          "description": "One structure's dismissals in time order, for the upward register.",
+          "fields": [
+            "structure_id",
+            "dismissed_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "dispute",
+      "description": "An author contesting the removal of their own message. Nobody else may raise one, and the flag on the upward register is this row's existence.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "removal_id",
+          "type": "string",
+          "description": "The removal contested. Unique: one dispute per removal.",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "raised_by",
+          "type": "string",
+          "description": "Always the message's author."
+        },
+        {
+          "name": "statement",
+          "type": "text",
+          "description": "The author's own words, free text with no class column. Deliberate: it travels as written."
+        },
+        {
+          "name": "review_structure_id",
+          "type": "string",
+          "description": "The structure whose reviewer decides it, which is never the one that removed the message."
+        },
+        {
+          "name": "held_since",
+          "type": "timestamp",
+          "description": "When the dispute started waiting, which is what an ageing queue is ordered by."
+        },
+        {
+          "name": "raised_at",
+          "type": "timestamp",
+          "description": "When it was raised."
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "description": "Open until decided. Reinstated is 'put it back'; upheld is 'leave it removed'. Neither outcome is drawn as the primary one.",
+          "default": "open",
+          "values": [
+            "open",
+            "reinstated",
+            "upheld"
+          ]
+        },
+        {
+          "name": "decided_by",
+          "type": "string",
+          "description": "The reviewer who decided, who may not be the actor who removed the message. Written once, together with the time; empty while the dispute is open."
+        },
+        {
+          "name": "decided_at",
+          "type": "timestamp",
+          "description": "When it was decided. Absent while open, which is why it is nullable: the outcome is recorded once.",
+          "nullable": true
+        }
+      ]
+    },
+    {
+      "role": "address",
+      "description": "One of an actor's addresses — the handle somebody else can open a conversation to without being told who they are writing to. The row holds the keyed hash and never the address itself, and never the public key either: an address is a pure function of its key, so a row holding the key would hand the address to anyone who read the table.",
+      "fields": [
+        {
+          "name": "hash",
+          "type": "string",
+          "description": "The keyed hash of the address under the organization's salt, hex-encoded, and the primary key. Keyed rather than plain because the address space is about 2^55 and enumerable offline by anyone holding an unsalted table; under the salt a stolen database is not enough.",
+          "primary": true
+        },
+        {
+          "name": "salt_id",
+          "type": "int",
+          "description": "Which salt the hash was computed under, so a rotation can tell which rows still need re-hashing."
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The actor who owns this address.",
+          "required": true
+        },
+        {
+          "name": "address_index",
+          "type": "int",
+          "description": "Which of this actor's addresses it is. Unique with the actor, and the handle every settings write names."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was published."
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp",
+          "description": "When new threads stopped being accepted here. Threads already open are untouched — retiring an address must never sever a conversation the other party is in the middle of.",
+          "nullable": true
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp",
+          "description": "When this address stops, or absent for never. A clock rather than an event: nothing sweeps it, a live read tests it against now, so moving the date moves the effect and an expired address pushed forward works again.",
+          "nullable": true
+        },
+        {
+          "name": "expiry_mode",
+          "type": "enum",
+          "description": "What expiring does, set exactly when the expiry time is. Empty means the address is on no clock at all.",
+          "values": [
+            "",
+            "closed",
+            "silent"
+          ]
+        },
+        {
+          "name": "message_ttl_seconds",
+          "type": "int",
+          "description": "The disappearing-message timer, absent for off. It lives on the address rather than the handset because it has to: the setting belongs to the owner, but the thread is opened by whoever was given the address, whose device cannot know the owner's preference and must not be trusted to report it.",
+          "nullable": true
+        },
+        {
+          "name": "public_address",
+          "type": "string",
+          "description": "The plaintext address, held only where the owner asked for it to be. Empty means the organization holds the hash and nothing else."
+        },
+        {
+          "name": "disabled_at",
+          "type": "timestamp",
+          "description": "When the owner switched this address off. Reversible, and deliberately not the same as retired.",
+          "nullable": true
+        },
+        {
+          "name": "disabled_mode",
+          "type": "enum",
+          "description": "What being switched off does, set exactly when the disabled time is.",
+          "values": [
+            "",
+            "closed",
+            "silent"
+          ]
+        },
+        {
+          "name": "hours",
+          "type": "json",
+          "description": "The weekly schedule this address answers on, or absent for always. An unparseable schedule reads as no schedule and the row is still returned — an address nobody can be told about because one JSON field moved is a worse answer than one shown as open while somebody fixes it."
+        },
+        {
+          "name": "listed_at",
+          "type": "timestamp",
+          "description": "When the owner asked for this address to appear in the directory, or absent for not listed. A second act rather than a synonym for holding the plaintext: publishing says hold this for me, listing says and hand it to anyone who looks.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_index",
+          "description": "One row per actor per address index. Unique, so the pair every settings write names cannot become ambiguous.",
+          "fields": [
+            "actor_id",
+            "address_index"
+          ],
+          "unique": true
+        },
+        {
+          "name": "live",
+          "description": "Finds the live addresses, which resolution reads on every incoming thread.",
+          "fields": [
+            "retired_at"
+          ]
+        },
+        {
+          "name": "public",
+          "description": "Finds an address by its plaintext, for a caller who typed one in.",
+          "fields": [
+            "public_address"
+          ]
+        },
+        {
+          "name": "listed",
+          "description": "The directory listing.",
+          "fields": [
+            "listed_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "address_block",
+      "description": "One actor refusing everything from one address. Holds the keyed hash and never the address, for the same reason an address row does.",
+      "fields": [
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The actor doing the refusing. First half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "hash",
+          "type": "string",
+          "description": "The keyed hash of what they are refusing, hex-encoded. Second half of the composite key.",
+          "primary": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When the block was set."
+        }
+      ]
+    },
+    {
+      "role": "notification",
+      "description": "One thing that happened and that one actor should be told about. There is no title, preview or body column, and that absence is the point: nothing in the product writes a notification body, the client renders one from the event and the subject it names.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "The recipient. Required — a notification without one reaches nobody.",
+          "required": true
+        },
+        {
+          "name": "author_actor_id",
+          "type": "string",
+          "description": "Who caused it, on the one event in the set that has an author. Empty everywhere else."
+        },
+        {
+          "name": "seat_role_kind_id",
+          "type": "string",
+          "description": "The role half of the seat this reached the recipient through. A seat address is both halves or neither."
+        },
+        {
+          "name": "seat_structure_id",
+          "type": "string",
+          "description": "The structure half of that seat."
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "description": "What kind of thing this is, and the unit muting works on. Derived from the event rather than chosen by a caller — a caller that picks its own is the road to an event raised under a mutable category. Survey and security cannot be muted.",
+          "values": [
+            "survey",
+            "results",
+            "contribution",
+            "merchandise",
+            "chat",
+            "membership",
+            "security",
+            "approval"
+          ]
+        },
+        {
+          "name": "event",
+          "type": "enum",
+          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing.",
+          "values": [
+            "survey_reached",
+            "survey_reminder",
+            "survey_nudge",
+            "results_published",
+            "contribution_matched",
+            "contribution_orphaned",
+            "contribution_report_refused",
+            "merchandise_recorded",
+            "message_removed",
+            "identity_case_opened",
+            "identity_case_closed",
+            "enrollment_key_rotated",
+            "actor_transferred",
+            "consent_version_published",
+            "number_changed",
+            "device_signed_out",
+            "approval_requested"
+          ]
+        },
+        {
+          "name": "subject_kind",
+          "type": "enum",
+          "description": "Which table the subject id points into. Not a foreign key, because it points at ten of them.",
+          "values": [
+            "survey",
+            "contribution",
+            "contribution_report",
+            "handout",
+            "message",
+            "identity_case",
+            "device",
+            "enrollment_key",
+            "actor_registration",
+            "pending_approval"
+          ]
+        },
+        {
+          "name": "subject_id",
+          "type": "string",
+          "description": "The row the notification is about. The subject kind and this together are the address, and it needs both halves.",
+          "required": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure this was raised within, where the event has one. A nudge is capped per structure, so a nudge carrying none cannot be capped by an index over that scope and is refused before it is written."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was raised. Second half of the inbox index."
+        },
+        {
+          "name": "read_at",
+          "type": "timestamp",
+          "description": "The recipient's own assertion that they have seen it, and the only column any client writes. Nothing stamps it server-side, and absent is unread.",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_created",
+          "description": "The inbox read: one actor's notifications, newest first.",
+          "fields": [
+            "actor_id",
+            "created_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "notification_preference",
+      "description": "One actor's decision to mute one category. Absent is on, so a actor who has never opened the settings screen receives everything.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Whose preference this is.",
+          "required": true
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "description": "The category muted or unmuted. Survey and security are refused outright rather than stored as unmuted — an exemption a row can carry is an exemption a row can lose.",
+          "values": [
+            "survey",
+            "results",
+            "contribution",
+            "merchandise",
+            "chat",
+            "membership",
+            "security",
+            "approval"
+          ]
+        },
+        {
+          "name": "muted",
+          "type": "bool",
+          "description": "Whether this category is silenced for this actor."
+        },
+        {
+          "name": "changed_at",
+          "type": "timestamp",
+          "description": "When they last changed it."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "actor_category",
+          "description": "One row per actor per category. Unique, so a actor cannot end up with two contradictory preferences for one category.",
+          "fields": [
+            "actor_id",
+            "category"
+          ],
+          "unique": true
+        }
+      ]
+    }
+  ]
+}

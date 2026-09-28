@@ -6,6 +6,8 @@ package models
 // vocabulary a notification is described in lives together, separate from
 // the rows and their Validate.
 
+import "sort"
+
 type NotificationCategory string
 
 const (
@@ -148,6 +150,19 @@ func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
 	return c, ok
 }
 
+// NotificationEvents returns the whole vocabulary of events. Exported so the
+// blueprint's declared `values` and these constants can be held to each other
+// in both directions — a stored value outlives a rename, which makes a drifted
+// constant a data bug rather than a compile error.
+func NotificationEvents() []NotificationEvent {
+	out := make([]NotificationEvent, 0, len(notificationEventCategory))
+	for e := range notificationEventCategory {
+		out = append(out, e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
 // NotificationSubjectKind names the table (SubjectKind, SubjectID)
 // addresses. Not a foreign key, because it points at nine of them.
 type NotificationSubjectKind string
@@ -171,6 +186,14 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectSurvey, SubjectContribution, SubjectContributionReport,
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
+}
+
+// NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
+// the same reason NotificationEvents does.
+func NotificationSubjectKinds() []NotificationSubjectKind {
+	out := make([]NotificationSubjectKind, len(notificationSubjectKinds))
+	copy(out, notificationSubjectKinds)
+	return out
 }
 
 // IsNotificationSubjectKind reports whether k is one of the nine.

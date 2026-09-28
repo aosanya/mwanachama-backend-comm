@@ -1,0 +1,97 @@
+{
+  "module": "comm",
+  "domain": "civic",
+  "instance": "mwanachama",
+  "objects": [
+    {
+      "role": "chat_thread",
+      "name": "chat_thread",
+      "table": "chat_threads",
+      "description": "One named conversation in a chapter's room."
+    },
+    {
+      "role": "chat_message",
+      "name": "chat_message",
+      "table": "chat_messages",
+      "description": "One post in a chapter's room."
+    },
+    {
+      "role": "dm_thread",
+      "name": "dm_thread",
+      "table": "dm_threads",
+      "description": "One direct conversation between members, or among a group of them."
+    },
+    {
+      "role": "dm_participant",
+      "name": "dm_participant",
+      "table": "dm_participants",
+      "description": "One member's standing on one direct conversation."
+    },
+    {
+      "role": "dm_message",
+      "name": "dm_message",
+      "table": "dm_messages",
+      "description": "One end-to-end encrypted message on a direct conversation."
+    },
+    {
+      "role": "dm_reaction",
+      "name": "dm_reaction",
+      "table": "dm_reactions",
+      "description": "One member's reaction to one direct message."
+    },
+    {
+      "role": "dm_device_key",
+      "name": "dm_device_key",
+      "table": "dm_device_keys",
+      "description": "One published public key for one of a member's handsets."
+    },
+    {
+      "role": "report",
+      "name": "message_report",
+      "table": "reports",
+      "description": "One member asking a chapter's moderators to look at a post."
+    },
+    {
+      "role": "removal",
+      "name": "message_removal",
+      "table": "removals",
+      "description": "A moderator withholding a post from a chapter's room."
+    },
+    {
+      "role": "dismissal",
+      "name": "report_dismissal",
+      "table": "dismissals",
+      "description": "A moderator leaving a reported post standing."
+    },
+    {
+      "role": "dispute",
+      "name": "removal_dispute",
+      "table": "disputes",
+      "description": "An author contesting the removal of their own post, decided by a chapter above the one that removed it."
+    },
+    {
+      "role": "address",
+      "name": "member_address",
+      "table": "addresses",
+      "description": "One of a member's addresses — the handle somebody can write to without being told which member they are writing to."
+    },
+    {
+      "role": "address_block",
+      "name": "member_address_block",
+      "table": "address_blocks",
+      "description": "One member refusing everything from one address."
+    },
+    {
+      "role": "notification",
+      "name": "notification",
+      "table": "notifications",
+      "description": "One thing that happened in the organization and that one member should be told about."
+    },
+    {
+      "role": "notification_preference",
+      "name": "notification_preference",
+      "table": "notification_prefs",
+      "description": "One member's decision to mute one category of notification."
+    }
+  ]
+}

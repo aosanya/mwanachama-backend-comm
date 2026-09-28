@@ -28,6 +28,25 @@ long as it took, which is the state agency's AG39 specifically avoided.
 **Table naming: one move, not two.** See below — this is the question that
 had the most wrong answers available.
 
+**The consumer is `mwanachama-wakala-api`.** Added to this record later the
+same day, because it changes what "the conversion is done" means. CM22 was
+written against the three repos that import this module today — the gateway,
+api-kazi and api-shared — and the owner retargeted it to wakala-api, which is
+where `mwanachama-backend-catalog`, `mwanachama-backend-forms` and
+`mwanachama-backend-accounting` are all mounted. So the acceptance is
+wakala-api's own route tests, not the gateway's Postman gate, and the mount
+follows catalog's shape: a `cmd/server/comm.go` that builds the manager and
+returns nil when its environment is unset, and an
+`internal/api/http/comm_routes.go` that registers the declared routes under a
+prefix, gated through `mwanachama-backend-permissions`.
+
+Two consequences worth stating plainly. The gateway keeps importing this
+module and is not part of the conversion's acceptance any more, which means
+nothing in this set proves the gateway still works — that is what is left of
+CM9. And the gateway's SQL migration mirror stops being comm's provisioning
+story, because `Provision` is: that is why CM24 dropped to P3 rather than
+being done, and forms made the same call about its own migration `000003`.
+
 ## CM8 was wasted work, and why
 
 CM8 asked for `000065_extract_comm_tables` to be applied to a real database

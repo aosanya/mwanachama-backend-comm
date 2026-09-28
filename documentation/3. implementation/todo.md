@@ -3,7 +3,7 @@
 🚀 in progress · 📋 not started · ⏸️ blocked
 
 See [todo_done.md](todo_done.md) for W1-W14 (the extraction itself), and for
-CM8 and CM17.
+CM8, CM15, CM17, CM18 and CM19.
 
 **Rows are `CM<n>`, renumbered from `W<n>` on 2026-09-28.** Five boards
 numbered with a bare `W` — this one, accounting, taskmanager, website and
@@ -15,16 +15,13 @@ W15 is CM15. The remaining `W`-on-`W` overlaps are noted, not touched.
 
 | ID | Pri | Status | Task |
 |---|---|---|---|
-| CM9 | P2 | 📋 | Run the `06-1-chat-threads` and `06-2-chat-moderation` Postman journeys with newman against a locally running gateway, as an end-to-end confirmation the route surface is unchanged. Now CM22's acceptance rather than a standalone row: the conversion is what makes the confirmation worth running. |
-| CM15 | P1 | 🚀 | 🐞 **BUG — two different departed participants can both self-`re-enable` an emptied DM thread at once, defeating the documented one-at-a-time exclusivity rule.** `models.ErrDMNotLastToLeave`'s own doc comment states the contract in one sentence: "only the actor who was last to leave can bring this thread back." `dm_roster_impl.go`'s `ReEnable` self-service branch (`memberID == by`) implements this as a read-count-then-write TOCTOU: it calls `hasActive(threadID)` (a `SELECT COUNT` for any `state=active` row) and, only if that returns false *and* the caller's own row is `DMStateLeft`, calls `setState(active)` — two separate, unlocked statements, and `hasActive` inspects the whole thread, not the caller's own row, so two different left participants can each observe `hasActive()==false` before either one commits. Driven entirely over real HTTP (`routes.DMRoutes`, `httptest.NewServer`, real `http.Client`, `POST /v1/dm/threads/{id}/re-enable`, synchronized start channel): a thread with `admin-1`/`member-2`/`member-3`, all three having left one at a time so nobody is active, then `member-2` and `member-3` racing a self re-enable — real output: `re-enable member-2: status=200 ...state:active...` / `re-enable member-3: status=200 ...state:active...` / `successes=2 (want at most 1 per exclusivity doc)`, confirmed 84/200 iterations of the throwaway probe this pin replaces, and a subsequent roster read shows both rows genuinely `state=active` simultaneously — not just two 200s racing one write. This is the same TOCTOU class already filed against sibling repos (taskmanager's W19-W21, assetmanager's A14, agency's AG34) — this is the first confirmed instance in this repo. **Fix location**: `dm_roster_impl.go`'s `ReEnable` self-service branch needs the check-and-flip to be atomic — e.g. a single `UPDATE ... WHERE thread_id = ? AND member_id = ? AND state = 'left' AND NOT EXISTS (SELECT 1 FROM <participants> WHERE thread_id = ? AND state = 'active')`, or the whole read+write wrapped in a transaction with a row/table lock — the exact shape is a design call, not made here. Found 2026-09-21 by the fleet integration-test sweep (widening around the already-filed TOCTOU class into a repo not yet checked for it). Pinning test committed in `routes/w15_dm_reenable_race_test.go` (`TestPinsW15_ConcurrentSelfReEnableCanBothSucceed`, 40 iterations, asserts the race lands at least once and that the roster ends with 2 active participants when it does) — must start failing once the race is closed, per this repo's own convention for pinning tests. `go test ./...` and `go test -tags=integration ./...` both green with this added. **Being closed inside CM20**, whose store rewrite owns the fix site. |
+| CM9 | P3 | 📋 | Run the `06-1-chat-threads` and `06-2-chat-moderation` Postman journeys with newman against a locally running **gateway**, as an end-to-end confirmation the route surface is unchanged. **No longer the conversion's acceptance**: CM22 was retargeted to `mwanachama-wakala-api` on 2026-09-28, so what proves the conversion is wakala-api's own route tests, and these two journeys only ever covered the gateway's own chat surface. Worth keeping as a check that the gateway's surface still works while it continues to import this module, but it gates nothing — and note the gateway's Postman suite is already red on its own account (DEV-1693/DEV-1694). |
 | CM16 | P2 | 📋 | ⚠️ **A notification cannot be acknowledged, so "who has received this" is not a question comm can answer.** Found 2026-09-28 building the `party-mobilization` agency template, whose O-6 is "cascade an instruction from national to every branch within a day" and whose whole value there is the centre seeing which wards acknowledged and which went quiet. `models.Notification` records that a notification was raised; there is no per-recipient state, so an acknowledgement has to be rebuilt from chat replies or not tracked at all. Needed: an acknowledgeable notification with a per-recipient received/acted state. Two smaller gaps found in the same pass, both worth deciding alongside it rather than separately: (1) `models.ChatThread` resolves by `tag_path` but nothing creates a room when an actor group is created, and that template creates ward branches in the thousands — a room template bound to a group type would close it (small); (2) `NotificationCategory` is a closed set of eight with an exhaustive `AllCategories`, so an archetype-specific category (a mobilization instruction, a cohort milestone) has to ride on `results` — either an agency-declared category or a subtype under `results` (medium). Note the closed set is being quietly ignored elsewhere: some mined agency templates' `comm.json` invent category names that this package would refuse, which is a template-side correction as much as a code one. **Gap (2) is closed by CM18** — the vocabulary is declared `enum` `values`, so a domain spec widens it with no Go change. The acknowledgeable notification itself and the room template are still open. |
-| CM18 | P2 | 🚀 | **`comm.blueprint.json` — every object, field and index this module stores, declared.** The fourteen types in `models/` become declared objects with a description on every object and field. Two things the format will force into the open: `NotificationCategory` is a closed Go set of eight with an exhaustive `AllCategories`, which becomes an `enum` field with `values` — and the moment it is declared data rather than a Go constant, **CM16**'s "an archetype-specific category" question is answerable as a domain spec's own value set rather than a code change; and `ChatThread.TagPath` becomes a declared field whose index is the thing room resolution depends on. |
-| CM19 | P2 | 📋 | **`comm.<domain>.json` and `Provision` — the declared names, and the move onto them.** The domain spec names each object's table under `<instance>_comm_<object>`, its own indexes, and its defaults. Implements `mwanachama-website`'s W16 ("name every physical table `<agency>_<module>_<object>`") for comm. The rename also has to fix the `chapter_id`→`structure_id` / `member_id`→`actor_id` column names the deleted `…ToRow` pairs used to translate — see [declared-comm.md](../2.%20design/declared-comm.md). Depends on CM18. |
-| CM20 | P2 | 📋 | **The spec-driven store replaces `gormstore/` — no row structs left.** Delete `gormstore/` and `tables.go`; every `*_impl.go` reads and writes `models.` values through `shared/specstore`, with a root `store.go` holding the role constants and the small wrappers agency's AG39 settled on. Fold **CM15** in — the DM re-enable exclusivity race is a read-then-write whose fix site is being rewritten here, and agency's own conversion closed two concurrency bugs (AG34, half of AG35) the same way, by putting read-check-write in one transaction and treating `RowsAffected == 0` as not-found. CM15's pinning test must invert here, not be deleted. The largest single step. Depends on CM19. |
+| CM20 | P2 | 🚀 | **The spec-driven store replaces `gormstore/` — no row structs left.** Delete `gormstore/` and `tables.go`; every `*_impl.go` reads and writes `models.` values through `shared/specstore`, with a root `store.go` holding the role constants and the small wrappers agency's AG39 settled on. **CM15 no longer rides on this row — it was closed on its own on 2026-09-28**, with the single conditional `UPDATE` in `claimEmptiedThread`, so the fix is already in place and guarded before the store is rewritten around it. Keep `claimEmptiedThread`'s one-statement shape when `dm_roster_impl.go` moves onto `specstore`, and keep both guards in `routes/dm_reenable_exclusivity_test.go` green; the same goes for the other read-then-write pairs here, which agency's AG34/AG35 closed by putting read-check-write in one transaction and treating `RowsAffected == 0` as not-found. **The known cost, from CM18:** three carrier shapes have to change before `specstore.New` will build at all — `time.Time` to RFC3339 text, the three `[]byte` hashes to hex text, `DMMessage.PerRecipientKeys` to a marshalled `json` column — and `models.Address` has to stop embedding `AddressSettings`, while `DMThread`'s two derived fields (`OpenedViaAddress`, `MyAddressIndex`) have to stop being plain exported fields, since the carrier's exported set must match the declared columns exactly. Each of those is visible in this module's public API. The largest single step. Depends on CM19. |
 | CM21 | P2 | 📋 | **`comm.operations.json` — the route table is declared, and `routes/` becomes an adapter.** Every address across the ten route files declared with method, path, manager method, gating action, status, title, prose and arguments; the hand-written handlers and per-domain error switches collapse into one sentinel table plus `Routes(m)`/`Build(m)`/`Shape()`. Every route gains a gating action for the first time — a new contract with `mwanachama-backend-permissions`, not a refactor. Depends on CM20. |
-| CM22 | P2 | 📋 | **The three consumers build and test against the declared shape.** `mwanachama-backend-api-gateway`, `mwanachama-backend-api-kazi` and `mwanachama-backend-api-shared` all depend on this module — more than any other candidate, which is the main cost of converting it. Acceptance as agency used: the gateway's Postman gate reports the same uncovered count, and **CM9**'s two chat journeys (`06-1-chat-threads`, `06-2-chat-moderation`) become the end-to-end proof this row needs rather than a separate deferred row. **Note the baseline:** api-kazi's K14 and api-shared's S13 both say those two repos cannot build or test at all today, from agency's AGD-007 fallout — so two of the three consumers are red before comm touches them, and this row cannot prove "nothing changed" until they are fixed. Depends on CM21. |
+| CM22 | P2 | 📋 | **`mwanachama-wakala-api` mounts the declared operations.** **Retargeted by the owner on 2026-09-28**, from what this row used to say — "the three consumers (`mwanachama-backend-api-gateway`, `mwanachama-backend-api-kazi`, `mwanachama-backend-api-shared`) build and test against the declared shape". The consumer for this conversion is **wakala-api**, the same retarget accounting's W21 took the same day and the shape forms' F11 landed. Build it as forms did: `cmd/server/comm.go` with a `buildComm` that reads `COMM_DATABASE_URL`/`COMM_INSTANCE`, calls `SpecFor`, `Provision` and the five store constructors, and leaves the module unmounted when either variable is unset; `internal/api/http/comm_routes.go` registering the declared routes under a `/comm` prefix, gated through `mwanachama-backend-permissions` under the scope `module:comm`. `cmd/server/main.go`, `internal/api/http/deps.go`, `router.go` and `authorize.go` are shared with the forms and accounting mounts — re-read each immediately before editing, since three sessions have them open. **The gateway is no longer this row's acceptance**, so the Postman gate (DEV-1693/DEV-1694, red) and CM9's two newman journeys are no longer what proves it; wakala-api's own route tests are. Depends on CM21. |
 | CM23 | P2 | 📋 | **The documentation says what the repo now is.** CLAUDE.md, root `doc.go` and the README describe a `models/` + `gormstore/` + route-builder layout that the conversion makes untrue — the same trap agency's AG43 found. Rewrite them, add the pointer to shared's declared-domains reference and to [declared-comm.md](../2.%20design/declared-comm.md), and record CM17's answered questions rather than deleting them. Depends on CM22. |
-| CM24 | P1 | 📋 | **The gateway's active migration mirror is missing four of comm's fifteen tables, so `cmd/migrate up` cannot provision a fresh database for this module.** `mwanachama-backend-api-gateway/internal/store/postgres/migrations/000002_comm_tables.up.sql` creates eleven tables — the chat, DM and moderation set. `comm_notification`, `comm_notification_preference`, `comm_member_address` and `comm_member_address_block` are absent: they have only ever existed because `gormstore.Migrate`'s `AutoMigrate` created them at startup, which is not a migration and leaves no mirror. This repo's own CLAUDE.md flagged it in prose on 2026-09-09 ("in fact doesn't carry a `comm_notification`/`comm_notification_preference` table at all yet — a pre-existing gap in that migration mirror, flagged here but not fixed") and no row ever tracked it. Found again 2026-09-28 while retiring CM8. **Why it gets worse after the conversion:** `spec.Migrate` replaces `gormstore.Migrate`, so the mirror is one of only two things that still describe comm's schema, and the org-wide rule is that every GORM/declared domain carries a hand-maintained SQL mirror in the gateway's active `migrations/` precisely so `cmd/migrate up` alone provisions a fresh database. Fix: add the four tables and their indexes (including the two partial unique notification caps `syncNotificationCapIndexes` creates by raw SQL) to the active mirror, under the declared `<instance>_comm_<object>` names CM19 settles. Not done inside CM19 on purpose — it is a pre-existing hole, and folding it in would hide that the conversion inherited rather than caused it. |
+| CM24 | P3 | 📋 | **Dropped off comm's critical path on 2026-09-28, kept as a record.** Two things moved it: CM19 landed `Provision`, which is now this module's whole provisioning story — it moves a legacy `comm_*` table set onto the declared names, renames the chapter/member columns, creates whatever is missing and applies the two notification caps — and CM22 was retargeted from the gateway to `mwanachama-wakala-api`, which provisions through `Provision` and never reads the gateway's SQL mirror. forms took the same decision for the same reason and deliberately left its own migration `000003` alone. So the gap below no longer blocks anything comm does; it matters only for a fresh provision of the **gateway's** own database, which is the gateway's to decide, and it is left here rather than deleted so the finding is not lost. Original finding: **the gateway's active migration mirror is missing four of comm's fifteen tables.** `mwanachama-backend-api-gateway/internal/store/postgres/migrations/000002_comm_tables.up.sql` creates eleven tables — the chat, DM and moderation set. `comm_notification`, `comm_notification_preference`, `comm_member_address` and `comm_member_address_block` are absent: they have only ever existed because `gormstore.Migrate`'s `AutoMigrate` created them at startup, which is not a migration and leaves no mirror. This repo's own CLAUDE.md flagged it in prose on 2026-09-09 ("in fact doesn't carry a `comm_notification`/`comm_notification_preference` table at all yet — a pre-existing gap in that migration mirror, flagged here but not fixed") and no row ever tracked it. Found again 2026-09-28 while retiring CM8. **Why it gets worse after the conversion:** `spec.Migrate` replaces `gormstore.Migrate`, so the mirror is one of only two things that still describe comm's schema, and the org-wide rule is that every GORM/declared domain carries a hand-maintained SQL mirror in the gateway's active `migrations/` precisely so `cmd/migrate up` alone provisions a fresh database. Fix: add the four tables and their indexes (including the two partial unique notification caps `syncNotificationCapIndexes` creates by raw SQL) to the active mirror, under the declared `<instance>_comm_<object>` names CM19 settles. Not done inside CM19 on purpose — it is a pre-existing hole, and folding it in would hide that the conversion inherited rather than caused it. |
 
 ## Overlapping row numbers on sibling boards
 
@@ -37,3 +34,80 @@ each is another repo's to decide.
 | mwanachama-backend-taskmanager | W14–W22 | Keeps `W` |
 | mwanachama-website | W11–W17 | Keeps `W` |
 | mwanachama-backend-digitaltwin | W9, W13 | Keeps `W` |
+
+---
+
+## What the accounting pilot settled (2026-09-28)
+
+`mwanachama-backend-accounting` ran its whole conversion set (W16–W22) on
+2026-09-28 and is **done**. It was the cheapest of the three candidates and
+went first deliberately. Eight findings change how the rows above should be
+read — none of them are guesses, all of them cost time there.
+
+**1. The consumer step is aimed at the wrong repo.** The row below that says
+"the gateway builds and tests against the declared shape" was written when
+`mwanachama-backend-api-gateway` was the only consumer. The owner's
+direction on 2026-09-28 is *"we are using wakala-api on local for now, not
+gateway"*. For accounting that meant the real consumer work was wiring
+`mwanachama-wakala-api`, which had never imported it at all, and the
+gateway became a keep-it-compiling obligation rather than the acceptance.
+**Re-read that row before starting it** and decide which repo it means.
+
+**2. Keeping every consumer compiling is a gate, not a step.** §1 of the
+consolidated backlog exists because AGD-007 is recorded complete while two
+of its five consumers have not built since. Accounting's pass treated
+"every consumer still builds" as a precondition on finishing, not as the
+last item. Do the same, and note that the gateway is *currently* broken by
+the forms conversion (`mwanachamaforms.DefaultTableNames`/`Migrate` are
+gone but `cmd/server/stores.go` and `internal/api/http/backend_memory_test.go`
+still call them) — whoever owns that should close it.
+
+**3. `specstore` stores an absent string as `''`, not NULL.** So a column
+that is *optional but unique when present* cannot be declared `unique`:
+every row without a value collides on the one constraint. The workable
+shape is a plain indexed column plus a partial unique index created in
+`Provision` (`create unique index ... where col <> ''`), with the friendly
+refusal done in Go. Accounting needed this twice.
+
+**4. There is no `time.Time` arm in `specstore`.** Timestamps are carried as
+RFC 3339 strings. If anything orders on one, use a fixed-width
+nanosecond layout (`models.TimeLayout`, as agency does) — plain
+`time.RFC3339` is second-precision and will not order rows created in the
+same second, and `RFC3339Nano` trims trailing zeros, which breaks
+lexicographic ordering. There is no `[]byte` arm either; carry raw bytes as
+a hex string.
+
+**5. Pointer carriers now need `nullable` in the blueprint.** The
+uncommitted nullable/float work in `mwanachama-backend-shared` (owned by
+another session, confirmed staying) made `specstore.New`'s `disagreements`
+check strict in *both* directions: a pointer field fails unless the
+declared field says `nullable`, and a `nullable` field fails unless the
+carrier is a pointer. This refuses carrier/spec pairs that construct fine
+today, so it decides whether a store builds at all.
+
+**6. The domain spec file is `<domain>.<module>.json`.** That is what
+catalog (`agency.catalog.json`) and agency (`agency.agency.json`) actually
+ship, not the `<module>.<domain>.json` several of these row titles guess.
+Ship an embedded default plus `SpecFor(instance)` so a consumer needs no
+file path at runtime, and a second domain under `spec/examples/` that fills
+the same roles with different nouns — that second file is what actually
+proves the module learned no vocabulary.
+
+**7. Delete the hand-rolled memory fake.** Catalog has no second
+implementation: it runs the real spec store on in-memory SQLite. Accounting
+had a `memory.go` and a `postgres.go` implementing one interface, and its
+W15 double-reversal bug existed *because* there were two copies of the same
+write that could drift. One store, one write path, tested on SQLite.
+
+**8. A bug row whose fix site the conversion rewrites should be folded in,
+and its pinning test inverted rather than deleted.** Accounting closed W15
+inside its store step and turned
+`W15_PostDoesNotRefuseADoubleReversal` into
+`TestPostRefusesASecondReversalOfTheSameEntry`. A sibling copy of the same
+bug in another repo is *not* closed by that, and stays its own row.
+
+**If the mount is per instance in wakala-api**, note the two halves:
+`Shape()` should return `[]Route` (agency's signature, which the
+per-instance mount loop consumes) and the routes should be built with
+catalog's `Mount{Authorize, Caller}`, so every declared action arrives
+gated rather than merely behind `requireCaller`.

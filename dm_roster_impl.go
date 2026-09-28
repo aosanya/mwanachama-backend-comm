@@ -136,7 +136,7 @@ func (s *DMStore) Promote(ctx context.Context, threadID, memberID, by string) (m
 }
 
 func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
-	row, found, err := s.findParticipant(ctx, threadID, memberID)
+	_, found, err := s.findParticipant(ctx, threadID, memberID)
 	if err != nil {
 		return models.DMParticipant{}, err
 	}
@@ -144,14 +144,7 @@ func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (
 		return models.DMParticipant{}, models.ErrDMNotFound
 	}
 	if memberID == by {
-		active, err := s.hasActive(ctx, threadID)
-		if err != nil {
-			return models.DMParticipant{}, err
-		}
-		if row.State != string(models.DMStateLeft) || active {
-			return models.DMParticipant{}, models.ErrDMNotLastToLeave
-		}
-		return s.setState(ctx, threadID, memberID, models.DMStateActive)
+		return s.claimEmptiedThread(ctx, threadID, memberID)
 	}
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
@@ -163,7 +156,29 @@ func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (
 	return s.setState(ctx, threadID, memberID, models.DMStateInvited)
 }
 
-// hasActive reports whether anybody is currently active on the thread.
+func (s *DMStore) claimEmptiedThread(ctx context.Context, threadID, memberID string) (models.DMParticipant, error) {
+	table := s.tables.DMParticipants
+	res := s.db.WithContext(ctx).Table(table).
+		Where("thread_id = ? AND member_id = ? AND state = ?", threadID, memberID, string(models.DMStateLeft)).
+		Where("NOT EXISTS (SELECT 1 FROM "+table+" other WHERE other.thread_id = ? AND other.state = ?)",
+			threadID, string(models.DMStateActive)).
+		Updates(map[string]any{"state": string(models.DMStateActive), "updated_at": s.clock()})
+	if res.Error != nil {
+		return models.DMParticipant{}, classify(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return models.DMParticipant{}, models.ErrDMNotLastToLeave
+	}
+	row, found, err := s.findParticipant(ctx, threadID, memberID)
+	if err != nil {
+		return models.DMParticipant{}, err
+	}
+	if !found {
+		return models.DMParticipant{}, models.ErrDMNotFound
+	}
+	return gormstore.DMParticipantFromRow(row), nil
+}
+
 func (s *DMStore) hasActive(ctx context.Context, threadID string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
