@@ -38,11 +38,18 @@ func ParseSpec(raw []byte) (*spec.Spec, error) {
 }
 
 func SpecFor(instance string) (*spec.Spec, error) {
+	return SpecForMount(instance, "")
+}
+
+func SpecForMount(instance, mount string) (*spec.Spec, error) {
 	var doc map[string]any
 	if err := json.Unmarshal(domainJSON, &doc); err != nil {
 		return nil, fmt.Errorf("comm spec: %w", err)
 	}
 	doc["instance"] = instance
+	if mount != "" {
+		doc["mount"] = mount
+	}
 
 	raw, err := json.Marshal(doc)
 	if err != nil {
