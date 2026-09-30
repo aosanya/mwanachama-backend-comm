@@ -1,62 +1,79 @@
-// dm_impl.go — GORM-backed DMRepository implementation, thread reads +
-// creation. Roster writes (Invite/Accept/Leave/Kick/Promote/ReEnable) live
-// in dm_roster_impl.go, and message/device-key/reaction methods in
-// dm_message_impl.go — a three-way, not the original two-way,
-// [[file-length-limit]] split, since this port's single GORM store folds
-// what used to be separate Postgres and memory implementations into one.
 package mwanachamacomm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
 
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
+	"github.com/aosanya/mwanachama-backend-shared/spec"
+	"github.com/aosanya/mwanachama-backend-shared/specstore"
+
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// DMStore is the GORM implementation of [models.DMRepository].
 type DMStore struct {
-	db     *gorm.DB
-	tables TableNames
-	clock  Clock
+	store *store
+	clock Clock
 }
 
-// NewDMStore constructs a DMStore backed by db. See [NewChatStore] for the
-// shared constructor contract (nil db, default clock).
-func NewDMStore(db *gorm.DB, t TableNames, clock Clock) (*DMStore, error) {
+func NewDMStore(db *gorm.DB, s *spec.Spec, clock Clock) (*DMStore, error) {
 	if db == nil {
 		return nil, fmt.Errorf("NewDMStore: db must not be nil")
 	}
 	if clock == nil {
 		clock = SystemClock
 	}
-	return &DMStore{db: db, tables: t, clock: clock}, nil
+	st, err := newStore(db, s, map[string]any{
+		roleDMThread:      models.DMThread{},
+		roleDMParticipant: models.DMParticipant{},
+		roleDMMessage:     models.DMMessage{},
+		roleDMReaction:    models.DMReaction{},
+		roleDMDeviceKey:   models.DMDeviceKey{},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &DMStore{store: st, clock: clock}, nil
 }
 
 func (s *DMStore) CreateThread(ctx context.Context, t models.DMThread, initial []string) (models.DMThread, error) {
 	if t.CreatedAt.IsZero() {
 		t.CreatedAt = s.clock()
 	}
-	row := gormstore.DMThreadToRow(t)
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Table(s.tables.DMThreads).Create(&row).Error; err != nil {
+	if t.ID == "" {
+		t.ID = mintID(prefixDMThread)
+	}
+
+	threads, participants := s.store.Object(roleDMThread), s.store.Object(roleDMParticipant)
+	threadRow, err := encode(threads, t)
+	if err != nil {
+		return models.DMThread{}, err
+	}
+
+	err = s.store.Query(ctx, roleDMThread).Session(&gorm.Session{}).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table(s.store.Table(roleDMThread)).Create(threadRow).Error; err != nil {
 			return err
 		}
-		if row.CreatedBy != "" {
-			p := gormstore.DMParticipantRow{ThreadID: row.ID, MemberID: row.CreatedBy, State: string(models.DMStateActive), IsAdmin: true, UpdatedAt: s.clock()}
-			if err := tx.Table(s.tables.DMParticipants).Create(&p).Error; err != nil {
+		add := func(actorID string, state models.DMParticipantState, admin bool) error {
+			row, err := encode(participants, models.DMParticipant{
+				ThreadID: t.ID, ActorID: actorID, State: state, IsAdmin: admin, UpdatedAt: s.clock(),
+			})
+			if err != nil {
+				return err
+			}
+			return tx.Table(s.store.Table(roleDMParticipant)).Create(row).Error
+		}
+		if t.CreatedBy != "" {
+			if err := add(t.CreatedBy, models.DMStateActive, true); err != nil {
 				return err
 			}
 		}
 		for _, m := range initial {
-			if m == row.CreatedBy {
+			if m == t.CreatedBy {
 				continue
 			}
-			p := gormstore.DMParticipantRow{ThreadID: row.ID, MemberID: m, State: string(models.DMStateInvited), UpdatedAt: s.clock()}
-			if err := tx.Table(s.tables.DMParticipants).Create(&p).Error; err != nil {
+			if err := add(m, models.DMStateInvited, false); err != nil {
 				return err
 			}
 		}
@@ -65,53 +82,42 @@ func (s *DMStore) CreateThread(ctx context.Context, t models.DMThread, initial [
 	if err != nil {
 		return models.DMThread{}, classify(err)
 	}
-	return gormstore.DMThreadFromRow(row), nil
+	return t, nil
 }
 
-// GetThread returns a thread by id.
 func (s *DMStore) GetThread(ctx context.Context, id string) (models.DMThread, error) {
-	var row gormstore.DMThreadRow
-	err := s.db.WithContext(ctx).Table(s.tables.DMThreads).Where("id = ?", id).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.DMThread{}, models.ErrDMNotFound
-	}
-	if err != nil {
+	var t models.DMThread
+	q := s.store.Query(ctx, roleDMThread).Where("id = ?", id)
+	if err := s.store.Take(q, roleDMThread, &t, models.ErrDMNotFound); err != nil {
 		return models.DMThread{}, err
 	}
-	return gormstore.DMThreadFromRow(row), nil
+	return t.WithDerived(), nil
 }
 
-func (s *DMStore) ListThreadsFor(ctx context.Context, memberID string) ([]models.DMThread, error) {
-	var rows []gormstore.DMThreadRow
-	err := s.db.WithContext(ctx).Table(s.tables.DMThreads+" AS t").
+func (s *DMStore) ListThreadsFor(ctx context.Context, actorID string) ([]models.DMThread, error) {
+	threads, participants := s.store.Table(roleDMThread), s.store.Table(roleDMParticipant)
+	q := s.store.Query(ctx, roleDMThread).
+		Table(threads+" AS t").
 		Select("t.*").
-		Joins("JOIN "+s.tables.DMParticipants+" AS p ON p.thread_id = t.id").
-		Where("p.member_id = ? AND p.state IN ?", memberID, []string{string(models.DMStateActive), string(models.DMStateInvited)}).
-		Order("t.created_at, t.id").
-		Find(&rows).Error
+		Joins("JOIN "+participants+" AS p ON p.thread_id = t.id").
+		Where("p.actor_id = ? AND p.state IN ?", actorID,
+			[]string{string(models.DMStateActive), string(models.DMStateInvited)}).
+		Order("t.created_at, t.id")
+
+	out, err := specstore.List[models.DMThread](s.store, q, roleDMThread)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]models.DMThread, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, gormstore.DMThreadFromRow(r))
+	for i := range out {
+		out[i] = out[i].WithDerived()
 	}
 	return out, nil
 }
 
-// ListParticipants returns every participant row for a thread.
 func (s *DMStore) ListParticipants(ctx context.Context, threadID string) ([]models.DMParticipant, error) {
-	var rows []gormstore.DMParticipantRow
-	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
-		Where("thread_id = ?", threadID).Order("updated_at, member_id").Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.DMParticipant, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, gormstore.DMParticipantFromRow(r))
-	}
-	return out, nil
+	q := s.store.Query(ctx, roleDMParticipant).
+		Where("thread_id = ?", threadID).Order("updated_at, actor_id")
+	return specstore.List[models.DMParticipant](s.store, q, roleDMParticipant)
 }
 
 var _ models.DMRepository = (*DMStore)(nil)

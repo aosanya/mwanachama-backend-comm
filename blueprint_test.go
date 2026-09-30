@@ -9,7 +9,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-shared/spec"
 	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
@@ -62,75 +61,66 @@ func TestEveryObjectAndFieldCarriesADescription(t *testing.T) {
 	}
 }
 
-// legacyRows is what each role's columns were before the conversion. The
-// blueprint was transcribed from these, so holding the two to each other is
-// what proves nothing was dropped on the way.
-var legacyRows = map[string]any{
-	roleChatThread:             gormstore.ChatThreadRow{},
-	roleChatMessage:            gormstore.ChatMessageRow{},
-	roleDMThread:               gormstore.DMThreadRow{},
-	roleDMParticipant:          gormstore.DMParticipantRow{},
-	roleDMMessage:              gormstore.DMMessageRow{},
-	roleDMReaction:             gormstore.DMReactionRow{},
-	roleDMDeviceKey:            gormstore.DMDeviceKeyRow{},
-	roleReport:                 gormstore.ReportRow{},
-	roleRemoval:                gormstore.RemovalRow{},
-	roleDismissal:              gormstore.DismissalRow{},
-	roleDispute:                gormstore.DisputeRow{},
-	roleAddress:                gormstore.AddressRow{},
-	roleAddressBlock:           gormstore.AddressBlockRow{},
-	roleNotification:           gormstore.NotificationRow{},
-	roleNotificationPreference: gormstore.NotificationPreferenceRow{},
+// carriers is the Go value that fills each role. specstore.New holds the two
+// to each other in both directions at construction, so this map plus
+// TestEveryExampleFitsTheTypes is what replaced the row structs the
+// conversion deleted.
+var carriers = map[string]any{
+	roleChatThread:             models.ChatThread{},
+	roleChatMessage:            models.ChatMessage{},
+	roleDMThread:               models.DMThread{},
+	roleDMParticipant:          models.DMParticipant{},
+	roleDMMessage:              models.DMMessage{},
+	roleDMReaction:             models.DMReaction{},
+	roleDMDeviceKey:            models.DMDeviceKey{},
+	roleReport:                 models.Report{},
+	roleRemoval:                models.Removal{},
+	roleDismissal:              models.Dismissal{},
+	roleDispute:                models.Dispute{},
+	roleAddress:                models.Address{},
+	roleAddressBlock:           models.AddressBlock{},
+	roleNotification:           models.Notification{},
+	roleNotificationPreference: models.NotificationPreference{},
 }
 
-// renamedColumns is every column the conversion deliberately renames, legacy
-// name to declared name. The row structs said chapter/member because the
-// gateway's original tables did; the domain types have said structure/actor
-// since, and the translation lived in gormstore's ToRow/FromRow pairs. With
-// those pairs deleted the declared name is the Go field's name, so the column
-// has to move with them.
-var renamedColumns = map[string]string{
-	"chapter_id":        "structure_id",
-	"member_id":         "actor_id",
-	"review_chapter_id": "review_structure_id",
-	"seat_chapter_id":   "seat_structure_id",
-	"author_member_id":  "author_actor_id",
-}
-
-func TestEveryLegacyColumnHasADeclaredHome(t *testing.T) {
+func TestEveryDeclaredColumnIsCarried(t *testing.T) {
 	s := testSpec(t)
-	for role, row := range legacyRows {
+	for role, carrier := range carriers {
 		o, ok := s.ByRole(role)
 		if !ok {
 			t.Errorf("role %q fills nothing", role)
 			continue
 		}
 
+		held := specstore.ColumnsOf(reflect.TypeOf(carrier))
 		declared := map[string]bool{}
 		for _, f := range o.Fields {
 			declared[f.Name] = true
+			if !held[f.Name] {
+				t.Errorf("%s declares %q, which %T does not carry, so every read of it comes back empty",
+					role, f.Name, carrier)
+			}
 		}
-
-		legacy := map[string]bool{}
-		rt := reflect.TypeOf(row)
-		for i := 0; i < rt.NumField(); i++ {
-			f := rt.Field(i)
-			if f.PkgPath != "" {
-				continue
-			}
-			name := specstore.ColumnName(f.Name)
-			if to, renamed := renamedColumns[name]; renamed {
-				name = to
-			}
-			legacy[name] = true
+		for name := range held {
 			if !declared[name] {
-				t.Errorf("%s: legacy column %q is declared nowhere, so the conversion would drop it", role, name)
+				t.Errorf("%T carries %q, which %s declares nowhere — tag it spec:\"-\" if it is derived",
+					carrier, name, role)
 			}
 		}
-		for name := range declared {
-			if !legacy[name] {
-				t.Errorf("%s: declares %q, which no legacy column feeds, so every existing row reads it back empty", role, name)
-			}
+	}
+}
+
+// TestEveryExampleFitsTheTypes builds a store over every spec the module
+// ships, not just the one a test happened to load: drift under an unloaded
+// domain is invisible otherwise.
+func TestEveryExampleFitsTheTypes(t *testing.T) {
+	for domain, s := range shippedSpecs(t) {
+		db := provisionTestDB(t)
+		if err := Provision(db, s); err != nil {
+			t.Fatalf("%s: Provision: %v", domain, err)
+		}
+		if _, err := newStore(db, s, carriers); err != nil {
+			t.Errorf("%s: the declared objects and the Go types disagree: %v", domain, err)
 		}
 	}
 }

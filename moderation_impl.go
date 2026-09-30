@@ -1,9 +1,3 @@
-// moderation_impl.go — GORM-backed ModerationRepository implementation:
-// report/removal/dispute. Was store_postgres_moderation.go +
-// store_memory_moderation.go; DismissReports lives in
-// moderation_dismissal_impl.go (300-line split, mirrors the original file
-// split — that file was already at the line-length limit before this
-// landed).
 package mwanachamacomm
 
 import (
@@ -15,20 +9,19 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
+	"github.com/aosanya/mwanachama-backend-shared/spec"
+	"github.com/aosanya/mwanachama-backend-shared/specstore"
+
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 type ModerationStore struct {
-	db        *gorm.DB
-	tables    TableNames
+	store     *store
 	clock     Clock
 	actWriter models.ActWriter
 }
 
-// NewModerationStore constructs a ModerationStore backed by db. actWriter
-// must be non-nil: a store built without one withholds posts silently.
-func NewModerationStore(db *gorm.DB, t TableNames, clock Clock, actWriter models.ActWriter) (*ModerationStore, error) {
+func NewModerationStore(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter) (*ModerationStore, error) {
 	if db == nil {
 		return nil, fmt.Errorf("NewModerationStore: db must not be nil")
 	}
@@ -38,13 +31,18 @@ func NewModerationStore(db *gorm.DB, t TableNames, clock Clock, actWriter models
 	if clock == nil {
 		clock = SystemClock
 	}
-	return &ModerationStore{db: db, tables: t, clock: clock, actWriter: actWriter}, nil
+	st, err := newStore(db, s, map[string]any{
+		roleReport:    models.Report{},
+		roleRemoval:   models.Removal{},
+		roleDismissal: models.Dismissal{},
+		roleDispute:   models.Dispute{},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ModerationStore{store: st, clock: clock, actWriter: actWriter}, nil
 }
 
-// sqlTxFrom recovers the *sql.Tx a `*gorm.DB.Transaction` callback wraps —
-// GORM abstracts the connection as its own Statement.ConnPool, but every SQL
-// dialect this repo uses (Postgres, and sqlite in tests) backs it with
-// database/sql underneath, so the type assertion holds for both.
 func sqlTxFrom(tx *gorm.DB) (*sql.Tx, error) {
 	sqlTx, ok := tx.Statement.ConnPool.(*sql.Tx)
 	if !ok {
@@ -53,117 +51,83 @@ func sqlTxFrom(tx *gorm.DB) (*sql.Tx, error) {
 	return sqlTx, nil
 }
 
-// FileReport inserts a report row.
 func (s *ModerationStore) FileReport(ctx context.Context, r models.Report) (models.Report, error) {
 	if r.ReportedAt.IsZero() {
 		r.ReportedAt = s.clock()
 	}
-	row := gormstore.ReportToRow(r)
-	if err := s.db.WithContext(ctx).Table(s.tables.Reports).Create(&row).Error; err != nil {
+	if r.ID == "" {
+		r.ID = mintID(prefixReport)
+	}
+	if err := s.store.Insert(ctx, roleReport, r); err != nil {
 		return models.Report{}, classify(err)
 	}
-	return gormstore.ReportFromRow(row), nil
+	return r, nil
 }
 
-// ListReportsForMessage returns every report against one message, newest
-// first.
 func (s *ModerationStore) ListReportsForMessage(ctx context.Context, messageID string) ([]models.Report, error) {
-	var rows []gormstore.ReportRow
-	err := s.db.WithContext(ctx).Table(s.tables.Reports).
-		Where("message_id = ?", messageID).Order("reported_at DESC, id DESC").Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Report, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, gormstore.ReportFromRow(r))
-	}
-	return out, nil
+	q := s.store.Query(ctx, roleReport).
+		Where("message_id = ?", messageID).Order("reported_at DESC, id DESC")
+	return specstore.List[models.Report](s.store, q, roleReport)
 }
 
-func (s *ModerationStore) ListReportQueue(ctx context.Context, chapterID string) ([]models.Report, error) {
-	var rows []gormstore.ReportRow
-	err := s.db.WithContext(ctx).Table(s.tables.Reports).
-		Where("chapter_id = ?", chapterID).Order("reported_at DESC, id DESC").Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Report, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, gormstore.ReportFromRow(r))
-	}
-	return out, nil
+func (s *ModerationStore) ListReportQueue(ctx context.Context, structureID string) ([]models.Report, error) {
+	q := s.store.Query(ctx, roleReport).
+		Where("structure_id = ?", structureID).Order("reported_at DESC, id DESC")
+	return specstore.List[models.Report](s.store, q, roleReport)
 }
 
 func (s *ModerationStore) CreateRemoval(ctx context.Context, rem models.Removal, wall string, actor models.Actor) (models.Removal, error) {
 	if rem.RemovedAt.IsZero() {
 		rem.RemovedAt = s.clock()
 	}
-	row := gormstore.RemovalToRow(rem)
-	var out models.Removal
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Table(s.tables.Removals).Create(&row).Error; err != nil {
+	if rem.ID == "" {
+		rem.ID = mintID(prefixRemoval)
+	}
+	row, err := encode(s.store.Object(roleRemoval), rem)
+	if err != nil {
+		return models.Removal{}, err
+	}
+
+	err = s.store.Query(ctx, roleRemoval).Session(&gorm.Session{}).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table(s.store.Table(roleRemoval)).Create(row).Error; err != nil {
 			return err
 		}
-		out = gormstore.RemovalFromRow(row)
 		sqlTx, err := sqlTxFrom(tx)
 		if err != nil {
 			return err
 		}
-		return s.actWriter.WriteAct(ctx, sqlTx, models.WithheldAct(out, wall, actor))
+		return s.actWriter.WriteAct(ctx, sqlTx, models.WithheldAct(rem, wall, actor))
 	})
 	if err != nil {
 		return models.Removal{}, classify(err)
 	}
-	return out, nil
+	return rem, nil
 }
 
-// GetRemoval returns one removal by id.
 func (s *ModerationStore) GetRemoval(ctx context.Context, id string) (models.Removal, error) {
-	var row gormstore.RemovalRow
-	err := s.db.WithContext(ctx).Table(s.tables.Removals).Where("id = ?", id).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Removal{}, models.ErrModerationNotFound
-	}
-	if err != nil {
+	var rem models.Removal
+	q := s.store.Query(ctx, roleRemoval).Where("id = ?", id)
+	if err := s.store.Take(q, roleRemoval, &rem, models.ErrModerationNotFound); err != nil {
 		return models.Removal{}, err
 	}
-	return gormstore.RemovalFromRow(row), nil
+	return rem, nil
 }
 
-// GetRemovalForMessage returns the removal naming messageID, if any.
 func (s *ModerationStore) GetRemovalForMessage(ctx context.Context, messageID string) (models.Removal, error) {
-	var row gormstore.RemovalRow
-	err := s.db.WithContext(ctx).Table(s.tables.Removals).Where("message_id = ?", messageID).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Removal{}, models.ErrModerationNotFound
-	}
-	if err != nil {
+	var rem models.Removal
+	q := s.store.Query(ctx, roleRemoval).Where("message_id = ?", messageID)
+	if err := s.store.Take(q, roleRemoval, &rem, models.ErrModerationNotFound); err != nil {
 		return models.Removal{}, err
 	}
-	return gormstore.RemovalFromRow(row), nil
+	return rem, nil
 }
 
-// ListRemovalsForStructure returns every removal at structureID, newest first.
 func (s *ModerationStore) ListRemovalsForStructure(ctx context.Context, structureID string) ([]models.Removal, error) {
-	var rows []gormstore.RemovalRow
-	err := s.db.WithContext(ctx).Table(s.tables.Removals).
-		Where("chapter_id = ?", structureID).Order("removed_at DESC, id DESC").Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Removal, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, gormstore.RemovalFromRow(r))
-	}
-	return out, nil
+	q := s.store.Query(ctx, roleRemoval).
+		Where("structure_id = ?", structureID).Order("removed_at DESC, id DESC")
+	return specstore.List[models.Removal](s.store, q, roleRemoval)
 }
 
-// CreateDispute inserts a dispute row in the Open state. Checks the removal
-// exists first (ErrInvalidReference if not) rather than relying on a
-// database foreign key — see gormstore's GroupRow doc (actor) for why a row
-// whose table name is runtime-configurable doesn't declare a GORM
-// association.
 func (s *ModerationStore) CreateDispute(ctx context.Context, d models.Dispute) (models.Dispute, error) {
 	if _, err := s.GetRemoval(ctx, d.RemovalID); err != nil {
 		if errors.Is(err, models.ErrModerationNotFound) {
@@ -178,86 +142,91 @@ func (s *ModerationStore) CreateDispute(ctx context.Context, d models.Dispute) (
 	if d.HeldSince.IsZero() {
 		d.HeldSince = now
 	}
+	if d.ID == "" {
+		d.ID = mintID(prefixDispute)
+	}
 	d.State = models.DisputeOpen
 	d.DecidedBy = ""
 	d.DecidedAt = nil
-	row := gormstore.DisputeToRow(d)
-	if err := s.db.WithContext(ctx).Table(s.tables.Disputes).Create(&row).Error; err != nil {
+
+	if err := s.store.Insert(ctx, roleDispute, d); err != nil {
 		return models.Dispute{}, classify(err)
 	}
-	return gormstore.DisputeFromRow(row), nil
+	return d, nil
 }
 
-// GetDispute returns one dispute by id.
 func (s *ModerationStore) GetDispute(ctx context.Context, id string) (models.Dispute, error) {
-	var row gormstore.DisputeRow
-	err := s.db.WithContext(ctx).Table(s.tables.Disputes).Where("id = ?", id).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Dispute{}, models.ErrModerationNotFound
-	}
-	if err != nil {
+	var d models.Dispute
+	q := s.store.Query(ctx, roleDispute).Where("id = ?", id)
+	if err := s.store.Take(q, roleDispute, &d, models.ErrModerationNotFound); err != nil {
 		return models.Dispute{}, err
 	}
-	return gormstore.DisputeFromRow(row), nil
+	return d, nil
 }
 
-// GetDisputeForRemoval returns the dispute naming removalID, if any.
 func (s *ModerationStore) GetDisputeForRemoval(ctx context.Context, removalID string) (models.Dispute, error) {
-	var row gormstore.DisputeRow
-	err := s.db.WithContext(ctx).Table(s.tables.Disputes).Where("removal_id = ?", removalID).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Dispute{}, models.ErrModerationNotFound
-	}
-	if err != nil {
+	var d models.Dispute
+	q := s.store.Query(ctx, roleDispute).Where("removal_id = ?", removalID)
+	if err := s.store.Take(q, roleDispute, &d, models.ErrModerationNotFound); err != nil {
 		return models.Dispute{}, err
 	}
-	return gormstore.DisputeFromRow(row), nil
+	return d, nil
 }
 
-// DecideDispute moves a dispute from Open to outcome, enforcing G62
-// (reviewer != remover) and single-shot decision inside one transaction,
-// and writes the outcome's act-log row in the same transaction. Both
-// refusals return before the log is touched. No explicit row lock (the
-// original Postgres store's DecideDispute had none either, unlike
-// DismissReports' FOR UPDATE — carried over unchanged, not a new race).
 func (s *ModerationStore) DecideDispute(ctx context.Context, id string, outcome models.DisputeState, decidedBy string, now time.Time, wall string, actor models.Actor) (models.Dispute, error) {
 	var out models.Dispute
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var disputeRow gormstore.DisputeRow
-		if err := tx.Table(s.tables.Disputes).Where("id = ?", id).First(&disputeRow).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return models.ErrModerationNotFound
-			}
+	disputes, removals := s.store.Object(roleDispute), s.store.Object(roleRemoval)
+
+	err := s.store.Query(ctx, roleDispute).Session(&gorm.Session{}).Transaction(func(tx *gorm.DB) error {
+		var d models.Dispute
+		if err := takeIn(tx, s.store, roleDispute, disputes, &d,
+			models.ErrModerationNotFound, "id = ?", id); err != nil {
 			return err
 		}
-		if disputeRow.State != string(models.DisputeOpen) {
+		if d.State != models.DisputeOpen {
 			return models.ErrAlreadyDecided
 		}
-		var removalRow gormstore.RemovalRow
-		if err := tx.Table(s.tables.Removals).Where("id = ?", disputeRow.RemovalID).First(&removalRow).Error; err != nil {
+
+		var rem models.Removal
+		if err := takeIn(tx, s.store, roleRemoval, removals, &rem,
+			models.ErrModerationNotFound, "id = ?", d.RemovalID); err != nil {
 			return err
 		}
-		if removalRow.RemovedBy == decidedBy {
+		if rem.RemovedBy == decidedBy {
 			return models.ErrReviewerIsRemover
 		}
-		if err := tx.Table(s.tables.Disputes).Where("id = ?", id).
-			Updates(map[string]any{"state": string(outcome), "decided_by": decidedBy, "decided_at": now}).Error; err != nil {
+
+		if err := tx.Table(s.store.Table(roleDispute)).Where("id = ?", id).
+			Updates(map[string]any{
+				"state": string(outcome), "decided_by": decidedBy, "decided_at": stamp(now),
+			}).Error; err != nil {
 			return err
 		}
-		var updated gormstore.DisputeRow
-		if err := tx.Table(s.tables.Disputes).Where("id = ?", id).First(&updated).Error; err != nil {
+
+		if err := takeIn(tx, s.store, roleDispute, disputes, &out,
+			models.ErrModerationNotFound, "id = ?", id); err != nil {
 			return err
 		}
-		out = gormstore.DisputeFromRow(updated)
 
 		sqlTx, err := sqlTxFrom(tx)
 		if err != nil {
 			return err
 		}
-		return s.actWriter.WriteAct(ctx, sqlTx, models.DisputeOutcomeAct(gormstore.RemovalFromRow(removalRow), out, wall, actor))
+		return s.actWriter.WriteAct(ctx, sqlTx, models.DisputeOutcomeAct(rem, out, wall, actor))
 	})
 	if err != nil {
 		return models.Dispute{}, err
 	}
 	return out, nil
+}
+
+func takeIn(tx *gorm.DB, st *store, role string, o spec.Object, out any, notFound error, where string, args ...any) error {
+	var rows []map[string]any
+	if err := tx.Table(st.Table(role)).Where(where, args...).Limit(1).Find(&rows).Error; err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return notFound
+	}
+	return decode(o, rows[0], out)
 }

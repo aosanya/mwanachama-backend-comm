@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -144,34 +145,49 @@ func AddressFormat(s string) string {
 type Address struct {
 	ActorID string `json:"actor_id"`
 
-	// Hash is what the shared database actually holds — the keyed hash of
-	// the address under the organization's salt, never the address itself.
-	//
-	// **The public key is deliberately not stored either.** An address is
-	// a pure public function of its key, so a row holding the key would
-	// hand the address to anyone who read the table — the hash would buy
-	// nothing.
-	//
-	// Keyed rather than plain: the address space is 3.089 × 10¹⁶, about
-	// 2⁵⁵ — enumerable offline by anyone who obtains an unsalted table.
-	// Under the org's phone-number-salt-style HMAC a stolen database is
-	// not enough; you need the salt too.
-	Hash []byte `json:"-"`
+	Hash string `json:"-"`
 
-	// SaltID records which salt Hash was computed under, so a rotation can
-	// tell which rows still need re-hashing.
 	SaltID int `json:"-"`
 
-	Index int `json:"index"`
+	AddressIndex int `json:"index"`
 
 	CreatedAt time.Time `json:"created_at"`
 
-	// RetiredAt set means: refuse new threads addressed here. Threads
-	// already open are untouched — retiring an address must never sever a
-	// conversation the other party is in the middle of.
 	RetiredAt *time.Time `json:"retired_at,omitempty"`
 
-	AddressSettings
+	ExpiresAt         *time.Time    `json:"expires_at,omitempty"`
+	ExpiryMode        string        `json:"expiry_mode,omitempty"`
+	MessageTTLSeconds *int          `json:"message_ttl_seconds,omitempty"`
+	PublicAddress     string        `json:"address,omitempty"`
+	ListedAt          *time.Time    `json:"listed_at,omitempty"`
+	DisabledAt        *time.Time    `json:"disabled_at,omitempty"`
+	DisabledMode      string        `json:"disabled_mode,omitempty"`
+	Hours             *AddressHours `json:"hours,omitempty"`
+}
+
+func (a Address) Settings() AddressSettings {
+	return AddressSettings{
+		ExpiresAt:         a.ExpiresAt,
+		ExpiryMode:        a.ExpiryMode,
+		MessageTTLSeconds: a.MessageTTLSeconds,
+		PublicAddress:     a.PublicAddress,
+		ListedAt:          a.ListedAt,
+		DisabledAt:        a.DisabledAt,
+		DisabledMode:      a.DisabledMode,
+		Hours:             a.Hours,
+	}
+}
+
+func (a Address) WithSettings(s AddressSettings) Address {
+	a.ExpiresAt = s.ExpiresAt
+	a.ExpiryMode = s.ExpiryMode
+	a.MessageTTLSeconds = s.MessageTTLSeconds
+	a.PublicAddress = s.PublicAddress
+	a.ListedAt = s.ListedAt
+	a.DisabledAt = s.DisabledAt
+	a.DisabledMode = s.DisabledMode
+	a.Hours = s.Hours
+	return a
 }
 
 type AddressSettings struct {
@@ -387,10 +403,10 @@ type AddressMine struct {
 // because it genuinely does not know.
 func (a Address) Mine() AddressMine {
 	return AddressMine{
-		Index:           a.Index,
+		Index:           a.AddressIndex,
 		CreatedAt:       a.CreatedAt,
 		RetiredAt:       a.RetiredAt,
-		AddressSettings: a.AddressSettings,
+		AddressSettings: a.Settings(),
 	}
 }
 
@@ -398,11 +414,19 @@ func (a Address) Mine() AddressMine {
 func (a Address) IsPublic() bool { return a.PublicAddress != "" }
 
 type AddressBlock struct {
-	ActorID string `json:"actor_id"`
-	// Hash is what they are refusing — the keyed hash of the address,
-	// never the address, for the same reason Address.Hash exists.
-	Hash      []byte    `json:"-"`
+	ActorID   string    `json:"-"`
+	Hash      string    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func HashHex(hash []byte) string { return hex.EncodeToString(hash) }
+
+func HashBytes(hash string) ([]byte, error) {
+	raw, err := hex.DecodeString(hash)
+	if err != nil {
+		return nil, fmt.Errorf("%w: an address hash is lowercase hex", ErrAddressBadSettings)
+	}
+	return raw, nil
 }
 
 type AddressRepository interface {

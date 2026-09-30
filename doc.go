@@ -36,6 +36,13 @@ func AddressNormalize(s string) (string, error) { return models.AddressNormalize
 // AddressFormat forwards to [models.AddressFormat].
 func AddressFormat(s string) string { return models.AddressFormat(s) }
 
+// HashHex and HashBytes convert an address hash between the raw bytes a
+// caller computes and the lowercase hex a declared string column holds.
+func HashHex(hash []byte) string { return models.HashHex(hash) }
+
+// HashBytes forwards to [models.HashBytes].
+func HashBytes(hash string) ([]byte, error) { return models.HashBytes(hash) }
+
 // ChatMessage, ChatActivityQuery, ChatActivityPage and ChatActivityReader are
 // aliases of their models. counterparts, and ChatRepository is the
 // persistence boundary over ChatMessage and ChatThread.

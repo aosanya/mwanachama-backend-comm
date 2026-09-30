@@ -1,7 +1,3 @@
-// dm_roster_impl.go — GORM-backed DMRepository implementation, roster-write
-// half: Invite/Accept/Leave/Kick/Promote/ReEnable. See dm_impl.go's package
-// doc for why this port's single GORM store needs a three-way rather than
-// the original module's two-way file split.
 package mwanachamacomm
 
 import (
@@ -11,34 +7,34 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 var errNotAdmin = errors.New("directmessage: not admin")
 
-func (s *DMStore) findParticipant(ctx context.Context, threadID, memberID string) (gormstore.DMParticipantRow, bool, error) {
-	var row gormstore.DMParticipantRow
-	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
-		Where("thread_id = ? AND member_id = ?", threadID, memberID).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return gormstore.DMParticipantRow{}, false, nil
+func (s *DMStore) findParticipant(ctx context.Context, threadID, actorID string) (models.DMParticipant, bool, error) {
+	var p models.DMParticipant
+	q := s.store.Query(ctx, roleDMParticipant).
+		Where("thread_id = ? AND actor_id = ?", threadID, actorID)
+	err := s.store.Take(q, roleDMParticipant, &p, models.ErrDMNotFound)
+	if errors.Is(err, models.ErrDMNotFound) {
+		return models.DMParticipant{}, false, nil
 	}
 	if err != nil {
-		return gormstore.DMParticipantRow{}, false, err
+		return models.DMParticipant{}, false, err
 	}
-	return row, true, nil
+	return p, true, nil
 }
 
-func (s *DMStore) isAdmin(ctx context.Context, threadID, memberID string) (bool, error) {
-	row, found, err := s.findParticipant(ctx, threadID, memberID)
+func (s *DMStore) isAdmin(ctx context.Context, threadID, actorID string) (bool, error) {
+	p, found, err := s.findParticipant(ctx, threadID, actorID)
 	if err != nil || !found {
 		return false, err
 	}
-	return row.IsAdmin && row.State == string(models.DMStateActive), nil
+	return p.IsAdmin && p.State == models.DMStateActive, nil
 }
 
-func (s *DMStore) Invite(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
+func (s *DMStore) Invite(ctx context.Context, threadID, actorID, by string) (models.DMParticipant, error) {
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
 		return models.DMParticipant{}, err
@@ -46,31 +42,29 @@ func (s *DMStore) Invite(ctx context.Context, threadID, memberID, by string) (mo
 	if !ok {
 		return models.DMParticipant{}, errNotAdmin
 	}
-	existing, found, err := s.findParticipant(ctx, threadID, memberID)
+	existing, found, err := s.findParticipant(ctx, threadID, actorID)
 	if err != nil {
 		return models.DMParticipant{}, err
 	}
-	if found && existing.State == string(models.DMStateActive) {
+	if found && existing.State == models.DMStateActive {
 		return models.DMParticipant{}, models.ErrDMAlreadyActive
 	}
-	return s.upsertParticipant(ctx, threadID, memberID)
+	return s.upsertParticipant(ctx, threadID, actorID)
 }
 
-func (s *DMStore) Accept(ctx context.Context, threadID, memberID string) (models.DMParticipant, error) {
-	return s.setState(ctx, threadID, memberID, models.DMStateActive)
+func (s *DMStore) Accept(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
+	return s.setState(ctx, threadID, actorID, models.DMStateActive)
 }
 
-// Leave refuses with [models.ErrDMLastAdmin] when memberID is the thread's
-// only active admin and other participants are still active, since every
-// roster write needs an active admin and nobody could restore one.
-func (s *DMStore) Leave(ctx context.Context, threadID, memberID string) error {
-	admin, err := s.isAdmin(ctx, threadID, memberID)
+func (s *DMStore) Leave(ctx context.Context, threadID, actorID string) error {
+	admin, err := s.isAdmin(ctx, threadID, actorID)
 	if err != nil {
 		return err
 	}
 	if admin {
 		var activeAdmins, active int64
-		base := s.db.WithContext(ctx).Table(s.tables.DMParticipants).Where("thread_id = ? AND state = ?", threadID, string(models.DMStateActive))
+		base := s.store.Query(ctx, roleDMParticipant).
+			Where("thread_id = ? AND state = ?", threadID, string(models.DMStateActive))
 		if err := base.Session(&gorm.Session{}).Where("is_admin = ?", true).Count(&activeAdmins).Error; err != nil {
 			return err
 		}
@@ -81,13 +75,12 @@ func (s *DMStore) Leave(ctx context.Context, threadID, memberID string) error {
 			return models.ErrDMLastAdmin
 		}
 	}
-	_, err = s.setState(ctx, threadID, memberID, models.DMStateLeft)
+	_, err = s.setState(ctx, threadID, actorID, models.DMStateLeft)
 	return err
 }
 
-// Kick refuses a self-kick with [models.ErrDMSelfKick].
-func (s *DMStore) Kick(ctx context.Context, threadID, memberID, by string) error {
-	if memberID == by {
+func (s *DMStore) Kick(ctx context.Context, threadID, actorID, by string) error {
+	if actorID == by {
 		return models.ErrDMSelfKick
 	}
 	ok, err := s.isAdmin(ctx, threadID, by)
@@ -97,18 +90,11 @@ func (s *DMStore) Kick(ctx context.Context, threadID, memberID, by string) error
 	if !ok {
 		return errNotAdmin
 	}
-	_, err = s.setState(ctx, threadID, memberID, models.DMStateKicked)
+	_, err = s.setState(ctx, threadID, actorID, models.DMStateKicked)
 	return err
 }
 
-// Promote makes the target an admin (admin-only). A plain UPDATE, not an
-// upsert: promoting somebody who was never on the roster is ErrDMNotFound,
-// not a silently-created row — matches the memory store's original
-// contract (the old Postgres store's RETURNING-only Promote had drifted
-// from this, returning a bare sql.ErrNoRows on the same case; this port
-// picks the memory store's behaviour since it's the one every business-rule
-// test already assumes).
-func (s *DMStore) Promote(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
+func (s *DMStore) Promote(ctx context.Context, threadID, actorID, by string) (models.DMParticipant, error) {
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
 		return models.DMParticipant{}, err
@@ -116,35 +102,28 @@ func (s *DMStore) Promote(ctx context.Context, threadID, memberID, by string) (m
 	if !ok {
 		return models.DMParticipant{}, errNotAdmin
 	}
-	res := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
-		Where("thread_id = ? AND member_id = ?", threadID, memberID).
-		Updates(map[string]any{"is_admin": true, "updated_at": s.clock()})
+	res := s.store.Query(ctx, roleDMParticipant).
+		Where("thread_id = ? AND actor_id = ?", threadID, actorID).
+		Updates(map[string]any{"is_admin": true, "updated_at": stamp(s.clock())})
 	if res.Error != nil {
 		return models.DMParticipant{}, classify(res.Error)
 	}
 	if res.RowsAffected == 0 {
 		return models.DMParticipant{}, models.ErrDMNotFound
 	}
-	row, found, err := s.findParticipant(ctx, threadID, memberID)
-	if err != nil {
-		return models.DMParticipant{}, err
-	}
-	if !found {
-		return models.DMParticipant{}, models.ErrDMNotFound
-	}
-	return gormstore.DMParticipantFromRow(row), nil
+	return s.mustFindParticipant(ctx, threadID, actorID)
 }
 
-func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (models.DMParticipant, error) {
-	_, found, err := s.findParticipant(ctx, threadID, memberID)
+func (s *DMStore) ReEnable(ctx context.Context, threadID, actorID, by string) (models.DMParticipant, error) {
+	_, found, err := s.findParticipant(ctx, threadID, actorID)
 	if err != nil {
 		return models.DMParticipant{}, err
 	}
 	if !found {
 		return models.DMParticipant{}, models.ErrDMNotFound
 	}
-	if memberID == by {
-		return s.claimEmptiedThread(ctx, threadID, memberID)
+	if actorID == by {
+		return s.claimEmptiedThread(ctx, threadID, actorID)
 	}
 	ok, err := s.isAdmin(ctx, threadID, by)
 	if err != nil {
@@ -153,81 +132,70 @@ func (s *DMStore) ReEnable(ctx context.Context, threadID, memberID, by string) (
 	if !ok {
 		return models.DMParticipant{}, errNotAdmin
 	}
-	return s.setState(ctx, threadID, memberID, models.DMStateInvited)
+	return s.setState(ctx, threadID, actorID, models.DMStateInvited)
 }
 
-func (s *DMStore) claimEmptiedThread(ctx context.Context, threadID, memberID string) (models.DMParticipant, error) {
-	table := s.tables.DMParticipants
-	res := s.db.WithContext(ctx).Table(table).
-		Where("thread_id = ? AND member_id = ? AND state = ?", threadID, memberID, string(models.DMStateLeft)).
+func (s *DMStore) claimEmptiedThread(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
+	table := s.store.Table(roleDMParticipant)
+	res := s.store.Query(ctx, roleDMParticipant).
+		Where("thread_id = ? AND actor_id = ? AND state = ?", threadID, actorID, string(models.DMStateLeft)).
 		Where("NOT EXISTS (SELECT 1 FROM "+table+" other WHERE other.thread_id = ? AND other.state = ?)",
 			threadID, string(models.DMStateActive)).
-		Updates(map[string]any{"state": string(models.DMStateActive), "updated_at": s.clock()})
+		Updates(map[string]any{"state": string(models.DMStateActive), "updated_at": stamp(s.clock())})
 	if res.Error != nil {
 		return models.DMParticipant{}, classify(res.Error)
 	}
 	if res.RowsAffected == 0 {
 		return models.DMParticipant{}, models.ErrDMNotLastToLeave
 	}
-	row, found, err := s.findParticipant(ctx, threadID, memberID)
-	if err != nil {
-		return models.DMParticipant{}, err
-	}
-	if !found {
-		return models.DMParticipant{}, models.ErrDMNotFound
-	}
-	return gormstore.DMParticipantFromRow(row), nil
+	return s.mustFindParticipant(ctx, threadID, actorID)
 }
 
 func (s *DMStore) hasActive(ctx context.Context, threadID string) (bool, error) {
 	var count int64
-	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
+	err := s.store.Query(ctx, roleDMParticipant).
 		Where("thread_id = ? AND state = ?", threadID, string(models.DMStateActive)).Count(&count).Error
 	return count > 0, err
 }
 
-// setState updates a participant's state, returning the fresh row (or
-// ErrDMNotFound if there was nothing to update).
-func (s *DMStore) setState(ctx context.Context, threadID, memberID string, state models.DMParticipantState) (models.DMParticipant, error) {
-	res := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
-		Where("thread_id = ? AND member_id = ?", threadID, memberID).
-		Updates(map[string]any{"state": string(state), "updated_at": s.clock()})
+func (s *DMStore) setState(ctx context.Context, threadID, actorID string, state models.DMParticipantState) (models.DMParticipant, error) {
+	res := s.store.Query(ctx, roleDMParticipant).
+		Where("thread_id = ? AND actor_id = ?", threadID, actorID).
+		Updates(map[string]any{"state": string(state), "updated_at": stamp(s.clock())})
 	if res.Error != nil {
 		return models.DMParticipant{}, classify(res.Error)
 	}
 	if res.RowsAffected == 0 {
 		return models.DMParticipant{}, models.ErrDMNotFound
 	}
-	row, found, err := s.findParticipant(ctx, threadID, memberID)
+	return s.mustFindParticipant(ctx, threadID, actorID)
+}
+
+func (s *DMStore) upsertParticipant(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
+	row, err := encode(s.store.Object(roleDMParticipant), models.DMParticipant{
+		ThreadID: threadID, ActorID: actorID, State: models.DMStateInvited, UpdatedAt: s.clock(),
+	})
 	if err != nil {
 		return models.DMParticipant{}, err
 	}
-	if !found {
-		return models.DMParticipant{}, models.ErrDMNotFound
-	}
-	return gormstore.DMParticipantFromRow(row), nil
-}
-
-// upsertParticipant inserts a new invite, or — if the pair already has a
-// row (Invite's own caller already refused the ErrDMAlreadyActive case) —
-// flips it back to invited without touching is_admin, preserving whatever
-// admin flag the row already carried across a re-invite.
-func (s *DMStore) upsertParticipant(ctx context.Context, threadID, memberID string) (models.DMParticipant, error) {
-	row := gormstore.DMParticipantRow{ThreadID: threadID, MemberID: memberID, State: string(models.DMStateInvited), UpdatedAt: s.clock()}
-	err := s.db.WithContext(ctx).Table(s.tables.DMParticipants).
+	err = s.store.Query(ctx, roleDMParticipant).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "thread_id"}, {Name: "member_id"}},
+			Columns:   []clause.Column{{Name: "thread_id"}, {Name: "actor_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"state", "updated_at"}),
-		}).Create(&row).Error
+		}).Create(row).Error
 	if err != nil {
 		return models.DMParticipant{}, classify(err)
 	}
-	updated, found, err := s.findParticipant(ctx, threadID, memberID)
+	return s.mustFindParticipant(ctx, threadID, actorID)
+}
+
+func (s *DMStore) mustFindParticipant(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
+	p, found, err := s.findParticipant(ctx, threadID, actorID)
 	if err != nil {
 		return models.DMParticipant{}, err
 	}
 	if !found {
 		return models.DMParticipant{}, models.ErrDMNotFound
 	}
-	return gormstore.DMParticipantFromRow(updated), nil
+	return p, nil
 }

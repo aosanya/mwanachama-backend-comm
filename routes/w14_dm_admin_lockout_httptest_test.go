@@ -49,8 +49,8 @@ func (headerIdentity) CallerDeviceID(r *http.Request) string { return "" }
 // mounting gateway would register the same route slice on its own mux.
 func newDMTestServer(t *testing.T) (*httptest.Server, mwanachamacomm.DMRepository) {
 	t.Helper()
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}

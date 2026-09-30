@@ -37,13 +37,13 @@ func dmHTTPGetParticipants(t *testing.T, client *http.Client, url, caller string
 
 func newDMExclusivityServer(t *testing.T) (*httptest.Server, mwanachamacomm.DMRepository) {
 	t.Helper()
-	db, tables := newRouteTestDB(t)
+	db, dspec := newRouteTestDB(t)
 	sqlDB, err := db.DB()
 	if err != nil {
 		t.Fatalf("db.DB(): %v", err)
 	}
 	sqlDB.SetMaxOpenConns(1)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}

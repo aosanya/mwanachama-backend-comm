@@ -14,8 +14,8 @@ import (
 
 func newW14Thread(t *testing.T, invitees ...string) (mwanachamacomm.DMRepository, mwanachamacomm.DMThread) {
 	t.Helper()
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}

@@ -9,26 +9,36 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	"github.com/aosanya/mwanachama-backend-shared/spec"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 )
 
-// newTestDB opens a fresh in-memory sqlite database, migrated the same way
-// a real deployment would via [mwanachamacomm.Migrate]. Mirrors
-// mwanachama-backend-actor's newTestManager: exercising real GORM/SQL
-// behaviour catches more than a hand-rolled memory store ever could, while
-// staying fully in-process — no containers, no POSTGRES_URL.
-func newTestDB(t *testing.T) (*gorm.DB, mwanachamacomm.TableNames) {
+func newTestDB(t *testing.T) (*gorm.DB, *spec.Spec) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		t.Fatalf("gorm.Open: %v", err)
 	}
-	tables := mwanachamacomm.DefaultTableNames()
-	if err := mwanachamacomm.Migrate(db, tables); err != nil {
-		t.Fatalf("Migrate: %v", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("db.DB(): %v", err)
 	}
-	return db, tables
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	s, err := mwanachamacomm.SpecFor("mwanachama")
+	if err != nil {
+		t.Fatalf("SpecFor: %v", err)
+	}
+	if err := mwanachamacomm.Provision(db, s); err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	return db, s
 }
 
 // monotonicClock returns a [mwanachamacomm.Clock] that advances by 1ms on
@@ -68,7 +78,7 @@ func createTestActLog(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	const ddl = `CREATE TABLE IF NOT EXISTS test_act_log (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		chapter_id TEXT NOT NULL,
+		structure_id TEXT NOT NULL,
 		kind TEXT NOT NULL,
 		actor_id TEXT,
 		subject_id TEXT
@@ -102,7 +112,7 @@ func (w txActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.
 		return errors.New("simulated act-log failure")
 	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO test_act_log (chapter_id, kind, actor_id, subject_id) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO test_act_log (structure_id, kind, actor_id, subject_id) VALUES (?, ?, ?, ?)`,
 		e.StructureID, string(e.Kind), e.ActorID, e.SubjectID)
 	return err
 }

@@ -1,36 +1,28 @@
-//go:build postgres
+//go:build integration
 
-// postgres_integration_test.go exercises the GORM stores against a real
-// Postgres, mirroring mwanachama-backend-actor's postgres_integration_test.go
-// and this module's own former postgres_scratch_test.go (deleted along with
-// schema.sql — gormstore.Migrate is now the schema source for both
-// dialects, so there is nothing left for a checked-in fixture to do). Skips
-// unless POSTGRES_URL is set. The fast sqlite-backed tests elsewhere in
-// this package already exhaustively cover business logic; this file's job
-// is narrower — prove the real Postgres wiring (sequence-minted ids,
-// transactions, jsonb round-trips, the *sql.Tx bridge DEV-1341's act-log
-// write depends on) works end-to-end.
 package mwanachamacomm_test
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
 	gormpostgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-shared/postgres"
+	"github.com/aosanya/mwanachama-backend-shared/spec"
+
+	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 )
 
-// newPostgresDB opens POSTGRES_URL, migrates a unique-enough table prefix,
-// and returns a ready-to-use *gorm.DB plus the table set. Skips the calling
-// test if POSTGRES_URL is unset. Tables are dropped on cleanup.
-func newPostgresDB(t *testing.T) (*gorm.DB, mwanachamacomm.TableNames) {
+func newPostgresDB(t *testing.T) (*gorm.DB, *spec.Spec) {
 	t.Helper()
 	dsn := os.Getenv("POSTGRES_URL")
 	if dsn == "" {
@@ -49,30 +41,26 @@ func newPostgresDB(t *testing.T) (*gorm.DB, mwanachamacomm.TableNames) {
 		t.Fatalf("gorm.Open: %v", err)
 	}
 
-	tables := mwanachamacomm.TableNames{
-		ChatThreads: "commi_chat_thread", ChatMessages: "commi_chat_message",
-		DMThreads: "commi_dm_thread", DMParticipants: "commi_dm_participant",
-		DMMessages: "commi_dm_message", DMDeviceKeys: "commi_dm_device_key", DMReactions: "commi_dm_message_reaction",
-		Reports: "commi_message_report", Removals: "commi_message_removal",
-		Disputes: "commi_removal_dispute", Dismissals: "commi_message_report_dismissal",
+	s, err := mwanachamacomm.SpecFor("commi")
+	if err != nil {
+		t.Fatalf("SpecFor: %v", err)
 	}
-	if err := mwanachamacomm.Migrate(db, tables); err != nil {
-		t.Fatalf("Migrate: %v", err)
+	if err := mwanachamacomm.Provision(db, s); err != nil {
+		t.Fatalf("Provision: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = db.Migrator().DropTable(
-			tables.Dismissals, tables.Disputes, tables.Removals, tables.Reports,
-			tables.DMReactions, tables.DMDeviceKeys, tables.DMMessages, tables.DMParticipants, tables.DMThreads,
-			tables.ChatMessages, tables.ChatThreads,
-		)
+		for _, o := range s.Objects {
+			_ = db.Migrator().DropTable(s.TableFor(o))
+		}
+		_ = db.Migrator().DropTable(s.NameRegistryTable())
 		_ = db.Exec("DROP TABLE IF EXISTS commi_test_act_log").Error
 	})
-	return db, tables
+	return db, s
 }
 
 func TestPostgres_ChatMintThreadIsIdempotentLive(t *testing.T) {
-	db, tables := newPostgresDB(t)
-	s, err := mwanachamacomm.NewChatStore(db, tables, nil)
+	db, dspec := newPostgresDB(t)
+	s, err := mwanachamacomm.NewChatStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewChatStore: %v", err)
 	}
@@ -91,8 +79,8 @@ func TestPostgres_ChatMintThreadIsIdempotentLive(t *testing.T) {
 }
 
 func TestPostgres_DMLifecycleLive(t *testing.T) {
-	db, tables := newPostgresDB(t)
-	s, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newPostgresDB(t)
+	s, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -130,7 +118,7 @@ func (w pgTxActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacom
 		return errors.New("simulated act-log failure")
 	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO commi_test_act_log (chapter_id, kind, actor_id, subject_id) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO commi_test_act_log (structure_id, kind, actor_id, subject_id) VALUES ($1, $2, $3, $4)`,
 		e.StructureID, string(e.Kind), e.ActorID, e.SubjectID)
 	return err
 }
@@ -141,15 +129,15 @@ func (w pgTxActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacom
 // a removal succeeds and is logged together, and an ActWriter failure rolls
 // back the removal too, leaving neither row behind.
 func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
-	db, tables := newPostgresDB(t)
+	db, dspec := newPostgresDB(t)
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS commi_test_act_log (
-		id bigserial PRIMARY KEY, chapter_id text NOT NULL, kind text NOT NULL,
+		id bigserial PRIMARY KEY, structure_id text NOT NULL, kind text NOT NULL,
 		actor_id text, subject_id text, occurred_at timestamptz NOT NULL DEFAULT now())`).Error; err != nil {
 		t.Fatalf("create commi_test_act_log: %v", err)
 	}
 	ctx := context.Background()
 
-	okStore, err := mwanachamacomm.NewModerationStore(db, tables, nil, pgTxActWriter{})
+	okStore, err := mwanachamacomm.NewModerationStore(db, dspec, nil, pgTxActWriter{})
 	if err != nil {
 		t.Fatalf("NewModerationStore: %v", err)
 	}
@@ -168,7 +156,7 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 		t.Fatalf("expected exactly 1 act-log row committed with the removal, got %d", actCount)
 	}
 
-	failStore, err := mwanachamacomm.NewModerationStore(db, tables, nil, pgTxActWriter{fail: true})
+	failStore, err := mwanachamacomm.NewModerationStore(db, dspec, nil, pgTxActWriter{fail: true})
 	if err != nil {
 		t.Fatalf("NewModerationStore(fail): %v", err)
 	}
@@ -184,13 +172,13 @@ func TestPostgres_ModerationActLogWrittenInSameTransactionLive(t *testing.T) {
 }
 
 func TestPostgres_ParticipantOrderMatchesSqliteLive(t *testing.T) {
-	pgDB, pgTables := newPostgresDB(t)
-	pg, err := mwanachamacomm.NewDMStore(pgDB, pgTables, nil)
+	pgDB, pgSpec := newPostgresDB(t)
+	pg, err := mwanachamacomm.NewDMStore(pgDB, pgSpec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore(pg): %v", err)
 	}
-	sqliteDB, sqliteTables := newTestDB(t)
-	sq, err := mwanachamacomm.NewDMStore(sqliteDB, sqliteTables, nil)
+	sqliteDB, sqliteSpec := newTestDB(t)
+	sq, err := mwanachamacomm.NewDMStore(sqliteDB, sqliteSpec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore(sqlite): %v", err)
 	}
@@ -226,6 +214,87 @@ func TestPostgres_ParticipantOrderMatchesSqliteLive(t *testing.T) {
 	for i := range pgParts {
 		if pgParts[i].ActorID != sqParts[i].ActorID {
 			t.Fatalf("order mismatch at %d: pg=%q sqlite=%q", i, pgParts[i].ActorID, sqParts[i].ActorID)
+		}
+	}
+}
+
+func TestPostgres_JSONColumnsRoundTripThroughJSONBLive(t *testing.T) {
+	db, dspec := newPostgresDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
+	if err != nil {
+		t.Fatalf("NewDMStore: %v", err)
+	}
+	ctx := context.Background()
+
+	sealed := json.RawMessage(`{"alg":"x25519","ct":"abc"}`)
+	th, err := dm.CreateThread(ctx, mwanachamacomm.DMThread{
+		CreatedBy: "m-1", SentFromAddressSealed: sealed,
+	}, []string{"m-2"})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	back, err := dm.GetThread(ctx, th.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	var got, want map[string]any
+	if err := json.Unmarshal(back.SentFromAddressSealed, &got); err != nil {
+		t.Fatalf("sealed came back as %q: %v", back.SentFromAddressSealed, err)
+	}
+	if err := json.Unmarshal(sealed, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("sealed round tripped as %v, want %v", got, want)
+	}
+
+	keys := map[string]string{"dkey-1": "wrapped-1", "dkey-2": "wrapped-2"}
+	msg, err := dm.Post(ctx, mwanachamacomm.DMMessage{
+		ThreadID: th.ID, SenderID: "m-1", PayloadCiphertext: "ct", PerRecipientKeys: keys,
+	})
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	fetched, err := dm.GetMessage(ctx, msg.ID)
+	if err != nil {
+		t.Fatalf("get message: %v", err)
+	}
+	if !reflect.DeepEqual(fetched.PerRecipientKeys, keys) {
+		t.Fatalf("per_recipient_keys round tripped as %v, want %v", fetched.PerRecipientKeys, keys)
+	}
+}
+
+// A declared timestamp is a text column, so ORDER BY over it is a string
+// comparison. SQLite cannot show a divergence here because it stores
+// whatever it is handed; Postgres will.
+func TestPostgres_TimestampOrderingIsChronologicalLive(t *testing.T) {
+	db, dspec := newPostgresDB(t)
+	chat, err := mwanachamacomm.NewChatStore(db, dspec, nil)
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+	ctx := context.Background()
+
+	for i := 0; i < 12; i++ {
+		if _, err := chat.Post(ctx, mwanachamacomm.ChatMessage{
+			StructureID: "ward-1", AuthorID: "a-1", Body: fmt.Sprintf("m%02d", i),
+		}); err != nil {
+			t.Fatalf("post %d: %v", i, err)
+		}
+	}
+
+	msgs, err := chat.ListMessages(ctx, "ward-1", "")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(msgs) != 12 {
+		t.Fatalf("got %d messages, want 12", len(msgs))
+	}
+	for i := 1; i < len(msgs); i++ {
+		if msgs[i].CreatedAt.Before(msgs[i-1].CreatedAt) {
+			t.Fatalf("message %d (%s) sorts before %d (%s) — the stored layout is not order-preserving",
+				i, msgs[i].CreatedAt, i-1, msgs[i-1].CreatedAt)
 		}
 	}
 }

@@ -12,6 +12,9 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+
+	"github.com/aosanya/mwanachama-backend-shared/spec"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-comm/routes"
@@ -36,17 +39,29 @@ func (noopActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.
 	return nil
 }
 
-func newRouteTestDB(t *testing.T) (*gorm.DB, mwanachamacomm.TableNames) {
+func newRouteTestDB(t *testing.T) (*gorm.DB, *spec.Spec) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		t.Fatalf("gorm.Open: %v", err)
 	}
-	tables := mwanachamacomm.DefaultTableNames()
-	if err := mwanachamacomm.Migrate(db, tables); err != nil {
-		t.Fatalf("Migrate: %v", err)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("db.DB(): %v", err)
 	}
-	return db, tables
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	s, err := mwanachamacomm.SpecFor("mwanachama")
+	if err != nil {
+		t.Fatalf("SpecFor: %v", err)
+	}
+	if err := mwanachamacomm.Provision(db, s); err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	return db, s
 }
 
 func decodeJSON[T any](t *testing.T, w *httptest.ResponseRecorder) T {
@@ -59,8 +74,8 @@ func decodeJSON[T any](t *testing.T, w *httptest.ResponseRecorder) T {
 }
 
 func TestChatActivityRoute(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	chat, err := mwanachamacomm.NewChatStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	chat, err := mwanachamacomm.NewChatStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewChatStore: %v", err)
 	}
@@ -82,8 +97,8 @@ func TestChatActivityRoute(t *testing.T) {
 }
 
 func TestChatActivityRouteRejectsBadLimit(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	chat, err := mwanachamacomm.NewChatStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	chat, err := mwanachamacomm.NewChatStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewChatStore: %v", err)
 	}
@@ -100,8 +115,8 @@ func TestChatActivityRouteRejectsBadLimit(t *testing.T) {
 // as a thread that was never minted — 404, never 403, or the status code
 // itself becomes an enumeration oracle.
 func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -132,8 +147,8 @@ func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
 }
 
 func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -155,8 +170,8 @@ func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
 }
 
 func TestDMInviteAndAcceptRoutes(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -189,8 +204,8 @@ func TestDMInviteAndAcceptRoutes(t *testing.T) {
 }
 
 func TestDMInviteRouteMapsAlreadyActiveTo409(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -214,8 +229,8 @@ func TestDMInviteRouteMapsAlreadyActiveTo409(t *testing.T) {
 }
 
 func TestListDMThreadsRouteAppliesForCaller(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}
@@ -236,8 +251,8 @@ func TestListDMThreadsRouteAppliesForCaller(t *testing.T) {
 }
 
 func TestListReportQueueRoute(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	mod, err := mwanachamacomm.NewModerationStore(db, tables, nil, noopActWriter{})
+	db, dspec := newRouteTestDB(t)
+	mod, err := mwanachamacomm.NewModerationStore(db, dspec, nil, noopActWriter{})
 	if err != nil {
 		t.Fatalf("NewModerationStore: %v", err)
 	}

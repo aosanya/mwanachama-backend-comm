@@ -7,14 +7,32 @@ import (
 	"github.com/aosanya/mwanachama-backend-shared/spec"
 )
 
+// shippedSpecs is every spec this module ships: the domain spec compiled
+// into the binary, plus every example under spec/examples. The examples are
+// globbed rather than listed, so an example added later is swept without
+// anybody remembering to name it here.
 func shippedSpecs(t *testing.T) map[string]*spec.Spec {
 	t.Helper()
 	out := map[string]*spec.Spec{"civic": testSpec(t)}
-	school, err := LoadSpec(filepath.Join(".", "spec", "examples", "school.comm.json"))
+
+	paths, err := filepath.Glob(filepath.Join(".", "spec", "examples", "*.comm.json"))
 	if err != nil {
-		t.Fatalf("load the school spec: %v", err)
+		t.Fatalf("glob the examples: %v", err)
 	}
-	out["school"] = school
+	for _, path := range paths {
+		s, err := LoadSpec(path)
+		if err != nil {
+			t.Fatalf("load %s: %v", path, err)
+		}
+		if _, clash := out[s.Domain]; clash {
+			t.Fatalf("two specs both call themselves %q", s.Domain)
+		}
+		out[s.Domain] = s
+	}
+
+	if len(out) < 2 {
+		t.Fatalf("found %d spec(s); the standard wants at least two, so domain-neutrality is actually exercised", len(out))
+	}
 	return out
 }
 

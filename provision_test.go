@@ -8,9 +8,39 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
 )
+
+// seedLegacyTables recreates comm's pre-spec table set: the `comm_`-prefixed
+// names, carrying the chapter/member column names the gateway's own tables
+// had. Written out as DDL rather than derived from the row structs the
+// conversion deleted, so the test pins the shape that is actually on disk in
+// a live database rather than a shape that moves when the code does.
+func seedLegacyTables(t *testing.T, db *gorm.DB, s *spec.Spec) {
+	t.Helper()
+	reverse := map[string]string{}
+	for from, to := range commLegacy.Columns {
+		reverse[to] = from
+	}
+
+	for _, o := range s.Objects {
+		name, ok := legacyTables[o.Role]
+		if !ok {
+			continue
+		}
+		columns := make([]string, 0, len(o.Fields))
+		for _, f := range o.Fields {
+			column := f.Name
+			if was, renamed := reverse[column]; renamed {
+				column = was
+			}
+			columns = append(columns, column+" text")
+		}
+		ddl := "create table if not exists " + name + " (" + strings.Join(columns, ", ") + ")"
+		if err := db.Exec(ddl).Error; err != nil {
+			t.Fatalf("seed %s: %v", name, err)
+		}
+	}
+}
 
 func provisionTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -57,9 +87,7 @@ func TestProvisionMovesALegacyTableSetOntoTheDeclaredNames(t *testing.T) {
 	db := provisionTestDB(t)
 	s := testSpec(t)
 
-	if err := gormstore.Migrate(db, gormstore.DefaultTableNames()); err != nil {
-		t.Fatalf("seed the pre-spec table set: %v", err)
-	}
+	seedLegacyTables(t, db, s)
 	for _, legacy := range legacyTables {
 		if !db.Migrator().HasTable(legacy) {
 			t.Fatalf("seed did not create %s", legacy)
@@ -89,9 +117,7 @@ func TestProvisionRenamesTheChapterAndMemberColumns(t *testing.T) {
 	db := provisionTestDB(t)
 	s := testSpec(t)
 
-	if err := gormstore.Migrate(db, gormstore.DefaultTableNames()); err != nil {
-		t.Fatalf("seed the pre-spec table set: %v", err)
-	}
+	seedLegacyTables(t, db, s)
 	if err := Provision(db, s); err != nil {
 		t.Fatalf("Provision: %v", err)
 	}
@@ -121,14 +147,14 @@ func TestProvisionRenamesTheChapterAndMemberColumns(t *testing.T) {
 		}
 		table := s.TableFor(o)
 
-		declared, err := hasColumn(db, table, c.declared)
+		declared, err := spec.HasColumn(db, table, c.declared)
 		if err != nil {
 			t.Fatalf("read columns of %s: %v", table, err)
 		}
 		if !declared {
 			t.Errorf("%s has no %s column, so the store would read it back empty", table, c.declared)
 		}
-		legacy, err := hasColumn(db, table, c.legacy)
+		legacy, err := spec.HasColumn(db, table, c.legacy)
 		if err != nil {
 			t.Fatalf("read columns of %s: %v", table, err)
 		}
@@ -142,9 +168,7 @@ func TestProvisionRefusesToStrandRowsInALegacyTable(t *testing.T) {
 	db := provisionTestDB(t)
 	s := testSpec(t)
 
-	if err := gormstore.Migrate(db, gormstore.DefaultTableNames()); err != nil {
-		t.Fatalf("seed the pre-spec table set: %v", err)
-	}
+	seedLegacyTables(t, db, s)
 	if err := spec.Migrate(db, s); err != nil {
 		t.Fatalf("create the declared set beside it: %v", err)
 	}

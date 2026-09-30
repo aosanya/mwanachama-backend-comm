@@ -11,8 +11,8 @@ import (
 
 func newDMStore(t *testing.T) *mwanachamacomm.DMStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacomm.NewDMStore(db, tables, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
+	db, dspec := newTestDB(t)
+	s, err := mwanachamacomm.NewDMStore(db, dspec, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatalf("NewDMStore: %v", err)
 	}

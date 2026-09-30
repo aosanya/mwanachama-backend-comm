@@ -714,7 +714,8 @@
         {
           "name": "hours",
           "type": "json",
-          "description": "The weekly schedule this address answers on, or absent for always. An unparseable schedule reads as no schedule and the row is still returned \u2014 an address nobody can be told about because one JSON field moved is a worse answer than one shown as open while somebody fixes it."
+          "description": "The weekly schedule this address answers on, or absent for always. An unparseable schedule reads as no schedule and the row is still returned \u2014 an address nobody can be told about because one JSON field moved is a worse answer than one shown as open while somebody fixes it.",
+          "nullable": true
         },
         {
           "name": "listed_at",

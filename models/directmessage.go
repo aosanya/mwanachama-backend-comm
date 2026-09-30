@@ -41,12 +41,9 @@ type DMThread struct {
 
 	MessageTTLSeconds *int `json:"message_ttl_seconds,omitempty"`
 
-	OpenedViaAddressHash []byte `json:"-"`
+	OpenedViaAddressHash string `json:"-"`
 
-	// OpenedViaAddress reports whether an address opened this thread, without
-	// saying which. It is what a client needs in order to offer **Block**, and
-	// all it needs.
-	OpenedViaAddress bool `json:"opened_via_address"`
+	OpenedViaAddress bool `json:"opened_via_address" spec:"-"`
 
 	OpenedViaAddressOwner string `json:"-"`
 
@@ -60,14 +57,17 @@ type DMThread struct {
 	// serves it back, and holds no key to it.
 	SentFromAddressSealed json.RawMessage `json:"sent_from_address_sealed,omitempty"`
 
-	// MyAddressIndex is whichever of the two above belongs to **the caller**,
-	// resolved per reader by `forCaller` — see there.
-	MyAddressIndex *int `json:"my_address_index,omitempty"`
+	MyAddressIndex *int `json:"my_address_index,omitempty" spec:"-"`
 
 	// OpenedViaAddressIndex is which of the owner's addresses was used, and it
 	// is **never serialised** — `MyAddressIndex` is what a reader gets, so a
 	// new read path cannot leak this by forgetting to filter it.
 	OpenedViaAddressIndex *int `json:"-"`
+}
+
+func (t DMThread) WithDerived() DMThread {
+	t.OpenedViaAddress = t.OpenedViaAddressHash != ""
+	return t
 }
 
 type DMParticipant struct {

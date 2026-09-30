@@ -11,8 +11,8 @@ import (
 
 func newNotificationStore(t *testing.T) *mwanachamacomm.NotificationStore {
 	t.Helper()
-	db, tables := newTestDB(t)
-	s, err := mwanachamacomm.NewNotificationStore(db, tables, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
+	db, dspec := newTestDB(t)
+	s, err := mwanachamacomm.NewNotificationStore(db, dspec, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
 	if err != nil {
 		t.Fatalf("NewNotificationStore: %v", err)
 	}

@@ -13,9 +13,9 @@ import (
 
 func newModerationStore(t *testing.T, actWriter mwanachamacomm.ActWriter) (*mwanachamacomm.ModerationStore, *gorm.DB) {
 	t.Helper()
-	db, tables := newTestDB(t)
+	db, dspec := newTestDB(t)
 	createTestActLog(t, db)
-	s, err := mwanachamacomm.NewModerationStore(db, tables, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), actWriter)
+	s, err := mwanachamacomm.NewModerationStore(db, dspec, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), actWriter)
 	if err != nil {
 		t.Fatalf("NewModerationStore: %v", err)
 	}

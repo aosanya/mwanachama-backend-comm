@@ -1,89 +1,69 @@
-// address_directory_impl.go — GORM-backed AddressDirectory implementation.
-// Ported from mwanachama-backend-api-gateway's
-// internal/store/postgres/address_directory.go.
 package mwanachamacomm
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
+	"github.com/aosanya/mwanachama-backend-shared/spec"
+
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 type AddressDirectoryStore struct {
-	db     *gorm.DB
-	tables TableNames
-	clock  Clock
+	store *store
+	clock Clock
 
-	membersTable string
+	actorsTable string
 }
 
-const DefaultMembersTable = "member_actors"
+const DefaultActorsTable = "member_actors"
 
-func NewAddressDirectoryStore(db *gorm.DB, t TableNames, membersTable string, clock Clock) *AddressDirectoryStore {
+func NewAddressDirectoryStore(db *gorm.DB, s *spec.Spec, actorsTable string, clock Clock) (*AddressDirectoryStore, error) {
+	if db == nil {
+		return nil, fmt.Errorf("NewAddressDirectoryStore: db must not be nil")
+	}
 	if clock == nil {
 		clock = SystemClock
 	}
-	if membersTable == "" {
-		membersTable = DefaultMembersTable
+	if actorsTable == "" {
+		actorsTable = DefaultActorsTable
 	}
-	return &AddressDirectoryStore{db: db, tables: t, clock: clock, membersTable: membersTable}
+	st, err := newStore(db, s, map[string]any{roleAddress: models.Address{}})
+	if err != nil {
+		return nil, err
+	}
+	return &AddressDirectoryStore{store: st, clock: clock, actorsTable: actorsTable}, nil
 }
 
-// Search returns one page of the directory.
-//
-// ⚠️ **Only the permanent stops are in the WHERE.** retired_at and the
-// expiry drop a row from the directory for good; disabled_at and hours do
-// not, because an address shut for the weekend is one somebody should
-// still be able to write down — see models.Address.InDirectory. Those two
-// are read out and answered as `available`, which also keeps the paging
-// exact: nothing is dropped in Go after the LIMIT has already been
-// applied here.
-//
-// **The address is matched on the canonical form**, which is the only
-// form this column ever holds, so the caller's spacing cannot decide
-// whether they get a hit — AddressDirectoryQuery.AddressSearch has
-// already stripped it. A term holding a character no address contains
-// arrives as "" and the address half is skipped rather than scanned for
-// something that cannot be there.
-//
-// **Byte-order tiebreak on both dialects, not a locale-aware one.**
-// COLLATE "C" on Postgres and sqlite's own default TEXT collation
-// (BINARY) already agree, so no dialect branch is needed for the ORDER
-// BY itself — only for whether "COLLATE \"C\"" is valid syntax to say out
-// loud, which it is not on sqlite.
-//
-// Case-insensitive matching is done with LOWER(...) LIKE LOWER(...)
-// rather than Postgres's ILIKE, so the same statement runs on both
-// dialects this package supports.
 func (s *AddressDirectoryStore) Search(ctx context.Context, q models.AddressDirectoryQuery) ([]models.AddressListing, error) {
 	q = q.Normalized()
 	now := s.clock()
 
 	collate := ""
-	if s.db.Dialector.Name() == "postgres" {
+	if s.store.Query(ctx, roleAddress).Dialector.Name() == "postgres" {
 		collate = ` COLLATE "C"`
 	}
 
 	query := `
-SELECT a.public_address, a.member_id, m.display_name, a.listed_at, a.disabled_at, a.hours
-  FROM ` + s.tables.Addresses + ` a
-  JOIN ` + s.membersTable + ` m ON m.id = a.member_id
- WHERE a.listed_at IS NOT NULL AND a.public_address IS NOT NULL
+SELECT a.public_address, a.actor_id, m.display_name, a.listed_at, a.disabled_at, a.hours
+  FROM ` + s.store.Table(roleAddress) + ` a
+  JOIN ` + s.actorsTable + ` m ON m.id = a.actor_id
+ WHERE a.listed_at IS NOT NULL AND a.public_address <> ''
    AND a.retired_at IS NULL AND (a.expires_at IS NULL OR a.expires_at > ?)
-   AND (? = '' OR a.member_id <> ?)
+   AND (? = '' OR a.actor_id <> ?)
    AND (? = '' OR LOWER(m.display_name) LIKE ? OR (? <> '' AND a.public_address LIKE ?))
  ORDER BY a.listed_at DESC, a.public_address` + collate + `
  LIMIT ? OFFSET ?`
 
 	nameFrag := strings.ToLower(q.Search)
 	addrFrag := q.AddressSearch()
-	rows, err := s.db.WithContext(ctx).Raw(query,
-		now,
+	rows, err := s.store.Query(ctx, roleAddress).Raw(query,
+		stamp(now),
 		q.ExcludeActorID, q.ExcludeActorID,
 		q.Search, "%"+nameFrag+"%", addrFrag, "%"+addrFrag+"%",
 		q.Limit, q.Offset,
@@ -114,12 +94,6 @@ SELECT a.public_address, a.member_id, m.display_name, a.listed_at, a.disabled_at
 	return out, nil
 }
 
-// addressAvailableNow answers whether an address will open a thread right
-// now, from the two reversible things that stop it.
-//
-// **A schedule that will not parse reads as no schedule**, and the row is
-// still offered — the same errs-open reasoning models.AddressHours.OpenAt
-// documents.
 func addressAvailableNow(disabled flexTime, hours []byte, now time.Time) bool {
 	if disabled.Valid {
 		return false

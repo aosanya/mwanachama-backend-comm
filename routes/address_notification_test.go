@@ -12,12 +12,12 @@ import (
 )
 
 func TestListMyAddressesRoute(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	addrs, err := mwanachamacomm.NewAddressStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	addrs, err := mwanachamacomm.NewAddressStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: mwanachamacomm.HashHex([]byte("h1")), AddressIndex: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -35,12 +35,12 @@ func TestListMyAddressesRoute(t *testing.T) {
 }
 
 func TestRetireAddressRoute(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	addrs, err := mwanachamacomm.NewAddressStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	addrs, err := mwanachamacomm.NewAddressStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), Index: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: mwanachamacomm.HashHex([]byte("h1")), AddressIndex: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -64,8 +64,8 @@ func TestRetireAddressRoute(t *testing.T) {
 }
 
 func TestRetireAddressRouteRejectsBadIndex(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	addrs, err := mwanachamacomm.NewAddressStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	addrs, err := mwanachamacomm.NewAddressStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
@@ -80,8 +80,8 @@ func TestRetireAddressRouteRejectsBadIndex(t *testing.T) {
 }
 
 func TestNotificationRoutesEndToEnd(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	notif, err := mwanachamacomm.NewNotificationStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	notif, err := mwanachamacomm.NewNotificationStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewNotificationStore: %v", err)
 	}
@@ -145,8 +145,8 @@ func TestNotificationRoutesEndToEnd(t *testing.T) {
 }
 
 func TestSetNotificationPreferenceRoute(t *testing.T) {
-	db, tables := newRouteTestDB(t)
-	notif, err := mwanachamacomm.NewNotificationStore(db, tables, nil)
+	db, dspec := newRouteTestDB(t)
+	notif, err := mwanachamacomm.NewNotificationStore(db, dspec, nil)
 	if err != nil {
 		t.Fatalf("NewNotificationStore: %v", err)
 	}

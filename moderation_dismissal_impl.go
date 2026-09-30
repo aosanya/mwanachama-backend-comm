@@ -1,16 +1,11 @@
-// moderation_dismissal_impl.go — G79's third outcome, on GORM. Its own file
-// rather than more of moderation_impl.go, mirroring the gateway's original
-// split (store_postgres_moderation_dismissal.go, [[file-length-limit]]).
 package mwanachamacomm
 
 import (
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/aosanya/mwanachama-backend-comm/gormstore"
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
@@ -18,52 +13,48 @@ func (s *ModerationStore) DismissReports(ctx context.Context, d models.Dismissal
 	if d.DismissedAt.IsZero() {
 		d.DismissedAt = s.clock()
 	}
-	row := gormstore.DismissalToRow(d)
-	var out models.Dismissal
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		q := tx.Table(s.tables.Removals)
+	if d.ID == "" {
+		d.ID = mintID(prefixDismissal)
+	}
+	row, err := encode(s.store.Object(roleDismissal), d)
+	if err != nil {
+		return models.Dismissal{}, err
+	}
+	err = s.store.Query(ctx, roleDismissal).Session(&gorm.Session{}).Transaction(func(tx *gorm.DB) error {
+		q := tx.Table(s.store.Table(roleRemoval))
 		if tx.Dialector.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 		}
-		var existing gormstore.RemovalRow
-		err := q.Where("message_id = ?", d.MessageID).First(&existing).Error
-		switch {
-		case err == nil:
-			return models.ErrAlreadyRemoved
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			// The ordinary case: the post is standing, which is what makes
-			// leaving it standing meaningful.
-		default:
+		var rows []map[string]any
+		if err := q.Where("message_id = ?", d.MessageID).Limit(1).Find(&rows).Error; err != nil {
 			return err
+		}
+		if len(rows) > 0 {
+			return models.ErrAlreadyRemoved
 		}
 
-		if err := tx.Table(s.tables.Dismissals).Create(&row).Error; err != nil {
+		if err := tx.Table(s.store.Table(roleDismissal)).Create(row).Error; err != nil {
 			return err
 		}
-		out = gormstore.DismissalFromRow(row)
 		sqlTx, err := sqlTxFrom(tx)
 		if err != nil {
 			return err
 		}
-		return s.actWriter.WriteAct(ctx, sqlTx, models.ReportLeftStandingAct(out, wall, actor))
+		return s.actWriter.WriteAct(ctx, sqlTx, models.ReportLeftStandingAct(d, wall, actor))
 	})
 	if err != nil {
 		return models.Dismissal{}, classify(err)
 	}
-	return out, nil
+	return d, nil
 }
 
-// GetDismissalForMessage returns the dismissal naming messageID, if any.
 func (s *ModerationStore) GetDismissalForMessage(ctx context.Context, messageID string) (models.Dismissal, error) {
-	var row gormstore.DismissalRow
-	err := s.db.WithContext(ctx).Table(s.tables.Dismissals).Where("message_id = ?", messageID).First(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.Dismissal{}, models.ErrModerationNotFound
-	}
-	if err != nil {
+	var d models.Dismissal
+	q := s.store.Query(ctx, roleDismissal).Where("message_id = ?", messageID)
+	if err := s.store.Take(q, roleDismissal, &d, models.ErrModerationNotFound); err != nil {
 		return models.Dismissal{}, err
 	}
-	return gormstore.DismissalFromRow(row), nil
+	return d, nil
 }
 
 var _ models.ModerationRepository = (*ModerationStore)(nil)
