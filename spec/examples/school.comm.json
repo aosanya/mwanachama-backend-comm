@@ -1,0 +1,113 @@
+{
+  "module": "comm",
+  "domain": "school",
+  "instance": "brookside",
+  "objects": [
+    {
+      "role": "chat_thread",
+      "name": "board",
+      "table": "boards",
+      "description": "One classroom's discussion board — the school's own noun for the room a civic chapter calls a chat thread."
+    },
+    {
+      "role": "chat_message",
+      "name": "board_post",
+      "table": "board_posts",
+      "description": "One post a teacher or pupil leaves on a classroom board."
+    },
+    {
+      "role": "dm_thread",
+      "name": "conversation",
+      "table": "conversations",
+      "description": "One private correspondence between a parent and a member of staff, or among a group of them."
+    },
+    {
+      "role": "dm_participant",
+      "name": "correspondent",
+      "table": "correspondents",
+      "description": "One person's standing on one conversation."
+    },
+    {
+      "role": "dm_message",
+      "name": "letter",
+      "table": "letters",
+      "description": "One end-to-end encrypted letter on a conversation."
+    },
+    {
+      "role": "dm_reaction",
+      "name": "sticker",
+      "table": "stickers",
+      "description": "One reader's sticker on one letter."
+    },
+    {
+      "role": "dm_device_key",
+      "name": "handset_key",
+      "table": "handset_keys",
+      "description": "One published public key for one of a parent's or teacher's handsets."
+    },
+    {
+      "role": "report",
+      "name": "concern",
+      "table": "concerns",
+      "description": "One parent or pupil asking the pastoral team to look at a board post."
+    },
+    {
+      "role": "removal",
+      "name": "takedown",
+      "table": "takedowns",
+      "description": "The pastoral team withholding a board post from a classroom."
+    },
+    {
+      "role": "dismissal",
+      "name": "clearance",
+      "table": "clearances",
+      "description": "The pastoral team leaving a reported board post standing."
+    },
+    {
+      "role": "dispute",
+      "name": "appeal",
+      "table": "appeals",
+      "description": "An author contesting the takedown of their own post, decided by a year head above the classroom that took it down."
+    },
+    {
+      "role": "address",
+      "name": "contact_code",
+      "table": "contact_codes",
+      "description": "One of a parent's contact codes — the handle the school can write to without publishing which parent it belongs to.",
+      "fields": [
+        {
+          "name": "expiry_mode",
+          "default": "closed"
+        }
+      ]
+    },
+    {
+      "role": "address_block",
+      "name": "blocked_contact",
+      "table": "blocked_contacts",
+      "description": "One parent refusing everything from one contact code."
+    },
+    {
+      "role": "notification",
+      "name": "announcement",
+      "table": "announcements",
+      "description": "One thing that happened in the school and that one parent, pupil or teacher should be told about.",
+      "indexes": [
+        {
+          "name": "term_digest",
+          "description": "Finds every unread announcement for one recipient, which is how the school builds a weekly digest.",
+          "fields": [
+            "actor_id",
+            "read_at"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "notification_preference",
+      "name": "announcement_setting",
+      "table": "announcement_settings",
+      "description": "One recipient's decision to mute one category of announcement."
+    }
+  ]
+}
