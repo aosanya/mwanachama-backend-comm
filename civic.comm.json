@@ -73,7 +73,7 @@
       "role": "address",
       "name": "member_address",
       "table": "addresses",
-      "description": "One of a member's addresses — the handle somebody can write to without being told which member they are writing to."
+      "description": "One of a member's addresses \u2014 the handle somebody can write to without being told which member they are writing to."
     },
     {
       "role": "address_block",
@@ -85,13 +85,76 @@
       "role": "notification",
       "name": "notification",
       "table": "notifications",
-      "description": "One thing that happened in the organization and that one member should be told about."
+      "description": "One thing that happened in the organization and that one member should be told about.",
+      "fields": [
+        {
+          "name": "category",
+          "values": [
+            "survey",
+            "results",
+            "contribution",
+            "merchandise",
+            "membership",
+            "security",
+            "approval"
+          ]
+        },
+        {
+          "name": "event",
+          "values": [
+            "survey_reached",
+            "survey_reminder",
+            "survey_nudge",
+            "results_published",
+            "contribution_matched",
+            "contribution_orphaned",
+            "contribution_report_refused",
+            "merchandise_recorded",
+            "identity_case_opened",
+            "identity_case_closed",
+            "enrollment_key_rotated",
+            "actor_transferred",
+            "consent_version_published",
+            "number_changed",
+            "device_signed_out",
+            "approval_requested"
+          ]
+        },
+        {
+          "name": "subject_kind",
+          "values": [
+            "survey",
+            "contribution",
+            "contribution_report",
+            "handout",
+            "identity_case",
+            "device",
+            "enrollment_key",
+            "actor_registration",
+            "pending_approval"
+          ]
+        }
+      ]
     },
     {
       "role": "notification_preference",
       "name": "notification_preference",
       "table": "notification_prefs",
-      "description": "One member's decision to mute one category of notification."
+      "description": "One member's decision to mute one category of notification.",
+      "fields": [
+        {
+          "name": "category",
+          "values": [
+            "survey",
+            "results",
+            "contribution",
+            "merchandise",
+            "membership",
+            "security",
+            "approval"
+          ]
+        }
+      ]
     }
   ]
 }

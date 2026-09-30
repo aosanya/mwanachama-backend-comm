@@ -7,7 +7,7 @@
       "role": "chat_thread",
       "name": "board",
       "table": "boards",
-      "description": "One classroom's discussion board — the school's own noun for the room a civic chapter calls a chat thread."
+      "description": "One classroom's discussion board \u2014 the school's own noun for the room a civic chapter calls a chat thread."
     },
     {
       "role": "chat_message",
@@ -73,7 +73,7 @@
       "role": "address",
       "name": "contact_code",
       "table": "contact_codes",
-      "description": "One of a parent's contact codes — the handle the school can write to without publishing which parent it belongs to.",
+      "description": "One of a parent's contact codes \u2014 the handle the school can write to without publishing which parent it belongs to.",
       "fields": [
         {
           "name": "expiry_mode",
@@ -101,13 +101,49 @@
             "read_at"
           ]
         }
+      ],
+      "fields": [
+        {
+          "name": "category",
+          "values": [
+            "attendance",
+            "report_card",
+            "security"
+          ]
+        },
+        {
+          "name": "event",
+          "values": [
+            "report_card_published",
+            "absence_recorded",
+            "device_signed_out"
+          ]
+        },
+        {
+          "name": "subject_kind",
+          "values": [
+            "report_card",
+            "absence",
+            "device"
+          ]
+        }
       ]
     },
     {
       "role": "notification_preference",
       "name": "announcement_setting",
       "table": "announcement_settings",
-      "description": "One recipient's decision to mute one category of announcement."
+      "description": "One recipient's decision to mute one category of announcement.",
+      "fields": [
+        {
+          "name": "category",
+          "values": [
+            "attendance",
+            "report_card",
+            "security"
+          ]
+        }
+      ]
     }
   ]
 }

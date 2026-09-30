@@ -3,6 +3,7 @@ package mwanachamacomm
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
@@ -134,7 +135,54 @@ func TestEveryLegacyColumnHasADeclaredHome(t *testing.T) {
 	}
 }
 
+// commsOwnVocabulary is every value comm's own acts produce. Its moderation
+// writes one removal receipt; everything else in a notification's vocabulary
+// is raised by another module through NotificationRepository.Raise, so the
+// module declares these and a domain declares the rest.
+var commsOwnVocabulary = map[string][]string{
+	roleNotification + ".category":           {"chat"},
+	roleNotification + ".event":              {"message_removed"},
+	roleNotification + ".subject_kind":       {"message"},
+	roleNotificationPreference + ".category": {"chat"},
+}
+
 func TestVocabularyMatchesTheBlueprint(t *testing.T) {
+	b, err := Blueprint()
+	if err != nil {
+		t.Fatalf("Blueprint: %v", err)
+	}
+
+	for key, want := range commsOwnVocabulary {
+		role, field, _ := strings.Cut(key, ".")
+		o, ok := b.Object(role)
+		if !ok {
+			t.Errorf("the blueprint declares no role %q", role)
+			continue
+		}
+		got := valuesOfField(t, o, field)
+		sorted := append([]string(nil), got...)
+		expect := append([]string(nil), want...)
+		sort.Strings(sorted)
+		sort.Strings(expect)
+		if !reflect.DeepEqual(sorted, expect) {
+			t.Errorf("the blueprint declares %s.%s as %v, want only comm's own %v — every other value belongs to whichever module raises it, and is the domain's to declare",
+				role, field, got, want)
+		}
+	}
+}
+
+func valuesOfField(t *testing.T, o spec.Object, field string) []string {
+	t.Helper()
+	for _, f := range o.Fields {
+		if f.Name == field {
+			return f.Values
+		}
+	}
+	t.Fatalf("%s declares no field %q", o.Role, field)
+	return nil
+}
+
+func TestCivicVocabularyMatchesTheGoConstants(t *testing.T) {
 	s := testSpec(t)
 
 	cases := []struct {
@@ -166,7 +214,7 @@ func TestVocabularyMatchesTheBlueprint(t *testing.T) {
 		sort.Strings(declared)
 		sort.Strings(want)
 		if !reflect.DeepEqual(declared, want) {
-			t.Errorf("%s.%s: blueprint declares %v, Go constants are %v — a stored value outlives a rename, so a drift here is a data bug rather than a compile error",
+			t.Errorf("%s.%s: the civic spec declares %v, Go constants are %v — a stored value outlives a rename, so a drift here is a data bug rather than a compile error",
 				c.role, c.field, declared, want)
 		}
 	}

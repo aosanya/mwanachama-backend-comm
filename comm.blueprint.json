@@ -67,7 +67,7 @@
         {
           "name": "thread_id",
           "type": "string",
-          "description": "The thread this belongs to. Empty for a room-level post, which is a real state rather than a missing value — this module has no post that belongs to a thread whose id is nothing."
+          "description": "The thread this belongs to. Empty for a room-level post, which is a real state rather than a missing value \u2014 this module has no post that belongs to a thread whose id is nothing."
         },
         {
           "name": "author_id",
@@ -78,7 +78,7 @@
         {
           "name": "body",
           "type": "text",
-          "description": "The post itself, as written. Never edited and never deleted — a withheld post is a removal row beside it, not a change here."
+          "description": "The post itself, as written. Never edited and never deleted \u2014 a withheld post is a removal row beside it, not a change here."
         },
         {
           "name": "created_at",
@@ -133,7 +133,7 @@
         {
           "name": "opened_via_address_hash",
           "type": "string",
-          "description": "The keyed hash of the address this thread was opened through, hex-encoded, or empty if it was opened directly. What a reader gets is the bare fact that an address opened the thread, never this value — it is what makes Block possible and all that does."
+          "description": "The keyed hash of the address this thread was opened through, hex-encoded, or empty if it was opened directly. What a reader gets is the bare fact that an address opened the thread, never this value \u2014 it is what makes Block possible and all that does."
         },
         {
           "name": "opened_via_address_owner",
@@ -149,7 +149,7 @@
         {
           "name": "sent_from_address_owner",
           "type": "string",
-          "description": "The sender's side of the pair — the actor who owns the address they chose to write from."
+          "description": "The sender's side of the pair \u2014 the actor who owns the address they chose to write from."
         },
         {
           "name": "sent_from_address_index",
@@ -160,7 +160,7 @@
         {
           "name": "sent_from_address_sealed",
           "type": "json",
-          "description": "The sender's own address, encrypted to the recipient's devices. Opaque here — this module stores it and serves it back and holds no key to it."
+          "description": "The sender's own address, encrypted to the recipient's devices. Opaque here \u2014 this module stores it and serves it back and holds no key to it."
         },
         {
           "name": "message_ttl_seconds",
@@ -292,7 +292,7 @@
         {
           "name": "emoji",
           "type": "string",
-          "description": "The reaction itself. Not a closed set — this module does not curate which emoji people may use."
+          "description": "The reaction itself. Not a closed set \u2014 this module does not curate which emoji people may use."
         },
         {
           "name": "created_at",
@@ -476,7 +476,7 @@
         {
           "name": "removed_by",
           "type": "string",
-          "description": "The moderator who withheld it. Named upward and in the act log, never in the room and never to the author — the room-safe projection blanks it rather than a client choosing not to render it."
+          "description": "The moderator who withheld it. Named upward and in the act log, never in the room and never to the author \u2014 the room-safe projection blanks it rather than a client choosing not to render it."
         },
         {
           "name": "actor_role_class",
@@ -486,7 +486,7 @@
         {
           "name": "reason",
           "type": "enum",
-          "description": "The class the message was withheld under. Three, not the report's four — spam is not a ground to withhold on.",
+          "description": "The class the message was withheld under. Three, not the report's four \u2014 spam is not a ground to withhold on.",
           "values": [
             "threats",
             "abuse",
@@ -526,7 +526,7 @@
         {
           "name": "dismissed_by",
           "type": "string",
-          "description": "The moderator who decided. Named upward and in the act log, never to the reporters — the same asymmetry a removal carries, enforced the same way."
+          "description": "The moderator who decided. Named upward and in the act log, never to the reporters \u2014 the same asymmetry a removal carries, enforced the same way."
         },
         {
           "name": "actor_role_class",
@@ -633,7 +633,7 @@
     },
     {
       "role": "address",
-      "description": "One of an actor's addresses — the handle somebody else can open a conversation to without being told who they are writing to. The row holds the keyed hash and never the address itself, and never the public key either: an address is a pure function of its key, so a row holding the key would hand the address to anyone who read the table.",
+      "description": "One of an actor's addresses \u2014 the handle somebody else can open a conversation to without being told who they are writing to. The row holds the keyed hash and never the address itself, and never the public key either: an address is a pure function of its key, so a row holding the key would hand the address to anyone who read the table.",
       "fields": [
         {
           "name": "hash",
@@ -665,7 +665,7 @@
         {
           "name": "retired_at",
           "type": "timestamp",
-          "description": "When new threads stopped being accepted here. Threads already open are untouched — retiring an address must never sever a conversation the other party is in the middle of.",
+          "description": "When new threads stopped being accepted here. Threads already open are untouched \u2014 retiring an address must never sever a conversation the other party is in the middle of.",
           "nullable": true
         },
         {
@@ -714,7 +714,7 @@
         {
           "name": "hours",
           "type": "json",
-          "description": "The weekly schedule this address answers on, or absent for always. An unparseable schedule reads as no schedule and the row is still returned — an address nobody can be told about because one JSON field moved is a worse answer than one shown as open while somebody fixes it."
+          "description": "The weekly schedule this address answers on, or absent for always. An unparseable schedule reads as no schedule and the row is still returned \u2014 an address nobody can be told about because one JSON field moved is a worse answer than one shown as open while somebody fixes it."
         },
         {
           "name": "listed_at",
@@ -792,7 +792,7 @@
         {
           "name": "actor_id",
           "type": "string",
-          "description": "The recipient. Required — a notification without one reaches nobody.",
+          "description": "The recipient. Required \u2014 a notification without one reaches nobody.",
           "required": true
         },
         {
@@ -813,57 +813,25 @@
         {
           "name": "category",
           "type": "enum",
-          "description": "What kind of thing this is, and the unit muting works on. Derived from the event rather than chosen by a caller — a caller that picks its own is the road to an event raised under a mutable category. Survey and security cannot be muted.",
+          "description": "What kind of thing this is, and the unit muting works on. Derived from the event rather than chosen by a caller \u2014 a caller that picks its own is the road to an event raised under a mutable category. The module declares only the category its own acts fall under; a domain widens the set with the categories its other modules raise under, and says which of them cannot be muted.",
           "values": [
-            "survey",
-            "results",
-            "contribution",
-            "merchandise",
-            "chat",
-            "membership",
-            "security",
-            "approval"
+            "chat"
           ]
         },
         {
           "name": "event",
           "type": "enum",
-          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing.",
+          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the event it raises itself \u2014 a removal receipt from its own moderation; every other event belongs to whichever module raises it, and is declared by the domain.",
           "values": [
-            "survey_reached",
-            "survey_reminder",
-            "survey_nudge",
-            "results_published",
-            "contribution_matched",
-            "contribution_orphaned",
-            "contribution_report_refused",
-            "merchandise_recorded",
-            "message_removed",
-            "identity_case_opened",
-            "identity_case_closed",
-            "enrollment_key_rotated",
-            "actor_transferred",
-            "consent_version_published",
-            "number_changed",
-            "device_signed_out",
-            "approval_requested"
+            "message_removed"
           ]
         },
         {
           "name": "subject_kind",
           "type": "enum",
-          "description": "Which table the subject id points into. Not a foreign key, because it points at ten of them.",
+          "description": "Which table the subject id points into. Not a foreign key, because it points at as many tables as the domain has subjects. The module declares only the one its own event addresses.",
           "values": [
-            "survey",
-            "contribution",
-            "contribution_report",
-            "handout",
-            "message",
-            "identity_case",
-            "device",
-            "enrollment_key",
-            "actor_registration",
-            "pending_approval"
+            "message"
           ]
         },
         {
@@ -919,16 +887,9 @@
         {
           "name": "category",
           "type": "enum",
-          "description": "The category muted or unmuted. Survey and security are refused outright rather than stored as unmuted — an exemption a row can carry is an exemption a row can lose.",
+          "description": "The category muted or unmuted. A category the domain marks exempt is refused outright rather than stored as unmuted \u2014 an exemption a row can carry is an exemption a row can lose.",
           "values": [
-            "survey",
-            "results",
-            "contribution",
-            "merchandise",
-            "chat",
-            "membership",
-            "security",
-            "approval"
+            "chat"
           ]
         },
         {
