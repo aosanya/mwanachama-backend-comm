@@ -10,11 +10,10 @@ proved the shape) and `mwanachama-backend-agency` (AGD-007). It is the
 largest of the three candidates that were open: fifteen stored objects
 across six domains, ten route files, and three consumers rather than one.
 
-## What has landed, as of 2026-09-30
+## What has landed, as of 2026-10-01
 
-This page was written ahead of the code and describes several steps in the
-past tense that have not happened yet. Read the code, not this page, for
-current state. The audit that established the following is CM20's own.
+The conversion is done. CM18–CM21 and CM25 all landed; what is left open is
+listed at the bottom of this page and on the board.
 
 | Step | Row | State |
 | --- | --- | --- |
@@ -22,19 +21,24 @@ current state. The audit that established the following is CM20's own.
 | Domain spec — `civic.comm.json` | CM18 | landed |
 | Second domain spec — `spec/examples/school.comm.json` | CM20 | landed 2026-09-30 |
 | `Provision`, and the legacy table/column adoption | CM19 | landed |
-| Spec-driven store; `gormstore/` and `tables.go` deleted | CM20 | **not started** |
-| Declared operations; `routes/` becomes an adapter | CM21 | **not started** |
+| Spec-driven store; `gormstore/` and `tables.go` deleted | CM20 | landed 2026-09-30 |
+| The civic vocabulary moves into the domain specs | CM25 | landed 2026-09-30 |
+| Declared rules — `validate.go`, `patterns.go`, `Check` | CM21 | landed 2026-10-01 |
+| Declared operations; `routes/` becomes an adapter | CM21 | landed 2026-10-01 |
+| `cmd/ddl` and the six guard tests | CM21 | landed 2026-10-01 |
 | Consumer — `mwanachama-wakala-api` mounts it | CM22 | **not started** |
-| Documentation rewritten | CM23 | **not started** |
+| Documentation rewritten | CM23 | landed 2026-10-01 |
 
-Until CM20 lands, comm holds **two independent definitions of the same
-fifteen objects** — the declared one in `comm.blueprint.json` and the
-undeclared one in `gormstore/`'s row structs. Nothing in production reads
-the blueprint: `Provision` and `SpecFor` are reached only from their own
-tests, and `gormstore.Migrate` plus `TableNames` is still the real storage
-and provisioning path. `TestEveryLegacyColumnHasADeclaredHome` is what
-currently holds the two halves to each other, and it only covers the column
-set, not the types.
+Net across CM20 and CM21: about 2,900 lines deleted against 2,900 written,
+and the deletions are the acceptance — `gormstore/`'s nine files, `tables.go`,
+ten route files and `routes/wire.go` all went, and the tests still pass, so
+the declarations carry what the Go did.
+
+Four shared changes came out of it, because a conversion that leaves generic
+code in the module has not finished: `specstore` learned `time.Time` and
+started refusing a carrier it cannot read (S38), `spec` let a domain widen a
+declared enum (S37) and allowed a `bytes` primary key (S46), and `dispatch`
+gained a second session fact (S45).
 
 ## The decision
 
@@ -90,9 +94,11 @@ code expects, and there is nothing for a rename to do. The DEV-256 re-lay is
 what made this true; CM8 simply outlived it.
 
 So the declared rename in CM19 is the **only** table move comm makes:
-`comm_chat_thread` becomes `<instance>_comm_chat_thread`. Applying CM8 first
-would have moved the same tables twice for no gain, which is what CM17 was
-written to prevent.
+`comm_chat_thread` becomes `<instance>_<hashOf(mount)>_<hashOf(comm_chat_thread)>`
+— shared's S29/S30 shape, where only the instance segment stays readable and
+the per-instance `<instance>_spec_table_names` registry records which raw name
+each hash belongs to. Applying CM8 first would have moved the same tables twice
+for no gain, which is what CM17 was written to prevent.
 
 ### The gap found while retiring it
 
@@ -110,18 +116,27 @@ and the spec are the only two things that describe comm's schema, and a
 mirror missing four tables is the difference between a provisioned database
 and a broken one.
 
-## What the format cannot carry, and what CM20 will do about it
+## What the format could not carry, and what happened instead
 
-Planned, not landed — every carrier below still holds its original type.
+Written as a plan, and two of its three rows turned out to be wrong, which is
+worth keeping rather than tidying away: the cost of a conversion is not
+knowable from reading the engine, only from running it.
 
 `specstore` joins a declared field to a Go field **by name**, and encodes it
-by the declared type. Three of comm's carrier shapes have no arm:
+by the declared type. Three carrier shapes were expected not to fit:
 
-| Is | Why it does not fit | Becomes |
+| Was expected to move | Why | What actually happened |
 | --- | --- | --- |
-| `time.Time` on every object | `assign` has no arm for a struct; catalog carries timestamps as text | RFC3339 `string`, and `*string` where the old field was `*time.Time` |
-| `[]byte` — `Address.Hash` (a primary key), `AddressBlock.Hash`, `DMThread.OpenedViaAddressHash` | `Decode`'s slice arm unmarshals JSON, which a raw hash is not | lowercase hex `string`; `HashBytes`/`SetHashBytes` convert at the edge |
-| `map[string]string` — `DMMessage.PerRecipientKeys` | same arm | a `json` column carried as a marshalled `string` |
+| `time.Time` on every object, ~23 fields | `cell` had no arm for a struct | **Stayed `time.Time`.** `specstore` learned the type instead (shared's S38), which also uncovered a silent-corruption bug: `cell` ended in `reflect.Value.String()`, which answers `"<time.Time Value>"` rather than panicking, so an unreadable carrier was written as that placeholder text |
+| `[]byte` — `Address.Hash` (a primary key), `AddressBlock.Hash`, `DMThread.OpenedViaAddressHash` | `Decode`'s slice arm unmarshals JSON, which a raw hash is not | **Stayed `[]byte`.** Hex text was tried first and was wrong twice over — lossy for key material, and a `text` column where the live data is `bytea`, needing every row converted on adoption. `spec.TypeBytes` landed the same morning and is exactly the live type |
+| `map[string]string` — `DMMessage.PerRecipientKeys` | same arm | **Unchanged.** It round-trips through the json arm as it stood, as does `SentFromAddressSealed` |
+
+So the only carrier changes comm actually made were `models.Address` giving
+up its embedded `AddressSettings` for eight flat fields behind
+`Settings()`/`WithSettings()`, `Address.Index` becoming `AddressIndex` to
+match its column, and `DMThread`'s two derived fields taking a `spec:"-"`
+tag rather than being removed. The public API moved far less than the row
+predicted.
 
 The pointer fields comm is full of — `MessageTTLSeconds`, `SentFromAddressIndex`,
 `ReadAt`, `RetiredAt`, `ExpiresAt`, `ListedAt`, `DisabledAt`, `DecidedAt`,
@@ -153,17 +168,22 @@ Go field's name — so the physical columns are renamed with the tables:
   addresses, address blocks, notifications, preferences)
 - `review_chapter_id` → `review_structure_id`, `seat_chapter_id` →
   `seat_structure_id`, `author_member_id` → `author_actor_id`
-- `address_index` → `index`
+
+`address_index` was listed here as becoming `index` and does **not**: the
+declared column is `address_index`, and the Go field moved to `AddressIndex`
+to match it. `index` would have been a poor choice anyway — it is a reserved
+word in SQLite.
 
 This is not cosmetic. Left alone, `specstore.New` would refuse to build
 comm's manager at all, naming each column the spec declares that no carrier
 holds — which is the check doing its job.
 
-## The exclusion list goes — CM21
+## The exclusion list is gone — CM21
 
-Planned, not landed. `routes/doc.go` still carries the list below.
+Landed 2026-10-01, and the detail now lives in
+[routes.md](routes.md) beside the rest of the route table.
 
-`routes/doc.go` carries a long, named list of which of the gateway's
+`routes/doc.go` carried a long, named list of which of the gateway's
 37 chat/DM/moderation/address/notification routes this module's `routes/`
 could portably serve, and which reached a gateway-internal domain package
 (`chapter`, `member`, `role`, `address`, `phonesalt`, `orgpolicy`) from the

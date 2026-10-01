@@ -5,110 +5,112 @@ Guidance for Claude Code working in this repository.
 ## Project: mwanachama-backend-comm
 
 Chapter chat, direct/group messaging (unified as one `DMThread` model — a
-group is a `DMThread` with more than one recipient, not a separate concept)
-and message moderation, ported unchanged in business logic from
+group is a `DMThread` with more than one recipient, not a separate concept),
+message moderation, addresses and notifications. Module path
+`github.com/aosanya/mwanachama-backend-comm`. Originally ported from
 [mwanachama-backend-api-gateway](../mwanachama-backend-api-gateway)'s
-`internal/domain/{chat,directmessage,moderation}` and
-`internal/store/{postgres,memory}`. Module path
-`github.com/aosanya/mwanachama-backend-comm`.
+`internal/domain/{chat,directmessage,moderation,address,notification}`.
 
-`mwanachama-backend-api-gateway` runs as one service and imports this package
-directly — there is no separate process, matching
-[mwanachama-backend-taskmanager](../mwanachama-backend-taskmanager)'s CLAUDE.md.
+**comm is a declared domain — 2026-09-30/2026-10-01 (CM18–CM21).** The
+objects are data, the route table is data, and the Go that remains is only
+what a declaration cannot state. The format itself is documented once, in
+`mwanachama-backend-shared`'s
+[declared-domains.md](../mwanachama-backend-shared/documentation/2.%20design/declared-domains.md)
+and [dispatcher.md](../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
+what is true of **comm** is in
+[declared-comm.md](documentation/2.%20design/declared-comm.md) and
+[routes.md](documentation/2.%20design/routes.md).
 
-**Storage moved from hand-rolled SQL to GORM, the package split into
-models/+gormstore/, and a routes/ package was added — 2026-09-04,** to bring
-this repo onto the same template
-[mwanachama-backend-actor](../mwanachama-backend-actor) had already moved to
-for the same "extracted from the gateway" reason. This reverses three
-decisions this file used to record as deliberate (flat single package
-matching taskmanager; hand-rolled `pgx` SQL because "that is what chat/
-directmessage/moderation already were"; HTTP routes staying in the gateway)
-— each is superseded below in favour of actor's shape. **Scoped to this repo
-only**, mirroring actor's own precedent: the gateway's
-`internal/store/{postgres,memory}` adapters, which construct this package's
-old `ChatPostgresStore`/`DMMemoryStore`/etc., will not compile against the
-new constructors, and the gateway's own `chat_handlers.go`/`dm_handlers.go`/
-`moderation_handlers.go` are not rewired to this package's new `routes/` —
-both are explicit, not-done-here follow-ups.
+### The invariants
 
-- `models/` holds the domain types and the three repository interfaces
-  (`ChatRepository`/`DMRepository`/`ModerationRepository`) they're read and
-  written through, plus `moderation_act.go`'s `ActEntry`/`ActKind`/
-  `ActWriter`/`MemoryActWriter`/`Actor` (moved here from the root package
-  because `ModerationRepository`'s methods take `Actor` in their own
-  signature — Go requires the interface and every type its methods name to
-  share a package). `gormstore/` holds every GORM-specific piece: row
-  structs, row↔domain conversion, and `Migrate`, one file per entity area,
-  mirroring actor's `gormstore/`. The root package keeps `chat_impl.go`,
-  `dm_impl.go`/`dm_roster_impl.go`/`dm_message_impl.go`, and
-  `moderation_impl.go`/`moderation_dismissal_impl.go` — one `ChatStore`/
-  `DMStore`/`ModerationStore` per domain, each built on a `*gorm.DB`,
-  replacing that domain's Postgres-store-plus-memory-store pair. Each store
-  runs against Postgres in production and, in this repo's own tests, an
-  in-memory sqlite database (`glebarez/sqlite`, matching actor's
-  `testdb_test.go`) — the fast-test role the hand-rolled memory stores used
-  to play, now exercising real SQL instead of a parallel implementation
-  that could (and, per this repo's own former
-  `TestParticipantOrderMatchesAcrossBackendsLive`, once needed a dedicated
-  test to prove didn't) drift from Postgres.
-- **Ids are still human-readable and prefix-numbered** (`msg-1042`,
-  `dm-77`, ...) on Postgres, minted by `gormstore.mintID`'s
-  `BeforeCreate` hooks reading a same-named `SEQUENCE` `gormstore.Migrate`
-  creates alongside `AutoMigrate` — the same "drop to raw SQL where
-  `AutoMigrate` can't reach" pattern actor's own `Migrate` already uses for
-  its partial unique indexes. sqlite (tests only, no `SEQUENCE` support)
-  falls back to a uuid-suffixed id with the same prefix; every behavioural
-  assertion this repo's tests make holds under either dialect, only the
-  exact digits after the prefix can differ.
-- **The `ActWriter`/`MemoryActWriter` seam (see "Why moderation doesn't
-  import custody" below) is completely unaffected by the storage swap** —
-  it predates GORM and still does the same job. What changed is how
-  `CreateRemoval`/`DismissReports`/`DecideDispute` obtain the `*sql.Tx`
-  `ActWriter.WriteAct` requires: `moderation_impl.go`'s `sqlTxFrom` recovers
-  it from inside a `db.Transaction(func(tx *gorm.DB) error {...})` callback
-  via `tx.Statement.ConnPool.(*sql.Tx)` — every SQL dialect this repo uses
-  backs its GORM connection with `database/sql` underneath, so the
-  assertion holds on both Postgres and sqlite.
-- **`schema.sql` and `postgres_scratch_test.go` are gone.** The whole reason
-  `schema.sql` existed — "comm's tables are bespoke SQL, so there's no
-  generic DDL generator to lean on, unlike taskmanager's
-  `mwanachama-backend-shared/postgres`-generated schema" — stops applying
-  once `gormstore.Migrate` is that generator; actor never needed one either.
-  The former squashed-fixture divergences (dropped `member(id)` FKs, a
-  `comm_test_act_log` stand-in table) live on only as ad hoc setup inside
-  `postgres_integration_test.go` (`//go:build postgres`, gated on
-  `POSTGRES_URL`, mirroring actor's own file of the same name), which
-  replaces `postgres_scratch_test.go`.
-- **`routes/` is new — 19 of the gateway's 37 chat/dm/moderation routes**,
-  the ones that are, underneath, a plain call against
-  `models.ChatActivityReader`/`DMRepository`/`ModerationRepository` with no
-  gateway-only policy composed into the handler body (same-domain
-  composition — a DM handler checking the caller's own roster state via
-  `ListParticipants` — is fine; a gateway-internal domain package
-  (`chapter`/`member`/`role`/`address`) reached from the handler body is
-  not, the identical line actor's own `routes/doc.go` draws). Chat
-  contributes one route (`chatActivity`; the other six all call
-  `requireChapterMember`, `member.Repository` + `chapter.Repository`
-  in-body); DM contributes sixteen of nineteen (`createDMThread`,
-  `blockThreadOrigin`, `postDMMessage` reach `address.Repository` in-body
-  and stay); moderation contributes two of eleven (`listReportQueue`,
-  `listReportsForMessage`; every write and every other read resolves
-  `wallLabel`/`callerModerationActor`/`nearestRoleClass`
-  (`chapter.Repository`/`member.Repository`/`role.Repository`) or runs an
-  in-body `hasCapabilityAt` check with no external route-table wrapper to
-  lean on). See `routes/doc.go` for the full, named exclusion list — it is
-  considerably longer than actor's, since comm's HTTP surface leans much
-  more heavily on gateway-internal domains than member/chapter's did.
-  `routes/identity.go`'s `Identity` interface is the one seam this package
-  needed that actor's `routes/` didn't: almost every portable DM handler
-  needs the *caller's own* id from the session (accept/leave act on the
-  caller; invite/kick/promote/re-enable need the caller as the admin "by";
-  `publishDeviceKey` overwrites member/device fields from session) rather
-  than a URL path segment, the way `{actorID}` supplies it in actor's
-  routes.
+- **`comm.blueprint.json` is the object set.** Fifteen roles, 112 fields.
+  There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
+  DDL and `cmd/ddl` prints it for review. A table is
+  `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
+  physical name in a test, ask `s.TableFor(o)` or `s.RawNameFor(o)`.
+- **Two domain specs ship, and that is a floor rather than a courtesy.**
+  `civic.comm.json` is the provisioned one; `spec/examples/school.comm.json`
+  fills every role with a school's own nouns and is provisioned nowhere, so
+  neutrality is exercised rather than asserted. `shippedSpecs` globs the
+  examples directory, so a third is swept without being named.
+- **The module owns no domain's vocabulary.** `notification`'s `category`,
+  `event` and `subject_kind` declare only what comm's own acts produce —
+  `chat`, `message_removed`, `message`. comm raises exactly one event, its
+  moderation's removal receipt; every other value is written by another
+  module through `NotificationRepository.Raise`, so each domain declares its
+  own by widening the enum (shared's S37). `TestVocabularyMatchesTheBlueprint`
+  holds the blueprint to comm's own set and `domain_agnostic_test.go` fails on
+  a domain word anywhere in an identifier, a declared value or a route.
+- **`store.go` is role constants and thin wrappers over `specstore`**, plus
+  three helpers every store shares: `stamp` (every timestamp written through
+  a raw `Updates` map, so one stored layout orders correctly), `deleteWhere`,
+  and `mintID`. Ids keep their readable prefixes as `<prefix>-<uuid>`; the
+  `SEQUENCE` the old `BeforeCreate` hooks read is gone.
+- **Each constructor takes a `*spec.Spec`** and passes a carrier per role, so
+  a declared column no carrier holds fails at construction rather than
+  reading back empty. A genuinely derived field is tagged `spec:"-"` —
+  `DMThread.OpenedViaAddress` and `MyAddressIndex` are the two.
+- **Key material is `bytes`, never text.** The three hashes are `bytea` on
+  Postgres and `blob` on SQLite, carried as `[]byte`. A text column cannot
+  hold a hash: it is lossy, and it is not what the live database holds.
+  `address` is keyed on its hash and `address_block` on `(actor_id, hash)`.
+- **`validate.go` reads the rules off the spec** — `required`, an enum's
+  `values`, and a `matches` pattern from `patterns.go`'s registry. A spec
+  naming a pattern nobody supplies is an error, not a rule that never runs.
+  `Check(s, role, v)` is the same validation without a database.
+  `models/` keeps only what no declaration states: a value derived from
+  another, a pair that is both halves or neither, a count that must be
+  positive, and `AddressHours`' own shape.
+- **`comm.operations.json` is the route table.** Twenty-five addresses, each
+  with a gating action, and one sentinel-to-status map. `routes/` is seventy
+  lines of adapter over `dispatch.Table`. Paths are relative — the mount
+  supplies the prefix.
+- **`AnonymousActions` is empty.** Nothing in comm answers without a caller,
+  and the list names what is public rather than what is protected, so an
+  operation added later arrives gated.
+- **`CommManager` carries the two things a declaration cannot.** The roster
+  fences, which answer **404 and never 403** when a caller is off a thread's
+  roster — two of them, one needing any roster row and one needing an active
+  one — and `forCaller`, which resolves `MyAddressIndex` per reader. Both are
+  same-domain composition; both are mutation-checked in
+  `routes/fence_security_test.go`.
+- **The caller and the handset are session facts.** `{"from": "caller"}` and
+  `{"from": "device"}` bind them, and a body claiming either is overwritten
+  rather than refused. That also keeps both out of any MCP tool schema.
+- **`Provision` is the whole provisioning story** — legacy adoption, then
+  `spec.Migrate`, then the two notification caps, which are partial unique
+  indexes over a condition the format cannot declare.
+- **Every route test crosses a real mux with a real caller.** Both bugs this
+  file records below escaped because the fixtures called handlers in Go.
+
+### What is superseded
+
+| Gone | Replaced by | Row |
+| --- | --- | --- |
+| `gormstore/` — nine files of row structs and `…ToRow`/`…FromRow` pairs | `comm.blueprint.json` plus `specstore` | CM20 |
+| `tables.go`, `TableNames`, `DefaultTableNames`, `Migrate` | `Provision(db, *spec.Spec)` and `SpecFor` | CM20 |
+| `gormstore.mintID` and its `SEQUENCE`s | `mintID(prefix)` in `store.go` | CM20 |
+| Ten hand-written route files, and `routes/wire.go`'s `readJSON`/`writeJSON`/`writeErr` | `comm.operations.json` plus `dispatch.Table`; `httpwire` supplies the wire | CM21 |
+| `routes/doc.go`'s named exclusion list | every address carries an action; the mount's authorizer decides | CM21 |
+| `routes/identity.go`'s `Identity` | `dispatch.Mount`'s `Caller` and `Device` | CM21 |
+| `dmStatusFor`'s 403 default arm | `ErrDMNotAdmin` mapped to 403; anything unmapped is a redacted 500 | CM31 |
+| `IsNotificationSubjectKind` and the membership checks inside `Validate` | `Check` against the declared `values` | CM21 |
+| `HashHex`/`HashBytes` | the declared `bytes` type | CM20 |
+
+Still open and tracked, not forgotten: `notificationEventCategory` and the
+muting exemption are civic knowledge in Go (**CM26**); the consumers do not
+compile (**CM28**, **CM29**, and both were already broken before this
+conversion); and an adopted legacy column keeps its old SQL type, which
+only a Postgres run can show (shared's **S39**).
 
 ## `address` and `notification` joined this module — 2026-09-06
+
+> **Historical.** This section records how the two domains arrived and why
+> they are shaped as they are, which is still worth knowing. Its account of
+> *storage* is superseded: there is no `gormstore/`, no `TableNames` and no
+> fifteen readable table names — see "The invariants" above. The two
+> notification caps it describes are the one part that survives unchanged,
+> now in `provision.go`'s `syncNotificationCaps`.
 
 Per the given decision (owner, 2026-08-24/2026-09-05 for `address`) and the
 domain-decomposition research (`architecture-domain-decomposition.md` in
@@ -206,10 +208,16 @@ stores, at the repo root alongside `chat_impl.go` etc.
   Neither bug is exotic; both are the generic shape "a port's own fixtures
   called the handler function directly, so a discrepancy visible only to an
   actual unauthorized caller or an actual forged field went unexercised
-  until a mounting process's own integration tests ran against it." Worth
-  remembering for the next repo's `routes/` port: writing at least one test
-  through an actual HTTP boundary with an adversarial caller, not just a
-  direct handler call with a cooperative one, would have caught both here.
+  until a mounting process's own integration tests ran against it."
+
+  **CM21 acted on that rather than only recording it.** Every route test in
+  this repo now goes through a real mux with a real caller carried on the
+  context, and both of these shapes are pinned adversarially:
+  `TestARosterFenceAnswersAnOutsiderNotFoundAndNeverForbidden` proves an
+  outsider and an invented thread id are indistinguishable, and
+  `TestPublishingADeviceKeyIgnoresClaimedProvenance` proves a body claiming
+  somebody else's owner, publisher or handset is overwritten. Both are
+  mutation-checked, so neither can report a fix against unfixed code.
 
 ## Naming: three packages flattened into one
 
@@ -232,8 +240,12 @@ the three are prefixed by domain:
   `ErrAlreadyRemoved`) had no collisions and ports unchanged.
 
 Storage types follow `<Domain>Store` (`ChatStore`, `DMStore`,
-`ModerationStore`) — one GORM-backed implementation per domain, replacing
-the old `<Domain>PostgresStore`/`<Domain>MemoryStore` pair.
+`ModerationStore`, `AddressStore`, `NotificationStore`,
+`AddressDirectoryStore`) — one per domain, each over `specstore`. The six are
+aggregated by `CommManager`, which is the single value the declared route
+table dispatches against; three method names collide across chat and DM, so
+each is named for its own object (`PostChatMessage`, `PostDMMessage`, and so
+on).
 
 ## Why moderation doesn't import custody
 
@@ -278,6 +290,13 @@ instead of the old root-package `moderation_act.go`.
   the transaction guarantee breaks silently.
 
 ## First outside producer of Notification — 2026-09-09
+
+> **Still true, with two corrections.** `CategoryApproval` and its event are
+> now declared in `civic.comm.json` rather than in the blueprint, because the
+> vocabulary belongs to whoever raises (CM25). And the table kazi has to
+> reach is no longer called `comm_notification` — it is the hashed name under
+> whichever instance the gateway provisioned, which is what makes CM29 more
+> than a signature change.
 
 `mwanachama-backend-api-kazi`'s K6 (agent-proposed writes needing human
 approval) is the first real caller of `NotificationRepository.Raise`
