@@ -2,12 +2,9 @@ package models
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
-	"strings"
 	"time"
 )
 
@@ -21,126 +18,6 @@ var ErrAddressMalformed = errors.New("address: malformed")
 // ErrAddressBadSettings is returned when a settings change does not
 // describe a state an address can be in.
 var ErrAddressBadSettings = errors.New("address: settings are not well formed")
-
-// AddressDomainSeparator prefixes the hash input so an address can never
-// collide with a digest this project computes for some other purpose over
-// the same key. Versioned: changing the derivation means changing this
-// string, and every address derived under the old one keeps resolving
-// because the gateway stores what it was told and re-derives with the
-// version the row was written under.
-const AddressDomainSeparator = "mwanachama:actor-address:v1"
-
-const (
-	addressLetters   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	addressLettersN  = 26
-	addressLetterRun = 3
-	addressDigitRun  = 4
-)
-
-// AddressDerive computes the canonical address for a public key. The key is
-// taken as the opaque string the device published — whatever encoding that
-// is, it is hashed verbatim, so the two sides cannot disagree about
-// padding.
-func AddressDerive(publicKey string) (string, error) {
-	if strings.TrimSpace(publicKey) == "" {
-		return "", ErrAddressMalformed
-	}
-	sum := sha256.Sum256([]byte(AddressDomainSeparator + "\x00" + publicKey))
-
-	// 128 bits of digest reduced into a 2^54.8 space — the modulo bias is
-	// far below anything observable, and taking the whole digest would not
-	// change a single address anyone ever reads.
-	n := new(big.Int).SetBytes(sum[:16])
-
-	var b strings.Builder
-	b.Grow(2*addressLetterRun + 2*addressDigitRun)
-	emitAddressLetters(&b, n)
-	emitAddressDigits(&b, n)
-	emitAddressLetters(&b, n)
-	emitAddressDigits(&b, n)
-	return b.String(), nil
-}
-
-func emitAddressLetters(b *strings.Builder, n *big.Int) {
-	m := new(big.Int)
-	for i := 0; i < addressLetterRun; i++ {
-		n.QuoRem(n, big.NewInt(addressLettersN), m)
-		b.WriteByte(addressLetters[m.Int64()])
-	}
-}
-
-func emitAddressDigits(b *strings.Builder, n *big.Int) {
-	m := new(big.Int)
-	for i := 0; i < addressDigitRun; i++ {
-		n.QuoRem(n, big.NewInt(10), m)
-		b.WriteByte(byte('0' + m.Int64()))
-	}
-}
-
-// AddressNormalize accepts an address the way a person typed it — spaced,
-// hyphenated, lower-case — and returns the canonical fourteen-character
-// form. A person reading `MKU 4827 YUT 3391` off a screen and typing it
-// back must not be told they got it wrong because of the spaces the screen
-// put there.
-func AddressNormalize(s string) (string, error) {
-	var b strings.Builder
-	b.Grow(2*addressLetterRun + 2*addressDigitRun)
-	for _, r := range s {
-		switch {
-		case r == ' ' || r == '-' || r == '\t' || r == '_':
-			continue
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r - 32)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	out := b.String()
-	if !AddressValid(out) {
-		return "", ErrAddressMalformed
-	}
-	return out, nil
-}
-
-// AddressValid reports whether s is exactly the canonical form.
-func AddressValid(s string) bool {
-	if len(s) != 2*addressLetterRun+2*addressDigitRun {
-		return false
-	}
-	isAlpha := func(c byte) bool { return c >= 'A' && c <= 'Z' }
-	isDigit := func(c byte) bool { return c >= '0' && c <= '9' }
-	for i := 0; i < addressLetterRun; i++ {
-		if !isAlpha(s[i]) {
-			return false
-		}
-	}
-	for i := addressLetterRun; i < addressLetterRun+addressDigitRun; i++ {
-		if !isDigit(s[i]) {
-			return false
-		}
-	}
-	for i := addressLetterRun + addressDigitRun; i < 2*addressLetterRun+addressDigitRun; i++ {
-		if !isAlpha(s[i]) {
-			return false
-		}
-	}
-	for i := 2*addressLetterRun + addressDigitRun; i < len(s); i++ {
-		if !isDigit(s[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// AddressFormat groups the canonical form for display: `MKU 4827 YUT 3391`.
-func AddressFormat(s string) string {
-	if !AddressValid(s) {
-		return s
-	}
-	a, b := addressLetterRun, addressLetterRun+addressDigitRun
-	c := b + addressLetterRun
-	return s[:a] + " " + s[a:b] + " " + s[b:c] + " " + s[c:]
-}
 
 type Address struct {
 	ActorID string `json:"actor_id"`
@@ -190,102 +67,41 @@ func (a Address) WithSettings(s AddressSettings) Address {
 	return a
 }
 
+// AddressSettings is the mutable half of an address, as one value so a
+// settings write is one call. Every field's prose lives in the blueprint's
+// description for the column it lands in.
 type AddressSettings struct {
-	// ExpiresAt is when this address stops, or nil for never.
-	//
-	// **A clock, not an event.** Nothing sweeps it: a live read tests it
-	// against now. Because it is a predicate, moving the date moves the
-	// effect — push an expired address's date forward and it works again,
-	// silenced threads included, because nothing was torn down.
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-
-	// ExpiryMode is what expiring does — AddressModeClosed or
-	// AddressModeSilent — and is set exactly when ExpiresAt is. Empty
-	// means the address is on no clock.
-	ExpiryMode string `json:"expiry_mode,omitempty"`
-
-	// MessageTTLSeconds is the disappearing-message timer, nil for off.
-	//
-	// **It lives here rather than on the handset because it has to.** The
-	// setting belongs to the address's owner, but the thread is opened by
-	// whoever was *given* the address — whose device cannot know the
-	// owner's preference and must not be trusted to report it. The
-	// gateway reads it off this row at open and freezes a copy onto the
-	// thread.
-	MessageTTLSeconds *int `json:"message_ttl_seconds,omitempty"`
-
-	PublicAddress string `json:"address,omitempty"`
-
-	// ListedAt is when the owner asked for this address to appear in the
-	// directory, or nil for not listed.
-	//
-	// **A second act, not a synonym for PublicAddress.** Publishing says
-	// *hold this plaintext for me*; listing says *and hand it to anyone
-	// who looks*. Listing implies publishing: the directory hands back
-	// the plaintext, so there is nothing to list where none is held —
-	// Validate refuses the pair. The corollary runs in the other
-	// direction and is deliberate: turning an address private un-lists it
-	// in the same write.
-	//
-	// ⚠️ **What un-listing does not do**, exactly as un-publishing does
-	// not: it takes the row out of the directory and out of nobody's
-	// notebook. The address keeps working.
-	ListedAt *time.Time `json:"listed_at,omitempty"`
-
-	DisabledAt *time.Time `json:"disabled_at,omitempty"`
-
-	// DisabledMode is what being switched off does — AddressModeClosed or
-	// AddressModeSilent — and is set exactly when DisabledAt is.
-	DisabledMode string `json:"disabled_mode,omitempty"`
-
-	// Hours is the address's opening hours, or nil for always open. See
-	// [AddressHours]: a window per weekday, in the owner's own zone,
-	// evaluated on read.
-	Hours *AddressHours `json:"hours,omitempty"`
+	ExpiresAt         *time.Time    `json:"expires_at,omitempty"`
+	ExpiryMode        string        `json:"expiry_mode,omitempty"`
+	MessageTTLSeconds *int          `json:"message_ttl_seconds,omitempty"`
+	PublicAddress     string        `json:"address,omitempty"`
+	ListedAt          *time.Time    `json:"listed_at,omitempty"`
+	DisabledAt        *time.Time    `json:"disabled_at,omitempty"`
+	DisabledMode      string        `json:"disabled_mode,omitempty"`
+	Hours             *AddressHours `json:"hours,omitempty"`
 }
 
-// The two flavours of expiry: `closed` *stops new connections*, `silent`
-// *stops new communication*.
+// The two flavours of every stop an address can be under: closed stops new
+// connections, silent stops new communication. Both are declared values of
+// expiry_mode and disabled_mode; which conversations go quiet is Silenced.
 const (
-	// AddressModeClosed stops the address resolving, and therefore stops
-	// new threads. Threads already open under it keep working, untouched
-	// — identical to RetiredAt, on a clock instead of a button.
 	AddressModeClosed = "closed"
-
-	// AddressModeSilent stops new threads **and** new messages in every
-	// thread opened via this address. Those go quiet, in both directions.
-	//
-	// **It announces itself, and a block does not.** A block is hidden on
-	// purpose — telling somebody invites them back from another address.
-	// A clock has no route around it, so swallowing the message without a
-	// word would just be a lie.
 	AddressModeSilent = "silent"
 )
 
 func (a Address) Retired() bool { return a.RetiredAt != nil }
 
-// Expired reports whether the clock has run out at now. False for an
-// address on no clock.
 func (a Address) Expired(now time.Time) bool {
 	return a.ExpiresAt != nil && !now.Before(*a.ExpiresAt)
 }
 
-// Live reports whether the address still accepts new threads at now.
-//
-// **It takes the time rather than reading the clock** so that the one
-// predicate every caller depends on cannot quietly differ between a
-// handler that passed time.Now() and a store that ran now() inside SQL.
-// Both flavours of expiry stop resolution; only AddressModeSilent goes on
-// to stop the post path, and that is a separate rule on a separate route.
+// Live takes the time rather than reading the clock, so the one predicate
+// every caller depends on cannot differ between a handler that passed
+// time.Now() and a store that ran now() inside SQL.
 func (a Address) Live(now time.Time) bool { return !a.Retired() && !a.Expired(now) }
 
-// Disabled reports whether the owner switched this address off.
-// Reversible, and deliberately not Retired: see AddressSettings.DisabledAt.
 func (a Address) Disabled() bool { return a.DisabledAt != nil }
 
-// WithinHours reports whether now falls inside this address's opening
-// hours. True for an address on no schedule, which is the default and the
-// common case.
 func (a Address) WithinHours(now time.Time) bool {
 	return a.Hours == nil || a.Hours.OpenAt(now)
 }
@@ -336,34 +152,23 @@ func (a Address) Silenced(now time.Time) bool {
 // in. Mirrors the schema's own CHECK constraints rather than trusting
 // them: a constraint violation surfaces as a driver error at the bottom of
 // a stack, and the caller deserves to be told which field it was.
+// Validate holds the rules a declaration cannot state: three pairs that are
+// both halves or neither, a count that must be positive rather than merely
+// present, and the nested schedule's own shape. The two mode vocabularies
+// and the public address's canonical form are declared, and are checked by
+// the module's own Check against the spec.
 func (s AddressSettings) Validate() error {
 	if (s.ExpiresAt == nil) != (s.ExpiryMode == "") {
 		return fmt.Errorf("%w: an expiry needs a flavour and a flavour needs an expiry", ErrAddressBadSettings)
 	}
-	if s.ExpiryMode != "" && s.ExpiryMode != AddressModeClosed && s.ExpiryMode != AddressModeSilent {
-		return fmt.Errorf("%w: expiry_mode must be %q or %q", ErrAddressBadSettings, AddressModeClosed, AddressModeSilent)
-	}
 	if s.MessageTTLSeconds != nil && *s.MessageTTLSeconds <= 0 {
 		return fmt.Errorf("%w: a timer of zero seconds is off, which is null", ErrAddressBadSettings)
 	}
-	if s.PublicAddress != "" && !AddressValid(s.PublicAddress) {
-		return fmt.Errorf("%w: a public address must be the canonical form", ErrAddressBadSettings)
-	}
-	// **Listed implies public, and the caller is told which half is
-	// missing.** The directory hands back the plaintext, so a row asking
-	// to be listed without one is asking the gateway to publish something
-	// it does not have.
 	if s.ListedAt != nil && s.PublicAddress == "" {
 		return fmt.Errorf("%w: an address cannot be listed in the directory unless it is public", ErrAddressBadSettings)
 	}
-	// The switch and its flavour go together for the same reason the
-	// expiry and its flavour do: half of either is a state the address
-	// cannot be in.
 	if (s.DisabledAt == nil) != (s.DisabledMode == "") {
 		return fmt.Errorf("%w: switching an address off needs a flavour and a flavour needs the switch", ErrAddressBadSettings)
-	}
-	if s.DisabledMode != "" && s.DisabledMode != AddressModeClosed && s.DisabledMode != AddressModeSilent {
-		return fmt.Errorf("%w: disabled_mode must be %q or %q", ErrAddressBadSettings, AddressModeClosed, AddressModeSilent)
 	}
 	if s.Hours != nil {
 		if err := s.Hours.Validate(); err != nil {

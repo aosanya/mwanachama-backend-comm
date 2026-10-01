@@ -164,8 +164,7 @@ var (
 )
 
 // NotificationCategories, IsNotificationCategory, IsNotificationCategoryExempt
-// and NotificationSMSChannel forward to the models. functions of the same
-// name.
+// and NotificationSMSChannel forward to the models. functions of the same name.
 func NotificationCategories() []NotificationCategory { return models.NotificationCategories() }
 
 // IsNotificationCategory forwards to [models.IsNotificationCategory].

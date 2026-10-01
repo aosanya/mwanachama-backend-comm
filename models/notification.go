@@ -66,34 +66,22 @@ type Notification struct {
 	ReadAt *time.Time
 }
 
-// Validate reports whether the row is one the schema would accept.
+// Validate holds the rules a declaration cannot state: a field whose value
+// is derived from another's, a pair that is both halves or neither, and a
+// scope one event needs because an index caps it over that scope. Every
+// membership and presence rule is declared, and is checked by the module's
+// own Check against the spec.
 func (n Notification) Validate() error {
-	if strings.TrimSpace(n.ActorID) == "" {
-		return fmt.Errorf("%w: a notification has a recipient", ErrNotificationInvalid)
-	}
-	if !IsNotificationCategory(n.Category) {
-		return fmt.Errorf("%w: %q is not a category", ErrNotificationInvalid, n.Category)
-	}
 	c, ok := NotificationCategoryOf(n.Event)
 	if !ok {
 		return fmt.Errorf("%w: %q is not an event this product raises", ErrNotificationInvalid, n.Event)
 	}
-	// The category is derived, so a mismatch is a caller that decided
-	// one — which is the road to an event raised under a mutable category.
 	if c != n.Category {
 		return fmt.Errorf("%w: event %q is category %q, not %q", ErrNotificationInvalid, n.Event, c, n.Category)
-	}
-	if !IsNotificationSubjectKind(n.SubjectKind) {
-		return fmt.Errorf("%w: %q is not a subject kind", ErrNotificationInvalid, n.SubjectKind)
-	}
-	if strings.TrimSpace(n.SubjectID) == "" {
-		return fmt.Errorf("%w: (subject_kind, subject_id) is the address and needs both halves", ErrNotificationInvalid)
 	}
 	if (n.SeatRoleKindID == "") != (n.SeatStructureID == "") {
 		return fmt.Errorf("%w: a seat address is both halves or neither", ErrNotificationInvalid)
 	}
-	// The two capped events are scoped, and a row that carries no scope
-	// cannot be capped by an index over that scope.
 	if n.Event == EventSurveyNudge && strings.TrimSpace(n.StructureID) == "" {
 		return fmt.Errorf("%w: a nudge is capped per structure, so it names one", ErrNotificationInvalid)
 	}
@@ -108,16 +96,9 @@ type NotificationPreference struct {
 	ChangedAt time.Time
 }
 
-// Validate reports whether the row is one the schema would accept,
-// including the exempt rule, which is an authorization rule spelled in
-// values rather than a vocabulary check.
+// Validate holds the exempt rule, which is an authorization rule spelled in
+// values rather than a vocabulary check, so no declaration states it.
 func (p NotificationPreference) Validate() error {
-	if strings.TrimSpace(p.ActorID) == "" {
-		return fmt.Errorf("%w: a preference has a actor", ErrNotificationInvalid)
-	}
-	if !IsNotificationCategory(p.Category) {
-		return fmt.Errorf("%w: %q is not a category", ErrNotificationInvalid, p.Category)
-	}
 	if notificationExempt(p.Category) {
 		return ErrNotificationCategoryExempt
 	}

@@ -48,7 +48,13 @@ func NotificationCategories() []NotificationCategory {
 	return out
 }
 
-// IsNotificationCategory reports whether c is one of the seven.
+// IsNotificationCategory is the one membership check that survived the
+// conversion, because it decides a status code rather than a refusal:
+// routes answers an unknown category 404, where the declared check in the
+// store answers 400. It reads the Go constants, which since CM25 are the
+// *civic* vocabulary rather than the module's — so a domain that declared
+// its own category is answered 404 by this and accepted by the store. That
+// is CM30, and CM21 is where it is fixed, by asking the spec.
 func IsNotificationCategory(c NotificationCategory) bool {
 	for _, k := range notificationCategories {
 		if k == c {
@@ -194,14 +200,4 @@ func NotificationSubjectKinds() []NotificationSubjectKind {
 	out := make([]NotificationSubjectKind, len(notificationSubjectKinds))
 	copy(out, notificationSubjectKinds)
 	return out
-}
-
-// IsNotificationSubjectKind reports whether k is one of the nine.
-func IsNotificationSubjectKind(k NotificationSubjectKind) bool {
-	for _, s := range notificationSubjectKinds {
-		if s == k {
-			return true
-		}
-	}
-	return false
 }

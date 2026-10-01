@@ -40,6 +40,12 @@ func (s *AddressStore) Publish(ctx context.Context, a models.Address) (models.Ad
 	if a.CreatedAt.IsZero() {
 		a.CreatedAt = s.clock()
 	}
+	if err := Check(s.store.Spec(), roleAddress, a); err != nil {
+		return models.Address{}, err
+	}
+	if err := a.Settings().Validate(); err != nil {
+		return models.Address{}, err
+	}
 	if err := s.store.Insert(ctx, roleAddress, a); err != nil {
 		return models.Address{}, classify(err)
 	}
@@ -101,7 +107,11 @@ func (s *AddressStore) UpdateSettings(ctx context.Context, actorID string, index
 	}
 
 	o := s.store.Object(roleAddress)
-	full, err := encode(o, models.Address{}.WithSettings(set))
+	settled := models.Address{ActorID: actorID, AddressIndex: index}.WithSettings(set)
+	if err := Check(s.store.Spec(), roleAddress, settled); err != nil {
+		return models.Address{}, err
+	}
+	full, err := encode(o, settled)
 	if err != nil {
 		return models.Address{}, err
 	}

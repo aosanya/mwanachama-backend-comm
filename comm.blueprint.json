@@ -693,7 +693,8 @@
         {
           "name": "public_address",
           "type": "string",
-          "description": "The plaintext address, held only where the owner asked for it to be. Empty means the organization holds the hash and nothing else."
+          "description": "The plaintext address, held only where the owner asked for it to be. Empty means the organization holds the hash and nothing else.",
+          "matches": "address"
         },
         {
           "name": "disabled_at",

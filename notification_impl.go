@@ -82,6 +82,9 @@ func (s *NotificationStore) MarkRead(ctx context.Context, actorID string, ids []
 }
 
 func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (models.Notification, error) {
+	if err := Check(s.store.Spec(), roleNotification, n); err != nil {
+		return models.Notification{}, err
+	}
 	if err := n.Validate(); err != nil {
 		return models.Notification{}, err
 	}
@@ -132,6 +135,9 @@ func (s *NotificationStore) ListPreferences(ctx context.Context, actorID string)
 func (s *NotificationStore) SetPreference(ctx context.Context, actorID string, category models.NotificationCategory, muted bool) (models.NotificationPreference, error) {
 	p := models.NotificationPreference{
 		ID: newID(), ActorID: actorID, Category: category, Muted: muted, ChangedAt: s.clock(),
+	}
+	if err := Check(s.store.Spec(), roleNotificationPreference, p); err != nil {
+		return models.NotificationPreference{}, err
 	}
 	if err := p.Validate(); err != nil {
 		return models.NotificationPreference{}, err
