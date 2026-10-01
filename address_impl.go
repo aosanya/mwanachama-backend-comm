@@ -67,7 +67,7 @@ func (s *AddressStore) Resolve(ctx context.Context, hash []byte) (models.Address
 	var a models.Address
 	q := s.store.Query(ctx, roleAddress).
 		Where("hash = ? AND retired_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
-			models.HashHex(hash), stamp(s.clock()))
+			hash, stamp(s.clock()))
 	if err := s.store.Take(q, roleAddress, &a, models.ErrAddressNotFound); err != nil {
 		return models.Address{}, err
 	}
@@ -162,7 +162,7 @@ func (s *AddressStore) Block(ctx context.Context, b models.AddressBlock) error {
 func (s *AddressStore) IsBlocked(ctx context.Context, actorID string, hash []byte) (bool, error) {
 	var n int64
 	err := s.store.Query(ctx, roleAddressBlock).
-		Where("actor_id = ? AND hash = ?", actorID, models.HashHex(hash)).
+		Where("actor_id = ? AND hash = ?", actorID, hash).
 		Count(&n).Error
 	if err != nil {
 		return false, classify(err)

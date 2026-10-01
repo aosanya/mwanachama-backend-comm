@@ -18,6 +18,12 @@ var ErrNotificationInvalid = errors.New("notification: invalid row")
 
 var ErrNotificationCapSpent = errors.New("notification: that cap is already spent for this subject")
 
+// ErrNotificationNoSuchCategory is the refusal for a category the mounted
+// domain does not declare. Separate from ErrNotificationInvalid because it
+// answers 404 rather than 400: a category nobody declared is an address
+// that does not exist, not a malformed request.
+var ErrNotificationNoSuchCategory = errors.New("notification: no such notification category")
+
 // ErrNotificationMuted is returned by Raise when the recipient has muted
 // the category. Not an error the product shows anybody — the sender is
 // told a count, never who received it — so the only correct handling is to

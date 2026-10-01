@@ -132,7 +132,7 @@
         },
         {
           "name": "opened_via_address_hash",
-          "type": "string",
+          "type": "bytes",
           "description": "The keyed hash of the address this thread was opened through, hex-encoded, or empty if it was opened directly. What a reader gets is the bare fact that an address opened the thread, never this value \u2014 it is what makes Block possible and all that does."
         },
         {
@@ -637,7 +637,7 @@
       "fields": [
         {
           "name": "hash",
-          "type": "string",
+          "type": "bytes",
           "description": "The keyed hash of the address under the organization's salt, hex-encoded, and the primary key. Keyed rather than plain because the address space is about 2^55 and enumerable offline by anyone holding an unsalted table; under the salt a stolen database is not enough.",
           "primary": true
         },
@@ -770,7 +770,7 @@
         },
         {
           "name": "hash",
-          "type": "string",
+          "type": "bytes",
           "description": "The keyed hash of what they are refusing, hex-encoded. Second half of the composite key.",
           "primary": true
         },

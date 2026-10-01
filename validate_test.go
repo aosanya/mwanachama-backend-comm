@@ -44,7 +44,7 @@ func TestCheckReadsTheRulesOffTheSpec(t *testing.T) {
 
 	t.Run("matches is read off the spec", func(t *testing.T) {
 		err := Check(s, roleAddress, models.Address{
-			ActorID: "a", Hash: "ab", PublicAddress: "not an address",
+			ActorID: "a", Hash: []byte("ab"), PublicAddress: "not an address",
 		})
 		if !errors.Is(err, models.ErrAddressBadSettings) {
 			t.Fatalf("bad public_address: got %v", err)
@@ -54,7 +54,7 @@ func TestCheckReadsTheRulesOffTheSpec(t *testing.T) {
 	t.Run("an unsupplied pattern is an error, not a silent pass", func(t *testing.T) {
 		delete(patterns, "address")
 		defer func() { patterns["address"] = models.AddressValid }()
-		err := Check(s, roleAddress, models.Address{ActorID: "a", Hash: "ab", PublicAddress: "x"})
+		err := Check(s, roleAddress, models.Address{ActorID: "a", Hash: []byte("ab"), PublicAddress: "x"})
 		if err == nil {
 			t.Fatal("a spec naming a pattern nobody supplies passed silently")
 		}

@@ -21,12 +21,10 @@ func newAddressStore(t *testing.T) *mwanachamacomm.AddressStore {
 
 func hashOf(s string) []byte { return []byte("hash:" + s) }
 
-func hashHexOf(s string) string { return mwanachamacomm.HashHex(hashOf(s)) }
-
 func TestAddressPublishAndResolve(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	a, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("a1"), SaltID: 1, AddressIndex: 0})
+	a, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a1"), SaltID: 1, AddressIndex: 0})
 	if err != nil {
 		t.Fatalf("Publish: %v", err)
 	}
@@ -51,7 +49,7 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 		t.Fatalf("unknown: expected ErrAddressNotFound, got %v", err)
 	}
 
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("retired"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("retired"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish retired: %v", err)
 	}
 	if err := s.Retire(ctx, "m-1", 0, now); err != nil {
@@ -62,7 +60,7 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 	}
 
 	past := now.Add(-time.Hour)
-	expired := mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("expired"), AddressIndex: 1}.
+	expired := mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("expired"), AddressIndex: 1}.
 		WithSettings(mwanachamacomm.AddressSettings{ExpiresAt: &past, ExpiryMode: mwanachamacomm.AddressModeClosed})
 	if _, err := s.Publish(ctx, expired); err != nil {
 		t.Fatalf("publish expired: %v", err)
@@ -75,10 +73,10 @@ func TestAddressResolveUnknownRetiredExpiredAllNotFound(t *testing.T) {
 func TestAddressPublishRefusesDuplicateHash(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("dup"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("dup"), AddressIndex: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashHexOf("dup"), AddressIndex: 0}); err == nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("dup"), AddressIndex: 0}); err == nil {
 		t.Fatalf("expected duplicate hash to be refused")
 	}
 }
@@ -86,10 +84,10 @@ func TestAddressPublishRefusesDuplicateHash(t *testing.T) {
 func TestAddressPublishRefusesDuplicateActorIndex(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("a"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), AddressIndex: 0}); err != nil {
 		t.Fatalf("first publish: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("b"), AddressIndex: 0}); err == nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("b"), AddressIndex: 0}); err == nil {
 		t.Fatalf("expected duplicate (actor,index) to be refused")
 	}
 }
@@ -98,7 +96,7 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
 	for i := 2; i >= 0; i-- {
-		if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf(string(rune('a' + i))), AddressIndex: i}); err != nil {
+		if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf(string(rune('a' + i))), AddressIndex: i}); err != nil {
 			t.Fatalf("publish %d: %v", i, err)
 		}
 	}
@@ -122,7 +120,7 @@ func TestAddressListForOrdersByIndexAndIncludesRetired(t *testing.T) {
 func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("a"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	// Naming someone else's address touches nothing.
@@ -142,7 +140,7 @@ func TestAddressRetireIsScopedAndNotIdempotentOnTimestamp(t *testing.T) {
 func TestAddressCountPublicIncludesRetired(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("a"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391"}); err != nil {
@@ -164,7 +162,7 @@ func TestAddressCountPublicIncludesRetired(t *testing.T) {
 func TestAddressUpdateSettingsWholeObjectAndValidation(t *testing.T) {
 	s := newAddressStore(t)
 	ctx := context.Background()
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("a"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("a"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 
@@ -211,16 +209,16 @@ func TestAddressListListedExcludesUnlistedAndOneActor(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("listed"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("listed"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish m-1: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{PublicAddress: "MKU4827YUT3391", ListedAt: &now}); err != nil {
 		t.Fatalf("list m-1: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashHexOf("unlisted"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("unlisted"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish m-2: %v", err)
 	}
-	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-3", Hash: hashHexOf("also-listed"), AddressIndex: 0}); err != nil {
+	if _, err := s.Publish(ctx, mwanachamacomm.Address{ActorID: "m-3", Hash: hashOf("also-listed"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish m-3: %v", err)
 	}
 	if _, err := s.UpdateSettings(ctx, "m-3", 0, mwanachamacomm.AddressSettings{PublicAddress: "ERL2393NOP1234", ListedAt: &now}); err != nil {
@@ -245,10 +243,10 @@ func TestAddressBlockIsIdempotentAndScoped(t *testing.T) {
 	if err != nil || blocked {
 		t.Fatalf("IsBlocked before any block = %v, err %v, want false", blocked, err)
 	}
-	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashHexOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block: %v", err)
 	}
-	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashHexOf("a")}); err != nil {
+	if err := s.Block(ctx, mwanachamacomm.AddressBlock{ActorID: "m-1", Hash: hashOf("a")}); err != nil {
 		t.Fatalf("Block again: %v", err)
 	}
 	blocked, err = s.IsBlocked(ctx, "m-1", hashOf("a"))

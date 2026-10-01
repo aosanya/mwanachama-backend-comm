@@ -29,7 +29,7 @@ func newAddressDirectoryStore(t *testing.T) (*mwanachamacomm.AddressDirectorySto
 func publishListed(t *testing.T, addrs *mwanachamacomm.AddressStore, actorID string, index int, publicAddr string, listedAt time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: actorID, Hash: hashHexOf(actorID + publicAddr), AddressIndex: index}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: actorID, Hash: hashOf(actorID + publicAddr), AddressIndex: index}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if _, err := addrs.UpdateSettings(ctx, actorID, index, mwanachamacomm.AddressSettings{
@@ -51,7 +51,7 @@ func TestAddressDirectorySearchOnlyListsPublicAndListed(t *testing.T) {
 	publishListed(t, addrs, "m-1", 0, "MKU4827YUT3391", now)
 
 	// m-2 publishes an address but never lists it — must not appear.
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashHexOf("m-2-unlisted"), AddressIndex: 0}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-2", Hash: hashOf("m-2-unlisted"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish unlisted: %v", err)
 	}
 	if _, err := addrs.UpdateSettings(ctx, "m-2", 0, mwanachamacomm.AddressSettings{PublicAddress: "ERL2393NOP1234"}); err != nil {
@@ -127,7 +127,7 @@ func TestAddressDirectorySearchShowsUnavailableRatherThanHiding(t *testing.T) {
 	insertTestActor(t, db, "m-1", "Alice")
 
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashHexOf("m-1-switched-off"), AddressIndex: 0}); err != nil {
+	if _, err := addrs.Publish(ctx, mwanachamacomm.Address{ActorID: "m-1", Hash: hashOf("m-1-switched-off"), AddressIndex: 0}); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	if _, err := addrs.UpdateSettings(ctx, "m-1", 0, mwanachamacomm.AddressSettings{

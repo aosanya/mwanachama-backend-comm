@@ -17,6 +17,15 @@ var ErrDMAlreadyActive = errors.New("directmessage: already an active participan
 // Leave's job, and Leave guards against stranding the thread.
 var ErrDMSelfKick = errors.New("directmessage: cannot kick yourself")
 
+// ErrDMNotAdmin is the refusal for a roster write the caller is not an
+// admin of. It was unexported, which is why dm.go's status switch needed a
+// 403 default arm that every other error inherited — CM31.
+var ErrDMNotAdmin = errors.New("directmessage: not admin")
+
+// ErrDMInvalidReaction is a malformed reaction: absent, or longer than a
+// short cluster of emoji.
+var ErrDMInvalidReaction = errors.New("directmessage: invalid reaction")
+
 // ErrDMLastAdmin is returned when the thread's only active admin tries to
 // leave while other participants are still active — nobody would be left who
 // can promote, invite or kick. Promote a successor first.
@@ -41,7 +50,7 @@ type DMThread struct {
 
 	MessageTTLSeconds *int `json:"message_ttl_seconds,omitempty"`
 
-	OpenedViaAddressHash string `json:"-"`
+	OpenedViaAddressHash []byte `json:"-"`
 
 	OpenedViaAddress bool `json:"opened_via_address" spec:"-"`
 
@@ -66,7 +75,7 @@ type DMThread struct {
 }
 
 func (t DMThread) WithDerived() DMThread {
-	t.OpenedViaAddress = t.OpenedViaAddressHash != ""
+	t.OpenedViaAddress = len(t.OpenedViaAddressHash) > 0
 	return t
 }
 

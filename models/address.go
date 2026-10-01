@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -22,7 +21,7 @@ var ErrAddressBadSettings = errors.New("address: settings are not well formed")
 type Address struct {
 	ActorID string `json:"actor_id"`
 
-	Hash string `json:"-"`
+	Hash []byte `json:"-"`
 
 	SaltID int `json:"-"`
 
@@ -220,18 +219,8 @@ func (a Address) IsPublic() bool { return a.PublicAddress != "" }
 
 type AddressBlock struct {
 	ActorID   string    `json:"-"`
-	Hash      string    `json:"-"`
+	Hash      []byte    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
-}
-
-func HashHex(hash []byte) string { return hex.EncodeToString(hash) }
-
-func HashBytes(hash string) ([]byte, error) {
-	raw, err := hex.DecodeString(hash)
-	if err != nil {
-		return nil, fmt.Errorf("%w: an address hash is lowercase hex", ErrAddressBadSettings)
-	}
-	return raw, nil
 }
 
 type AddressRepository interface {

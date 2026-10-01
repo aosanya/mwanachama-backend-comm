@@ -257,3 +257,36 @@ func removalReasonStrings() []string {
 		string(models.RemovalReasonFalseClaim),
 	}
 }
+
+// The three hashes are key material, and the live gateway database holds
+// them as bytea. SQLite is dynamically typed and stores whatever it is
+// handed, so the column type has to be asserted on the emitted DDL rather
+// than on a round trip.
+func TestTheHashColumnsAreBytesNotText(t *testing.T) {
+	s := testSpec(t)
+	ddl := strings.Join(s.DDL("postgres"), "\n")
+
+	for _, c := range []struct{ role, field string }{
+		{roleAddress, "hash"},
+		{roleAddressBlock, "hash"},
+		{roleDMThread, "opened_via_address_hash"},
+	} {
+		o, ok := s.ByRole(c.role)
+		if !ok {
+			t.Fatalf("role %q fills nothing", c.role)
+		}
+		var declared spec.FieldType
+		for _, f := range o.Fields {
+			if f.Name == c.field {
+				declared = f.Type
+			}
+		}
+		if declared != spec.TypeBytes {
+			t.Errorf("%s.%s is declared %q, want bytes — a text column cannot hold key material, and the live column is bytea",
+				c.role, c.field, declared)
+		}
+		if !strings.Contains(ddl, c.field+" bytea") {
+			t.Errorf("the Postgres DDL does not emit %s as bytea:\n%s", c.field, ddl)
+		}
+	}
+}

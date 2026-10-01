@@ -17,7 +17,7 @@ func TestListMyAddressesRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: mwanachamacomm.HashHex([]byte("h1")), AddressIndex: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), AddressIndex: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
@@ -40,7 +40,7 @@ func TestRetireAddressRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAddressStore: %v", err)
 	}
-	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: mwanachamacomm.HashHex([]byte("h1")), AddressIndex: 0}); err != nil {
+	if _, err := addrs.Publish(context.Background(), mwanachamacomm.Address{ActorID: "m-1", Hash: []byte("h1"), AddressIndex: 0}); err != nil {
 		t.Fatalf("seed publish: %v", err)
 	}
 
