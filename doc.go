@@ -80,6 +80,13 @@ var (
 	ErrDMNotLastToLeave = models.ErrDMNotLastToLeave
 	ErrDMSelfKick       = models.ErrDMSelfKick
 	ErrDMLastAdmin      = models.ErrDMLastAdmin
+
+	// ErrDMNotAdmin was unexported until the route table was declared, which
+	// is why dm.go's status switch needed a 403 default arm that every other
+	// error inherited — CM31.
+	ErrDMNotAdmin = models.ErrDMNotAdmin
+
+	ErrDMInvalidReaction = models.ErrDMInvalidReaction
 )
 
 type (
@@ -152,6 +159,7 @@ var (
 	ErrNotificationNotFound       = models.ErrNotificationNotFound
 	ErrNotificationInvalid        = models.ErrNotificationInvalid
 	ErrNotificationCapSpent       = models.ErrNotificationCapSpent
+	ErrNotificationNoSuchCategory = models.ErrNotificationNoSuchCategory
 	ErrNotificationMuted          = models.ErrNotificationMuted
 	ErrNotificationCategoryExempt = models.ErrNotificationCategoryExempt
 )

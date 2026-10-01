@@ -1,0 +1,706 @@
+{
+  "operations": {
+    "read_chat_activity": {
+      "method": "GET",
+      "path": "/chat/activity",
+      "call": "Activity",
+      "action": "comm.chat.activity.read",
+      "status": 200,
+      "title": "Chat activity",
+      "description": "How much traffic each room has seen, newest post first, with the totals over the whole filtered set rather than over the page.",
+      "args": [
+        {
+          "from": "query",
+          "whole": true
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_dm_threads": {
+      "method": "GET",
+      "path": "/dm/threads",
+      "call": "ListDMThreadsFor",
+      "action": "comm.dm_thread.list",
+      "status": 200,
+      "title": "My conversations",
+      "description": "Every conversation the caller is currently invited to or active in. Each row carries only the caller's own address index, never the other party's.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "get_dm_thread": {
+      "method": "GET",
+      "path": "/dm/threads/{thread_id}",
+      "call": "GetDMThreadFor",
+      "action": "comm.dm_thread.read",
+      "status": 200,
+      "title": "One conversation",
+      "description": "One conversation the caller is on the roster of. A conversation that exists but the caller is not on, and one that was never minted, answer identically \u2014 the status code must not become an enumeration oracle.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_dm_participants": {
+      "method": "GET",
+      "path": "/dm/threads/{thread_id}/participants",
+      "call": "ListDMParticipantsFor",
+      "action": "comm.dm_participant.list",
+      "status": 200,
+      "title": "Who is on a conversation",
+      "description": "Every participant's standing on one conversation, for a caller who is on its roster.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "invite_to_dm_thread": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/invite",
+      "call": "Invite",
+      "action": "comm.dm_participant.invite",
+      "status": 201,
+      "title": "Invite somebody",
+      "description": "Admin-only. Invites one actor onto a conversation, or returns an already-active one to invited without disturbing their admin flag.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "body",
+          "as": "actor_id",
+          "required": true,
+          "description": "Who to invite."
+        },
+        {
+          "from": "caller",
+          "as": "by",
+          "description": "The admin issuing the invite, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "accept_dm_invite": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/accept",
+      "call": "Accept",
+      "action": "comm.dm_participant.accept",
+      "status": 200,
+      "title": "Accept an invite",
+      "description": "The caller accepts their own invite. Nobody can accept on somebody else's behalf, because the actor is the session's and not the body's.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "actor_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "leave_dm_thread": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/leave",
+      "call": "Leave",
+      "action": "comm.dm_participant.leave",
+      "status": 204,
+      "title": "Leave a conversation",
+      "description": "The caller leaves. Refused when the caller is the only active admin and other participants are still active, since every roster write needs an admin and nobody could restore one.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "actor_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "kick_from_dm_thread": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/kick",
+      "call": "Kick",
+      "action": "comm.dm_participant.kick",
+      "status": 204,
+      "title": "Remove somebody",
+      "description": "Admin-only, and a self-kick is refused \u2014 leaving is the act for that, and it carries the last-admin rule a kick would bypass.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "body",
+          "as": "actor_id",
+          "required": true,
+          "description": "Who to remove."
+        },
+        {
+          "from": "caller",
+          "as": "by",
+          "description": "The admin issuing it, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "promote_dm_participant": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/promote",
+      "call": "Promote",
+      "action": "comm.dm_participant.promote",
+      "status": 200,
+      "title": "Make somebody an admin",
+      "description": "Admin-only. A plain update rather than an upsert: promoting somebody who was never on the roster is a not-found, never a silently created row.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "body",
+          "as": "actor_id",
+          "required": true,
+          "description": "Who to promote."
+        },
+        {
+          "from": "caller",
+          "as": "by",
+          "description": "The admin issuing it, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "reenable_dm_participant": {
+      "method": "POST",
+      "path": "/dm/threads/{thread_id}/re-enable",
+      "call": "ReEnableFor",
+      "action": "comm.dm_participant.reenable",
+      "status": 200,
+      "title": "Rejoin or readmit",
+      "description": "An admin returns somebody to invited. A departed participant re-enabling themselves is allowed only while nobody else is active, and that claim is one conditional statement so two of them cannot both win.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "body",
+          "as": "actor_id",
+          "description": "Who to re-enable. Absent means the caller themselves, which is how a departed participant rejoins."
+        },
+        {
+          "from": "caller",
+          "as": "by",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_dm_messages": {
+      "method": "GET",
+      "path": "/dm/threads/{thread_id}/messages",
+      "call": "ListDMMessagesFor",
+      "action": "comm.dm_message.list",
+      "status": 200,
+      "title": "Messages on a conversation",
+      "description": "Every message still within its deadline, oldest first, for a caller who is active on the roster. The timer is read off the conversation, where it was frozen when the conversation opened.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "publish_dm_device_key": {
+      "method": "POST",
+      "path": "/dm/device-keys",
+      "call": "PublishDMDeviceKeyFor",
+      "action": "comm.dm_device_key.publish",
+      "status": 201,
+      "title": "Publish a device key",
+      "description": "Publishes one of the caller's handset keys. The owner, the publisher and the handset are session facts: a body claiming any of them is overwritten rather than refused.",
+      "args": [
+        {
+          "from": "body",
+          "whole": true,
+          "description": "The key to publish."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The owner, from the session."
+        },
+        {
+          "from": "device",
+          "as": "device_id",
+          "description": "The handset, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "lookup_dm_device_keys": {
+      "method": "POST",
+      "path": "/dm/device-keys/lookup",
+      "call": "LookupDeviceKeys",
+      "action": "comm.dm_device_key.lookup",
+      "status": 200,
+      "title": "Look up device keys",
+      "description": "Every live key for the actors named, so a sender can seal a message to each of their handsets. Retired keys are never returned.",
+      "args": [
+        {
+          "from": "body",
+          "as": "actor_ids",
+          "required": true,
+          "description": "Whose keys to look up."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_dm_reactions": {
+      "method": "GET",
+      "path": "/dm/threads/{thread_id}/reactions",
+      "call": "ListDMReactionsFor",
+      "action": "comm.dm_reaction.list",
+      "status": 200,
+      "title": "Reactions on a conversation",
+      "description": "Every reaction on every message of one conversation, for a caller who is active on the roster.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The conversation."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "set_dm_reaction": {
+      "method": "PUT",
+      "path": "/dm/messages/{message_id}/reaction",
+      "call": "SetDMReactionFor",
+      "action": "comm.dm_reaction.set",
+      "status": 204,
+      "title": "React to a message",
+      "description": "Sets the caller's own reaction to one message, replacing whatever they had on it. The reactor is the session's, so nobody can react as somebody else.",
+      "args": [
+        {
+          "from": "path",
+          "as": "message_id",
+          "required": true,
+          "description": "The message."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The reactor, from the session."
+        },
+        {
+          "from": "body",
+          "as": "emoji",
+          "required": true,
+          "description": "The reaction."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "clear_dm_reaction": {
+      "method": "DELETE",
+      "path": "/dm/messages/{message_id}/reaction",
+      "call": "ClearDMReactionFor",
+      "action": "comm.dm_reaction.clear",
+      "status": 204,
+      "title": "Take a reaction back",
+      "description": "Clears the caller's own reaction to one message, and only their own.",
+      "args": [
+        {
+          "from": "path",
+          "as": "message_id",
+          "required": true,
+          "description": "The message."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The reactor, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_report_queue": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/moderation/reports",
+      "call": "ListReportQueue",
+      "action": "comm.report.queue",
+      "status": 200,
+      "title": "The moderation queue",
+      "description": "Every post somebody has asked the moderators of one structure to look at, newest first.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "Whose queue."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_reports_for_message": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/moderation/messages/{message_id}/reports",
+      "call": "ListReportsForMessage",
+      "action": "comm.report.for_message",
+      "status": 200,
+      "title": "Reports against one post",
+      "description": "Every report filed against one post, newest first.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "ignored": true,
+          "description": "The structure whose queue the post sits in."
+        },
+        {
+          "from": "path",
+          "as": "message_id",
+          "required": true,
+          "description": "The post."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_my_addresses": {
+      "method": "GET",
+      "path": "/dm/addresses",
+      "call": "ListMyAddresses",
+      "action": "comm.address.list_mine",
+      "status": 200,
+      "title": "My addresses",
+      "description": "The caller's own view of every address they hold, retired ones included. The plaintext comes back only for an address its owner asked to be held.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The owner, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "retire_my_address": {
+      "method": "POST",
+      "path": "/dm/addresses/{index}/retire",
+      "call": "RetireMyAddress",
+      "action": "comm.address.retire",
+      "status": 204,
+      "title": "Retire an address",
+      "description": "Stops one of the caller's own addresses accepting new conversations. Conversations already open under it keep working \u2014 retiring must never sever one the other party is in the middle of.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The owner, from the session."
+        },
+        {
+          "from": "path",
+          "as": "index",
+          "required": true,
+          "description": "Which of the caller's own addresses."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_notifications": {
+      "method": "GET",
+      "path": "/notifications",
+      "call": "List",
+      "action": "comm.notification.list",
+      "status": 200,
+      "title": "My notifications",
+      "description": "The caller's own notifications, newest first. There is no stored title or body: a client renders both from the event and the subject it names.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        },
+        {
+          "from": "query",
+          "as": "limit",
+          "description": "How many to return."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "count_unread_notifications": {
+      "method": "GET",
+      "path": "/notifications/unread",
+      "call": "UnreadCount",
+      "action": "comm.notification.unread",
+      "status": 200,
+      "title": "My unread badge",
+      "description": "How many of the caller's own notifications are unread.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "as": "unread"
+        }
+      ]
+    },
+    "mark_notifications_read": {
+      "method": "POST",
+      "path": "/notifications/read",
+      "call": "MarkMyNotificationsRead",
+      "action": "comm.notification.mark_read",
+      "status": 200,
+      "title": "Mark notifications read",
+      "description": "Marks some of the caller's own notifications read, and reports how many it moved. Read is the recipient's own assertion and the only column a client writes.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        },
+        {
+          "from": "body",
+          "as": "ids",
+          "required": true,
+          "description": "Which notifications."
+        },
+        {
+          "from": "body",
+          "as": "read_at",
+          "description": "When they were read, RFC3339. Absent means now, from the server's clock."
+        }
+      ],
+      "returns": [
+        {
+          "as": "marked"
+        }
+      ]
+    },
+    "list_notification_preferences": {
+      "method": "GET",
+      "path": "/notification-preferences",
+      "call": "ListPreferences",
+      "action": "comm.notification_preference.list",
+      "status": 200,
+      "title": "My notification settings",
+      "description": "Which categories the caller has muted. A category with no row is on, because absent is on.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "set_notification_preference": {
+      "method": "PUT",
+      "path": "/notification-preferences/{category}",
+      "call": "SetNotificationPreferenceFor",
+      "action": "comm.notification_preference.set",
+      "status": 200,
+      "title": "Mute or unmute a category",
+      "description": "Mutes or unmutes one category for the caller. A category the mounted domain does not declare is a not-found; one the domain marks exempt is refused with the reason rather than stored as unmuted.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        },
+        {
+          "from": "path",
+          "as": "category",
+          "required": true,
+          "description": "Which category."
+        },
+        {
+          "from": "body",
+          "as": "muted",
+          "required": true,
+          "description": "Whether to mute it."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    }
+  },
+  "errors": {
+    "ErrChatNotFound": 404,
+    "ErrDMNotFound": 404,
+    "ErrDMAlreadyActive": 409,
+    "ErrDMSelfKick": 409,
+    "ErrDMLastAdmin": 409,
+    "ErrDMNotLastToLeave": 403,
+    "ErrDMNotAdmin": 403,
+    "ErrDMInvalidReaction": 400,
+    "ErrModerationNotFound": 404,
+    "ErrAlreadyDecided": 409,
+    "ErrReviewerIsRemover": 403,
+    "ErrAlreadyRemoved": 409,
+    "ErrAddressNotFound": 404,
+    "ErrAddressBadSettings": 400,
+    "ErrNotificationNotFound": 404,
+    "ErrNotificationNoSuchCategory": 404,
+    "ErrNotificationCategoryExempt": 409,
+    "ErrNotificationCapSpent": 409,
+    "ErrNotificationInvalid": 400,
+    "ErrNotificationMuted": 409,
+    "ErrInvalidReference": 400,
+    "ErrConflict": 409
+  }
+}

@@ -1,139 +1,96 @@
 package routes_test
 
 import (
-	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
-	"github.com/aosanya/mwanachama-backend-comm/routes"
 )
 
-func dmHTTPGetParticipants(t *testing.T, client *http.Client, url, caller string) (int, []map[string]any) {
+// seedEmptiedThread leaves a conversation with three departed participants
+// and nobody active, which is the only state a self re-enable is allowed
+// from. Every step crosses the mux.
+func seedEmptiedThread(t *testing.T, srv *httptest.Server, m *mwanachamacomm.CommManager) string {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.Header.Set(testCallerHeader, caller)
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("GET %s: %v", url, err)
-	}
-	defer resp.Body.Close()
-	var out []map[string]any
-	raw, _ := io.ReadAll(resp.Body)
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &out); err != nil {
-			t.Fatalf("decode response %q: %v", raw, err)
+	threadID := seedThread(t, m, "admin-1")
+	base := "/dm/threads/" + threadID
+
+	for _, who := range []string{"member-2", "member-3"} {
+		if got := call(t, srv, http.MethodPost, base+"/invite", "admin-1",
+			map[string]string{"actor_id": who}); got.code != http.StatusCreated {
+			t.Fatalf("invite %s = %d: %s", who, got.code, got.body)
+		}
+		if got := call(t, srv, http.MethodPost, base+"/accept", who, nil); got.code != http.StatusOK {
+			t.Fatalf("accept %s = %d: %s", who, got.code, got.body)
 		}
 	}
-	return resp.StatusCode, out
-}
-
-func newDMExclusivityServer(t *testing.T) (*httptest.Server, mwanachamacomm.DMRepository) {
-	t.Helper()
-	db, dspec := newRouteTestDB(t)
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("db.DB(): %v", err)
+	if got := call(t, srv, http.MethodPost, base+"/promote", "admin-1",
+		map[string]string{"actor_id": "member-2"}); got.code != http.StatusOK {
+		t.Fatalf("promote = %d: %s", got.code, got.body)
 	}
-	sqlDB.SetMaxOpenConns(1)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	mux := http.NewServeMux()
-	for _, rt := range routes.DMRoutes(dm, headerIdentity{}) {
-		mux.HandleFunc(rt.Pattern(""), rt.Handler)
-	}
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return srv, dm
-}
-
-func seedEmptiedDMThread(t *testing.T, client *http.Client, srv *httptest.Server, dm mwanachamacomm.DMRepository) string {
-	t.Helper()
-	th, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "admin-1"}, nil)
-	if err != nil {
-		t.Fatalf("seed thread: %v", err)
-	}
-	base := srv.URL + "/v1/dm/threads/" + th.ID
-
-	for _, m := range []string{"member-2", "member-3"} {
-		if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/invite", "admin-1", map[string]string{"actor_id": m}); st != http.StatusCreated {
-			t.Fatalf("invite %s: status=%d body=%v", m, st, body)
-		}
-		if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/accept", m, nil); st != http.StatusOK {
-			t.Fatalf("accept %s: status=%d body=%v", m, st, body)
-		}
-	}
-	if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/promote", "admin-1", map[string]string{"actor_id": "member-2"}); st != http.StatusOK {
-		t.Fatalf("promote member-2: status=%d body=%v", st, body)
-	}
-	for _, m := range []string{"admin-1", "member-3", "member-2"} {
-		if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/leave", m, nil); st != http.StatusNoContent {
-			t.Fatalf("leave %s: status=%d body=%v", m, st, body)
+	for _, who := range []string{"admin-1", "member-3", "member-2"} {
+		if got := call(t, srv, http.MethodPost, base+"/leave", who, nil); got.code != http.StatusNoContent {
+			t.Fatalf("leave %s = %d: %s", who, got.code, got.body)
 		}
 	}
 	return base
 }
 
-func activeParticipants(t *testing.T, client *http.Client, base, caller string) []map[string]any {
+func activeCount(t *testing.T, srv *httptest.Server, base, caller string) int {
 	t.Helper()
-	st, participants := dmHTTPGetParticipants(t, client, base+"/participants", caller)
-	if st != http.StatusOK {
-		t.Fatalf("participants status = %d, want 200", st)
+	got := call(t, srv, http.MethodGet, base+"/participants", caller, nil)
+	if got.code != http.StatusOK {
+		t.Fatalf("participants = %d: %s", got.code, got.body)
 	}
-	var active []map[string]any
-	for _, p := range participants {
-		if state, _ := p["state"].(string); state == string(mwanachamacomm.DMStateActive) {
-			active = append(active, p)
+	var roster []struct {
+		State string `json:"state"`
+	}
+	got.decode(t, &roster)
+	active := 0
+	for _, p := range roster {
+		if p.State == string(mwanachamacomm.DMStateActive) {
+			active++
 		}
 	}
 	return active
 }
 
 func TestSelfReEnableRefusesOnceAnotherDepartedParticipantHasClaimedTheThread(t *testing.T) {
-	srv, dm := newDMExclusivityServer(t)
-	client := srv.Client()
-	base := seedEmptiedDMThread(t, client, srv, dm)
+	srv, m := newCommServer(t)
+	base := seedEmptiedThread(t, srv, m)
 
-	if st, body := dmHTTPCall(t, client, http.MethodPost, base+"/re-enable", "member-2", map[string]string{}); st != http.StatusOK {
-		t.Fatalf("first self re-enable: status=%d body=%v, want 200", st, body)
+	if got := call(t, srv, http.MethodPost, base+"/re-enable", "member-2", map[string]string{}); got.code != http.StatusOK {
+		t.Fatalf("the first self re-enable = %d, want 200: %s", got.code, got.body)
 	}
-	st, body := dmHTTPCall(t, client, http.MethodPost, base+"/re-enable", "member-3", map[string]string{})
-	if st != http.StatusForbidden {
-		t.Fatalf("second self re-enable: status=%d body=%v, want 403 — only the actor who was last to leave may bring the thread back", st, body)
+	if got := call(t, srv, http.MethodPost, base+"/re-enable", "member-3", map[string]string{}); got.code != http.StatusForbidden {
+		t.Fatalf("the second self re-enable = %d, want 403 — only the actor who was last to leave may bring the thread back: %s",
+			got.code, got.body)
 	}
-	if active := activeParticipants(t, client, base, "member-2"); len(active) != 1 {
-		t.Fatalf("roster shows %d active participants, want exactly 1: %v", len(active), active)
+	if active := activeCount(t, srv, base, "member-2"); active != 1 {
+		t.Fatalf("the roster shows %d active participants, want exactly 1", active)
 	}
 }
 
-// TestConcurrentSelfReEnableLeavesAtMostOneActive guards CM15. The fix is a
-// single conditional UPDATE in claimEmptiedThread, so the invariant holds
-// however the two requests interleave.
+// Guards CM15. The fix is a single conditional UPDATE in
+// claimEmptiedThread, so the invariant holds however the two requests
+// interleave.
 //
-// This test cannot by itself prove the fix: `SetMaxOpenConns(1)` is needed
+// This test cannot by itself prove the fix. SetMaxOpenConns(1) is needed
 // because the SQLite in-memory pool otherwise hands each goroutine its own
-// anonymous database, and one connection serializes the two statements, which
-// closes the very window the race needed. That is exactly why the pin this
-// replaces reported "W15 appears fixed" against unfixed code. The
-// deterministic test above is what actually holds the rule; this one holds the
-// concurrent shape, and a future reader should not restore an assertion that
-// the race must land at least once, because under this setup it cannot.
+// anonymous database, and one connection serialises the two statements,
+// which closes the very window the race needed. That is exactly why the pin
+// this replaces reported the bug fixed against unfixed code. The
+// deterministic test above is what holds the rule; this one holds the
+// concurrent shape, and a future reader should not restore an assertion
+// that the race must land at least once, because under this setup it cannot.
 func TestConcurrentSelfReEnableLeavesAtMostOneActive(t *testing.T) {
 	const iterations = 40
 
 	for i := 0; i < iterations; i++ {
-		srv, dm := newDMExclusivityServer(t)
-		client := srv.Client()
-		base := seedEmptiedDMThread(t, client, srv, dm)
+		srv, m := newCommServer(t)
+		base := seedEmptiedThread(t, srv, m)
 
 		var wg sync.WaitGroup
 		statuses := make([]int, 2)
@@ -143,8 +100,7 @@ func TestConcurrentSelfReEnableLeavesAtMostOneActive(t *testing.T) {
 			go func(idx int, caller string) {
 				defer wg.Done()
 				<-start
-				st, _ := dmHTTPCall(t, client, http.MethodPost, base+"/re-enable", caller, map[string]string{})
-				statuses[idx] = st
+				statuses[idx] = call(t, srv, http.MethodPost, base+"/re-enable", caller, map[string]string{}).code
 			}(idx, caller)
 		}
 		close(start)
@@ -157,10 +113,43 @@ func TestConcurrentSelfReEnableLeavesAtMostOneActive(t *testing.T) {
 			}
 		}
 		if successes != 1 {
-			t.Fatalf("iteration %d: %d of 2 concurrent self re-enables succeeded (statuses %v), want exactly 1", i, successes, statuses)
+			t.Fatalf("iteration %d: %d of 2 concurrent self re-enables succeeded (statuses %v), want exactly 1",
+				i, successes, statuses)
 		}
-		if active := activeParticipants(t, client, base, "member-2"); len(active) != 1 {
-			t.Fatalf("iteration %d: roster shows %d active participants, want exactly 1: %v", i, len(active), active)
+		if active := activeCount(t, srv, base, "member-2"); active != 1 {
+			t.Fatalf("iteration %d: the roster shows %d active participants, want exactly 1", i, active)
 		}
+	}
+}
+
+// W14's two remaining shapes, which the behaviour suite does not cover: a
+// sole participant may leave, and a non-admin is unaffected by the
+// last-admin rule.
+func TestTheLastAdminMayLeaveWhenNobodyElseIsActive(t *testing.T) {
+	srv, m := newCommServer(t)
+
+	alone := "/dm/threads/" + seedThread(t, m, "admin-1")
+	if got := call(t, srv, http.MethodPost, alone+"/leave", "admin-1", nil); got.code != http.StatusNoContent {
+		t.Fatalf("a sole participant leaving = %d, want 204: %s", got.code, got.body)
+	}
+
+	invitedOnly := "/dm/threads/" + seedThread(t, m, "admin-2", "member-3")
+	if got := call(t, srv, http.MethodPost, invitedOnly+"/leave", "admin-2", nil); got.code != http.StatusNoContent {
+		t.Fatalf("leaving while the only other member is merely invited = %d, want 204: %s", got.code, got.body)
+	}
+}
+
+func TestANonAdminIsUnaffectedByTheLastAdminRule(t *testing.T) {
+	srv, m := newCommServer(t)
+	base := "/dm/threads/" + seedThread(t, m, "admin-1", "member-2")
+
+	if got := call(t, srv, http.MethodPost, base+"/accept", "member-2", nil); got.code != http.StatusOK {
+		t.Fatalf("accept = %d: %s", got.code, got.body)
+	}
+	if got := call(t, srv, http.MethodPost, base+"/leave", "member-2", nil); got.code != http.StatusNoContent {
+		t.Fatalf("a non-admin leaving = %d, want 204: %s", got.code, got.body)
+	}
+	if active := activeCount(t, srv, base, "admin-1"); active != 1 {
+		t.Fatalf("the roster shows %d active participants, want just the admin", active)
 	}
 }

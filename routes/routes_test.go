@@ -14,32 +14,55 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/aosanya/mwanachama-backend-shared/dispatch"
 	"github.com/aosanya/mwanachama-backend-shared/spec"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-comm/routes"
 )
 
-// testIdentity is a fixed [routes.Identity] — a stand-in for the gateway's
-// real session-derived identity, the same role a caller-supplied test
-// double plays for actor's HierarchyChecker.
-type testIdentity struct {
-	callerID string
-	deviceID string
-}
-
-func (i testIdentity) CallerID(r *http.Request) string       { return i.callerID }
-func (i testIdentity) CallerDeviceID(r *http.Request) string { return i.deviceID }
-
-// noopActWriter never gets exercised by these tests (ModerationRoutes only
-// covers reads) but ModerationStore's constructor requires a non-nil one.
 type noopActWriter struct{}
 
 func (noopActWriter) WriteAct(ctx context.Context, tx *sql.Tx, e mwanachamacomm.ActEntry) error {
 	return nil
 }
 
-func newRouteTestDB(t *testing.T) (*gorm.DB, *spec.Spec) {
+// A mounting process carries the session on the context, so these tests do
+// what one does: read the two session facts off a header into the context,
+// and give the mount a Caller and a Device that read them back out. Every
+// assertion below therefore crosses a real mux with a real caller, which is
+// the one thing this package's old fixtures did not do — both of the bugs
+// in this repo's CLAUDE.md escaped because the handlers were called in Go.
+type ctxKey string
+
+const (
+	callerKey ctxKey = "caller"
+	deviceKey ctxKey = "device"
+
+	callerHeader = "X-Test-Caller"
+	deviceHeader = "X-Test-Device"
+)
+
+func session(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), callerKey, r.Header.Get(callerHeader))
+		ctx = context.WithValue(ctx, deviceKey, r.Header.Get(deviceHeader))
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func fromCtx(key ctxKey) dispatch.Caller {
+	return func(ctx context.Context) string {
+		v, _ := ctx.Value(key).(string)
+		return v
+	}
+}
+
+func testMount() routes.Mount {
+	return routes.Mount{Caller: fromCtx(callerKey), Device: fromCtx(deviceKey)}
+}
+
+func newCommTestDB(t *testing.T) (*gorm.DB, *mwanachamacomm.CommManager) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -61,224 +84,163 @@ func newRouteTestDB(t *testing.T) (*gorm.DB, *spec.Spec) {
 	if err := mwanachamacomm.Provision(db, s); err != nil {
 		t.Fatalf("Provision: %v", err)
 	}
-	return db, s
+	m, err := mwanachamacomm.NewCommManager(db, s, nil, noopActWriter{}, "")
+	if err != nil {
+		t.Fatalf("NewCommManager: %v", err)
+	}
+	return db, m
 }
 
-func decodeJSON[T any](t *testing.T, w *httptest.ResponseRecorder) T {
+func newServer(t *testing.T, m *mwanachamacomm.CommManager, mount routes.Mount) *httptest.Server {
 	t.Helper()
-	var out T
-	if err := json.NewDecoder(w.Body).Decode(&out); err != nil {
-		t.Fatalf("decode response %q: %v", w.Body.String(), err)
+	built, err := routes.BuildFor(m, mount)
+	if err != nil {
+		t.Fatalf("BuildFor: %v", err)
 	}
-	return out
+	mux := http.NewServeMux()
+	for _, rt := range built {
+		mux.Handle(rt.Pattern(""), rt.Handler)
+	}
+	srv := httptest.NewServer(session(mux))
+	t.Cleanup(srv.Close)
+	return srv
 }
 
-func TestChatActivityRoute(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	chat, err := mwanachamacomm.NewChatStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewChatStore: %v", err)
-	}
-	if _, err := chat.Post(context.Background(), mwanachamacomm.ChatMessage{StructureID: "c-1", AuthorID: "a-1", Body: "hi"}); err != nil {
-		t.Fatalf("seed post: %v", err)
-	}
-
-	handler := routes.ChatActivity(chat)
-	req := httptest.NewRequest(http.MethodGet, "/v1/chat/activity", nil)
-	w := httptest.NewRecorder()
-	handler(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	page := decodeJSON[mwanachamacomm.ChatActivityPage](t, w)
-	if page.Total != 1 || page.Messages != 1 {
-		t.Fatalf("page = %+v, want Total=1 Messages=1", page)
-	}
-}
-
-func TestChatActivityRouteRejectsBadLimit(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	chat, err := mwanachamacomm.NewChatStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewChatStore: %v", err)
-	}
-	req := httptest.NewRequest(http.MethodGet, "/v1/chat/activity?limit=-1", nil)
-	w := httptest.NewRecorder()
-	routes.ChatActivity(chat)(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", w.Code)
-	}
-}
-
-// TestGetDMThreadRefusesAnOutsiderWithNotFound is DEV-1137's own contract:
-// a caller who is not on a thread's roster must get the exact same answer
-// as a thread that was never minted — 404, never 403, or the status code
-// itself becomes an enumeration oracle.
-func TestGetDMThreadRefusesAnOutsiderWithNotFound(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	th, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil)
-	if err != nil {
-		t.Fatalf("seed thread: %v", err)
-	}
-
-	outsider := testIdentity{callerID: "m-stranger"}
-	req := httptest.NewRequest(http.MethodGet, "/v1/dm/threads/"+th.ID, nil)
-	req.SetPathValue("threadID", th.ID)
-	w := httptest.NewRecorder()
-	routes.GetDMThread(dm, outsider)(w, req)
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("outsider status = %d, want 404: %s", w.Code, w.Body.String())
-	}
-
-	absentReq := httptest.NewRequest(http.MethodGet, "/v1/dm/threads/dm-does-not-exist", nil)
-	absentReq.SetPathValue("threadID", "dm-does-not-exist")
-	w2 := httptest.NewRecorder()
-	routes.GetDMThread(dm, outsider)(w2, absentReq)
-	if w2.Code != http.StatusNotFound {
-		t.Fatalf("absent thread status = %d, want 404: %s", w2.Code, w2.Body.String())
-	}
-	if w.Body.String() != w2.Body.String() {
-		t.Fatalf("outsider body %q must be byte-identical to absent-thread body %q, or the status/body pair becomes an oracle", w.Body.String(), w2.Body.String())
-	}
-}
-
-func TestPublishDMDeviceKeyIgnoresClaimedProvenance(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	identity := testIdentity{callerID: "m-1", deviceID: "device-1"}
-	req := httptest.NewRequest(http.MethodPost, "/v1/dm/device-keys", jsonBody(t, map[string]string{
-		"public_key":   "pk-1",
-		"published_by": "actor-someone-else",
-		"device_id":    "device-someone-else",
-	}))
-	w := httptest.NewRecorder()
-	routes.PublishDMDeviceKey(dm, identity)(w, req)
-	if w.Code != http.StatusCreated {
-		t.Fatalf("status = %d, want 201: %s", w.Code, w.Body.String())
-	}
-	out := decodeJSON[mwanachamacomm.DMDeviceKey](t, w)
-	if out.PublishedBy != "m-1" || out.DeviceID != "device-1" {
-		t.Fatalf("provenance = %+v, want the session's (m-1/device-1), not the claimed one", out)
-	}
-}
-
-func TestDMInviteAndAcceptRoutes(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	th, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil)
-	if err != nil {
-		t.Fatalf("seed thread: %v", err)
-	}
-
-	asAdmin := testIdentity{callerID: "m-1"}
-	inviteReq := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"actor_id": "m-2"}))
-	inviteReq.SetPathValue("threadID", th.ID)
-	w := httptest.NewRecorder()
-	routes.InviteDM(dm, asAdmin)(w, inviteReq)
-	if w.Code != http.StatusCreated {
-		t.Fatalf("invite status = %d, want 201: %s", w.Code, w.Body.String())
-	}
-
-	asInvitee := testIdentity{callerID: "m-2"}
-	acceptReq := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/accept", nil)
-	acceptReq.SetPathValue("threadID", th.ID)
-	w2 := httptest.NewRecorder()
-	routes.AcceptDM(dm, asInvitee)(w2, acceptReq)
-	if w2.Code != http.StatusOK {
-		t.Fatalf("accept status = %d, want 200: %s", w2.Code, w2.Body.String())
-	}
-	p := decodeJSON[mwanachamacomm.DMParticipant](t, w2)
-	if p.State != mwanachamacomm.DMStateActive {
-		t.Fatalf("state = %q, want active", p.State)
-	}
-}
-
-func TestDMInviteRouteMapsAlreadyActiveTo409(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	ctx := context.Background()
-	th, err := dm.CreateThread(ctx, mwanachamacomm.DMThread{CreatedBy: "m-1"}, []string{"m-2"})
-	if err != nil {
-		t.Fatalf("seed thread: %v", err)
-	}
-	if _, err := dm.Accept(ctx, th.ID, "m-2"); err != nil {
-		t.Fatalf("seed accept: %v", err)
-	}
-
-	identity := testIdentity{callerID: "m-1"}
-	req := httptest.NewRequest(http.MethodPost, "/v1/dm/threads/"+th.ID+"/invite", jsonBody(t, map[string]string{"actor_id": "m-2"}))
-	req.SetPathValue("threadID", th.ID)
-	w := httptest.NewRecorder()
-	routes.InviteDM(dm, identity)(w, req)
-	if w.Code != http.StatusConflict {
-		t.Fatalf("status = %d, want 409: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestListDMThreadsRouteAppliesForCaller(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	dm, err := mwanachamacomm.NewDMStore(db, dspec, nil)
-	if err != nil {
-		t.Fatalf("NewDMStore: %v", err)
-	}
-	if _, err := dm.CreateThread(context.Background(), mwanachamacomm.DMThread{CreatedBy: "m-1"}, nil); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	identity := testIdentity{callerID: "m-1"}
-	req := httptest.NewRequest(http.MethodGet, "/v1/dm/threads", nil)
-	w := httptest.NewRecorder()
-	routes.ListDMThreads(dm, identity)(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	out := decodeJSON[[]mwanachamacomm.DMThread](t, w)
-	if len(out) != 1 {
-		t.Fatalf("threads = %+v, want 1", out)
-	}
-}
-
-func TestListReportQueueRoute(t *testing.T) {
-	db, dspec := newRouteTestDB(t)
-	mod, err := mwanachamacomm.NewModerationStore(db, dspec, nil, noopActWriter{})
-	if err != nil {
-		t.Fatalf("NewModerationStore: %v", err)
-	}
-	if _, err := mod.FileReport(context.Background(), mwanachamacomm.Report{
-		MessageID: "msg-1", StructureID: "ward-1", ReportedBy: "m-1", Reason: mwanachamacomm.ReportReasonAbuse, Excerpt: "...",
-	}); err != nil {
-		t.Fatalf("seed report: %v", err)
-	}
-	req := httptest.NewRequest(http.MethodGet, "/v1/groups/ward-1/moderation/reports", nil)
-	req.SetPathValue("groupID", "ward-1")
-	w := httptest.NewRecorder()
-	routes.ListReportQueue(mod)(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	out := decodeJSON[[]mwanachamacomm.Report](t, w)
-	if len(out) != 1 || out[0].MessageID != "msg-1" {
-		t.Fatalf("reports = %+v, want one for msg-1", out)
-	}
-}
-
-func jsonBody(t *testing.T, v any) io.Reader {
+func newCommServer(t *testing.T) (*httptest.Server, *mwanachamacomm.CommManager) {
 	t.Helper()
-	b, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
+	_, m := newCommTestDB(t)
+	return newServer(t, m, testMount()), m
+}
+
+type reply struct {
+	code int
+	body []byte
+}
+
+func (r reply) decode(t *testing.T, out any) {
+	t.Helper()
+	if err := json.Unmarshal(r.body, out); err != nil {
+		t.Fatalf("decode %q: %v", r.body, err)
 	}
-	return bytes.NewReader(b)
+}
+
+func (r reply) message(t *testing.T) string {
+	t.Helper()
+	var out struct {
+		Error string `json:"error"`
+	}
+	if len(r.body) == 0 {
+		return ""
+	}
+	_ = json.Unmarshal(r.body, &out)
+	return out.Error
+}
+
+func call(t *testing.T, srv *httptest.Server, method, path, caller string, body any) reply {
+	t.Helper()
+	return callWithDevice(t, srv, method, path, caller, "", body)
+}
+
+func callWithDevice(t *testing.T, srv *httptest.Server, method, path, caller, device string, body any) reply {
+	t.Helper()
+	var payload io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		payload = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequest(method, srv.URL+path, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(callerHeader, caller)
+	if device != "" {
+		req.Header.Set(deviceHeader, device)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	res, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	return reply{code: res.StatusCode, body: raw}
+}
+
+func TestEveryDeclaredAddressIsReachable(t *testing.T) {
+	built, err := routes.Shape()
+	if err != nil {
+		t.Fatalf("Shape: %v", err)
+	}
+	if len(built) != 25 {
+		t.Fatalf("the table declares %d addresses, want comm's 25", len(built))
+	}
+	for _, rt := range built {
+		if rt.Action == "" {
+			t.Errorf("%s %s carries no gating action, so a mount could not gate it", rt.Method, rt.Path)
+		}
+	}
+}
+
+// Nothing in comm is anonymous: every address reads or writes somebody's
+// own conversations, addresses or notifications. The allowlist names what
+// is public, so an operation added later and not named arrives gated.
+func TestNothingIsAnonymous(t *testing.T) {
+	if got := routes.Table.AnonymousActions(); len(got) != 0 {
+		t.Fatalf("AnonymousActions = %v, want none", got)
+	}
+	_, m := newCommTestDB(t)
+	if public := routes.PublicRoutes(m); len(public) != 0 {
+		t.Fatalf("%d routes answer without a caller", len(public))
+	}
+}
+
+func TestEverySentinelTheSpecMapsIsSupplied(t *testing.T) {
+	missing, err := routes.Table.UnmappedSentinels()
+	if err != nil {
+		t.Fatalf("UnmappedSentinels: %v", err)
+	}
+	if len(missing) > 0 {
+		t.Fatalf("the spec maps %v to a status and no sentinel was supplied", missing)
+	}
+	unknown, err := routes.Table.UnknownAnonymousActions()
+	if err != nil {
+		t.Fatalf("UnknownAnonymousActions: %v", err)
+	}
+	if len(unknown) > 0 {
+		t.Fatalf("anonymous actions no operation declares: %v", unknown)
+	}
+}
+
+func TestAnAuthorizerRefusalGatesEveryAddress(t *testing.T) {
+	_, m := newCommTestDB(t)
+	refuse := func(ctx context.Context, action string) error { return dispatch.ErrForbidden }
+	srv := newServer(t, m, routes.Mount{
+		Caller: fromCtx(callerKey), Device: fromCtx(deviceKey), Authorize: refuse,
+	})
+
+	for _, c := range []struct{ method, path string }{
+		{http.MethodGet, "/dm/threads"},
+		{http.MethodGet, "/notifications"},
+		{http.MethodGet, "/chat/activity"},
+		{http.MethodGet, "/dm/addresses"},
+		{http.MethodGet, "/groups/ward-1/moderation/reports"},
+	} {
+		if got := call(t, srv, c.method, c.path, "m-1", nil); got.code != http.StatusForbidden {
+			t.Errorf("%s %s = %d with an authorizer that refuses, want 403", c.method, c.path, got.code)
+		}
+	}
+}
+
+func mustObject(t *testing.T, m *mwanachamacomm.CommManager, role string) spec.Object {
+	t.Helper()
+	o, ok := m.Spec().ByRole(role)
+	if !ok {
+		t.Fatalf("role %q fills nothing", role)
+	}
+	return o
 }

@@ -7,9 +7,9 @@ import (
 
 // ChatActivityQuery is one filtered page of the chat activity summary.
 type ChatActivityQuery struct {
-	StructureID string
-	Limit       *int
-	Offset      int
+	StructureID string `query:"structure_id"`
+	Limit       *int   `query:"limit"`
+	Offset      int    `query:"offset"`
 }
 
 type ChatActivityRow struct {

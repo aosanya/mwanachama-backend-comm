@@ -1,42 +1,70 @@
 package routes
 
 import (
-	"net/http"
+	"github.com/aosanya/mwanachama-backend-shared/dispatch"
+	"github.com/aosanya/mwanachama-backend-shared/httpwire"
 
-	"github.com/aosanya/mwanachama-backend-comm"
+	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 )
 
-// Route is one address this package answers, relative to wherever the
-// mounting process prefixes it (e.g. "/v1") — enough to build one
-// *http.ServeMux entry from, without the mounting process hand-spelling
-// each path/method pair itself. Mirrors mwanachama-backend-actor/routes'
-// Route exactly.
-type Route struct {
-	Method  string
-	Path    string
-	Handler http.HandlerFunc
+type Route = httpwire.Route
+
+type Mount = dispatch.Mount
+
+var Sentinels = map[string]error{
+	"ErrChatNotFound":               mwanachamacomm.ErrChatNotFound,
+	"ErrDMNotFound":                 mwanachamacomm.ErrDMNotFound,
+	"ErrDMAlreadyActive":            mwanachamacomm.ErrDMAlreadyActive,
+	"ErrDMSelfKick":                 mwanachamacomm.ErrDMSelfKick,
+	"ErrDMLastAdmin":                mwanachamacomm.ErrDMLastAdmin,
+	"ErrDMNotLastToLeave":           mwanachamacomm.ErrDMNotLastToLeave,
+	"ErrDMNotAdmin":                 mwanachamacomm.ErrDMNotAdmin,
+	"ErrDMInvalidReaction":          mwanachamacomm.ErrDMInvalidReaction,
+	"ErrModerationNotFound":         mwanachamacomm.ErrModerationNotFound,
+	"ErrAlreadyDecided":             mwanachamacomm.ErrAlreadyDecided,
+	"ErrReviewerIsRemover":          mwanachamacomm.ErrReviewerIsRemover,
+	"ErrAlreadyRemoved":             mwanachamacomm.ErrAlreadyRemoved,
+	"ErrAddressNotFound":            mwanachamacomm.ErrAddressNotFound,
+	"ErrAddressBadSettings":         mwanachamacomm.ErrAddressBadSettings,
+	"ErrNotificationNotFound":       mwanachamacomm.ErrNotificationNotFound,
+	"ErrNotificationNoSuchCategory": mwanachamacomm.ErrNotificationNoSuchCategory,
+	"ErrNotificationCategoryExempt": mwanachamacomm.ErrNotificationCategoryExempt,
+	"ErrNotificationCapSpent":       mwanachamacomm.ErrNotificationCapSpent,
+	"ErrNotificationInvalid":        mwanachamacomm.ErrNotificationInvalid,
+	"ErrNotificationMuted":          mwanachamacomm.ErrNotificationMuted,
+	"ErrInvalidReference":           mwanachamacomm.ErrInvalidReference,
+	"ErrConflict":                   mwanachamacomm.ErrConflict,
 }
 
-// Pattern returns the http.ServeMux registration pattern for this route
-// once mounted under prefix.
-func (r Route) Pattern(prefix string) string {
-	return r.Method + " " + prefix + r.Path
+// AnonymousActions names what any caller may reach without presenting one.
+// comm has nothing of the kind: every address here reads or writes somebody's
+// own conversations, addresses or notifications. It is the allowlist the
+// table is split on and never the list of what is protected, so an operation
+// added to the spec and not named here arrives gated.
+var AnonymousActions = []string{}
+
+var Table = dispatch.NewTable(mwanachamacomm.Operations(), Sentinels, AnonymousActions...)
+
+func Build(m *mwanachamacomm.CommManager) ([]Route, error) { return Table.Build(m, Mount{}) }
+
+func BuildFor(m *mwanachamacomm.CommManager, mount Mount) ([]Route, error) {
+	return Table.Build(m, mount)
 }
 
-// Routes is every address this package answers today: ChatActivityRoutes,
-// DMRoutes, DMMessageRoutes, ModerationRoutes, AddressRoutes and
-// NotificationRoutes concatenated. A mounting process that wants all of it
-// in one loop uses this; one that wants to wrap each domain's gate
-// differently (the gateway does, today — chat activity's
-// CapChatActivityRead is not moderation's report-queue gate) calls the six
-// functions separately instead. See doc.go for what is deliberately not
-// included here and why.
-func Routes(chat mwanachamacomm.ChatActivityReader, dm mwanachamacomm.DMRepository, moderation mwanachamacomm.ModerationRepository, addr mwanachamacomm.AddressRepository, notif mwanachamacomm.NotificationRepository, identity Identity) []Route {
-	out := ChatActivityRoutes(chat)
-	out = append(out, DMRoutes(dm, identity)...)
-	out = append(out, DMMessageRoutes(dm, identity)...)
-	out = append(out, ModerationRoutes(moderation)...)
-	out = append(out, AddressRoutes(addr, identity)...)
-	out = append(out, NotificationRoutes(notif, identity)...)
-	return out
+func Routes(m *mwanachamacomm.CommManager) []Route { return Table.Routes(m, Mount{}) }
+
+func RoutesFor(m *mwanachamacomm.CommManager, mount Mount) []Route { return Table.Routes(m, mount) }
+
+func Split(m *mwanachamacomm.CommManager, mount Mount) dispatch.Split {
+	return Table.Split(m, mount)
 }
+
+func PublicRoutes(m *mwanachamacomm.CommManager) []Route {
+	return Table.Split(m, Mount{}).Anonymous
+}
+
+func OperatorRoutes(m *mwanachamacomm.CommManager, mount Mount) []Route {
+	return Table.Split(m, mount).Gated
+}
+
+func Shape() ([]Route, error) { return Table.Shape() }

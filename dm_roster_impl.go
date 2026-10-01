@@ -10,8 +10,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-var errNotAdmin = errors.New("directmessage: not admin")
-
 func (s *DMStore) findParticipant(ctx context.Context, threadID, actorID string) (models.DMParticipant, bool, error) {
 	var p models.DMParticipant
 	q := s.store.Query(ctx, roleDMParticipant).
@@ -40,7 +38,7 @@ func (s *DMStore) Invite(ctx context.Context, threadID, actorID, by string) (mod
 		return models.DMParticipant{}, err
 	}
 	if !ok {
-		return models.DMParticipant{}, errNotAdmin
+		return models.DMParticipant{}, models.ErrDMNotAdmin
 	}
 	existing, found, err := s.findParticipant(ctx, threadID, actorID)
 	if err != nil {
@@ -88,7 +86,7 @@ func (s *DMStore) Kick(ctx context.Context, threadID, actorID, by string) error 
 		return err
 	}
 	if !ok {
-		return errNotAdmin
+		return models.ErrDMNotAdmin
 	}
 	_, err = s.setState(ctx, threadID, actorID, models.DMStateKicked)
 	return err
@@ -100,7 +98,7 @@ func (s *DMStore) Promote(ctx context.Context, threadID, actorID, by string) (mo
 		return models.DMParticipant{}, err
 	}
 	if !ok {
-		return models.DMParticipant{}, errNotAdmin
+		return models.DMParticipant{}, models.ErrDMNotAdmin
 	}
 	res := s.store.Query(ctx, roleDMParticipant).
 		Where("thread_id = ? AND actor_id = ?", threadID, actorID).
@@ -130,7 +128,7 @@ func (s *DMStore) ReEnable(ctx context.Context, threadID, actorID, by string) (m
 		return models.DMParticipant{}, err
 	}
 	if !ok {
-		return models.DMParticipant{}, errNotAdmin
+		return models.DMParticipant{}, models.ErrDMNotAdmin
 	}
 	return s.setState(ctx, threadID, actorID, models.DMStateInvited)
 }
