@@ -26,7 +26,7 @@ listed at the bottom of this page and on the board.
 | Declared rules — `validate.go`, `patterns.go`, `Check` | CM21 | landed 2026-10-01 |
 | Declared operations; `routes/` becomes an adapter | CM21 | landed 2026-10-01 |
 | `cmd/ddl` and the six guard tests | CM21 | landed 2026-10-01 |
-| Consumer — `mwanachama-wakala-api` mounts it | CM22 | **not started** |
+| Consumer — `mwanachama-wakala-api` mounts it | CM22 | landed 2026-10-19, under `/comm` at `module:comm`; no handset is bound and moderation gets a refusing act writer, see wakala-api's `comm-mount.md` |
 | Documentation rewritten | CM23 | landed 2026-10-01 |
 
 Net across CM20 and CM21: about 2,900 lines deleted against 2,900 written,
