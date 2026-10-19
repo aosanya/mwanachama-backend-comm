@@ -50,6 +50,8 @@ type (
 // ErrChatNotFound is an alias of [models.ErrChatNotFound].
 var ErrChatNotFound = models.ErrChatNotFound
 
+var ErrChatInvalid = models.ErrChatInvalid
+
 // DMThread, DMMessage, DMParticipant, DMReaction and DMDeviceKey are the
 // direct/group-message domain's shapes; DMParticipantState is a
 // participant's lifecycle position; DMRepository is the persistence

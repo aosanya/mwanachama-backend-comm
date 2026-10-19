@@ -25,7 +25,8 @@ type CommManager struct {
 	*NotificationStore
 	*AddressDirectoryStore
 
-	spec *spec.Spec
+	spec      *spec.Spec
+	belonging Belonging
 }
 
 func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter, actorsTable string) (*CommManager, error) {

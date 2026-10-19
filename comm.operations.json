@@ -20,6 +20,105 @@
         }
       ]
     },
+    "list_chat_threads": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/chat/threads",
+      "call": "ListChatThreadsFor",
+      "action": "comm.chat_thread.list",
+      "status": 200,
+      "title": "A room's threads",
+      "description": "Every thread in one structure's room, oldest first, for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_chat_messages": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/messages",
+      "call": "ListChatMessagesFor",
+      "action": "comm.chat_message.list",
+      "status": 200,
+      "title": "Posts in a thread",
+      "description": "Every post in one thread of a structure's room, oldest first, for a caller who belongs to that structure. An outsider, a thread that was never minted and a thread of another structure all answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "post_chat_message": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/messages",
+      "call": "PostChatMessageFor",
+      "action": "comm.chat_message.post",
+      "status": 201,
+      "title": "Post in a thread",
+      "description": "Posts one message to a thread of a structure's room the caller belongs to. The author is the session's: a body naming another author is ignored, so nobody can post as somebody else.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "author_id",
+          "description": "The author, from the session."
+        },
+        {
+          "from": "body",
+          "as": "body",
+          "required": true,
+          "description": "The post itself, as written."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "list_dm_threads": {
       "method": "GET",
       "path": "/dm/threads",
@@ -681,6 +780,7 @@
   },
   "errors": {
     "ErrChatNotFound": 404,
+    "ErrChatInvalid": 400,
     "ErrDMNotFound": 404,
     "ErrDMAlreadyActive": 409,
     "ErrDMSelfKick": 409,

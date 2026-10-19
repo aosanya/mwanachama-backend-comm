@@ -75,6 +75,15 @@ func (s *ChatStore) ListThreads(ctx context.Context, structureID string) ([]mode
 	return specstore.List[models.ChatThread](s.store, q, roleChatThread)
 }
 
+func (s *ChatStore) threadIn(ctx context.Context, structureID, threadID string) (models.ChatThread, error) {
+	var t models.ChatThread
+	q := s.store.Query(ctx, roleChatThread).Where("id = ? AND structure_id = ?", threadID, structureID)
+	if err := s.store.Take(q, roleChatThread, &t, models.ErrChatNotFound); err != nil {
+		return models.ChatThread{}, err
+	}
+	return t, nil
+}
+
 func (s *ChatStore) Post(ctx context.Context, m models.ChatMessage) (models.ChatMessage, error) {
 	m.CreatedAt = s.clock()
 	if m.ID == "" {

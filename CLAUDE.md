@@ -61,7 +61,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Twenty-five addresses, each
+- **`comm.operations.json` is the route table.** Twenty-eight addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -74,6 +74,11 @@ what is true of **comm** is in
   one — and `forCaller`, which resolves `MyAddressIndex` per reader. Both are
   same-domain composition; both are mutation-checked in
   `routes/fence_security_test.go`.
+- **A room is fenced by a fact the host supplies.** `UseBelonging` gives the
+  manager a `Belonging` function, and a group chat read or post asks it
+  before anything else; a caller who does not belong gets the same 404 as an
+  invented structure or thread, and a manager given none belongs nowhere.
+  See [routes.md](documentation/2.%20design/routes.md#the-structure-fence).
 - **The caller and the handset are session facts.** `{"from": "caller"}` and
   `{"from": "device"}` bind them, and a body claiming either is overwritten
   rather than refused. That also keeps both out of any MCP tool schema.

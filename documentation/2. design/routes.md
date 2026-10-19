@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Twenty-five addresses, declared in `comm.operations.json` and served by a
+Twenty-eight addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -18,6 +18,9 @@ consumer is the gateway, and it is CM28.
 | Method | Path | Action |
 | --- | --- | --- |
 | GET | `/chat/activity` | `comm.chat.activity.read` |
+| GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
+| GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
 | GET | `/dm/threads` | `comm.dm_thread.list` |
 | GET | `/dm/threads/{thread_id}` | `comm.dm_thread.read` |
 | GET | `/dm/threads/{thread_id}/participants` | `comm.dm_participant.list` |
@@ -73,13 +76,21 @@ Those 25 are now the declared table, and the split that list encoded is
 gateway-internal fact still composes it in the gateway — but it composes it
 *around* a declared operation rather than instead of one.
 
-What has **not** moved, and is still the gateway's: `createDMThread`,
-`blockThreadOrigin` and `postDMMessage` reach `address.Repository` in a way
-that is now intra-module but was not when the line was drawn; chat's other
-six routes and moderation's nine writes resolve `wallLabel`,
-`callerModerationActor` or `nearestRoleClass`; and five of address's seven
-reach `phonesalt`/`orgpolicy`. Moving any of them is a separate decision, not
-a side effect of declaring the table.
+What has **not** moved, and was the gateway's until it was retired:
+`createDMThread`, `blockThreadOrigin` and `postDMMessage` reach
+`address.Repository` in a way that is now intra-module but was not when the
+line was drawn; moderation's nine writes resolve `callerModerationActor` or
+`nearestRoleClass`; and five of address's seven reach `phonesalt`/`orgpolicy`.
+Moving any of them is a separate decision, not a side effect of declaring the
+table.
+
+Three of chat's routes did move, as CM32 (2026-10-19): listing a room's
+threads, reading a thread's posts and posting one. What kept them in the
+gateway was that they needed to know which structures the caller belongs to,
+and that fact now comes from the host through `Belonging` — see
+[the structure fence](#the-structure-fence) below. The rest of chat's
+gateway surface — minting a thread, room-level posts with no thread, and the
+`wallLabel` presentation — is still not declared.
 
 ## What the manager carries, and why
 
@@ -113,6 +124,68 @@ Both are same-domain composition, which this package's own `routes/doc.go`
 always allowed; what changed is that they sit beside the store now rather
 than inside a handler, where `dispatch` can reach them.
 
+## The structure fence
+
+A room belongs to a structure, and only somebody who belongs to that
+structure reads or posts in it. comm stores rooms, threads and posts; it does
+not know who belongs to what, because that is the host's directory — on one
+deployment a group's registrations, on another a class list. So the host
+tells it, through one seam on the manager:
+
+```go
+type Belonging func(ctx context.Context, actorID, structureID string) (bool, error)
+
+func (m *CommManager) UseBelonging(b Belonging)
+```
+
+`ListChatThreadsFor`, `ListChatMessagesFor` and `PostChatMessageFor` ask it
+before anything is read or written. Four rules hold it:
+
+- **404, never 403.** A caller who does not belong, a structure that does not
+  exist, a thread that was never minted and a thread of *another* structure
+  addressed under this one all answer `ErrChatNotFound` with the same text,
+  for the reason the roster fences do: a different status would be an
+  enumeration oracle for which structures and threads exist.
+  `TestAStructureFenceAnswersAnOutsiderExactlyAsAnInventedThread` compares
+  status and message across all four.
+- **Closed when nothing is supplied.** A manager with no `Belonging`, an empty
+  caller or an empty structure id belongs nowhere, so a host that mounts the
+  table without wiring the seam serves 404 to everybody rather than every room
+  to everybody (`TestWithNoBelongingSuppliedNobodyReadsOrPosts`).
+- **A failed lookup is a 500**, through `dispatch`'s redaction, never a 404
+  that would pass for "you do not belong" and never the host's own reason
+  (`TestABelongingFailureIsNeitherNotFoundNorForbidden`).
+- **The address outranks the body, and the author is the session's.** The
+  post's structure and thread come from the path, its author from
+  `{"from": "caller"}`, and its body is the only value a request supplies; a
+  body naming an `author_id`, an `id` or a `structure_id` is ignored
+  (`TestAPostsAuthorIsTheSessionNotTheBody`). An empty or blank post is
+  `ErrChatInvalid`, a 400.
+
+Each of the first three is mutation-checked: dropping the belonging check,
+answering forbidden, dropping the thread-in-structure check, and opening the
+fence when no seam is supplied each turn a test red.
+
+**Why a resolver on the manager, and not a session fact.** The alternative was
+for the host to put the caller's structures on the request, bound like
+`{"from": "caller"}`. `dispatch`'s session facts are one string each
+(`Mount.Caller`, `Mount.Device`), so a list of structures would need a new
+kind of session fact in `mwanachama-backend-shared`, and it would make every
+request pay for a directory read whether or not it touched a room. A resolver
+asks one question, about one structure, only on the three operations that
+need it — the shape `mwanachama-backend-agency`'s `ManagerResolver` and
+`mwanachama-wakala-api`'s own `mustBeMember` already take, and the one
+`dispatch` itself takes for the caller (`Caller` is a function the mount
+supplies, not a value). It is a field set at boot rather than a constructor
+argument so that `NewCommManager`'s signature, which wakala-api calls, did not
+change. Forms has the same choice open as its F14; if the owner settles that
+the other way, this seam is the one place to change.
+
+**What a structure is, and where belonging comes from, is the host's.**
+comm's `structure_id` is opaque. Which of the host's things a structure is —
+an agency, a group inside one — and which directory answers `Belonging` is a
+decision for the host's own board, not this module's.
+
 ## The session, and what a body may not claim
 
 Two arguments come from the session rather than the request:
@@ -132,7 +205,7 @@ obeyed.
 
 ## Statuses, transcribed rather than redesigned
 
-`errors` maps twenty-two sentinels. Every status is the one the hand-written
+`errors` maps twenty-three sentinels. Every status is the one the hand-written
 handler gave, with one deliberate exception.
 
 **The exception is CM31.** `dmStatusFor` ended in `default:
@@ -167,7 +240,7 @@ lost quietly:
 
 ## Tests
 
-`routes/` has 22 tests across four files, every one through a real
+`routes/` has 27 tests across five files, every one through a real
 `httptest` server with the session carried on the context, because both of
 the bugs this repo's CLAUDE.md records escaped by calling handlers in Go.
 

@@ -14,6 +14,8 @@ import (
 // ErrChatNotFound is returned when a chat thread or message id has no record.
 var ErrChatNotFound = errors.New("chat: not found")
 
+var ErrChatInvalid = errors.New("chat: invalid")
+
 type ChatThread struct {
 	ID          string    `json:"id"`
 	StructureID string    `json:"structure_id"`
