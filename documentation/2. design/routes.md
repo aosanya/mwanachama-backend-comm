@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-four addresses, declared in `comm.operations.json` and served by a
+Thirty-five addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -21,6 +21,7 @@ consumer is the gateway, and it is CM28.
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/read` | `comm.chat_thread.mark_read` |
 | POST | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.open` |
 | GET | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.list` |
 | GET | `/subject-threads/{thread_id}/messages` | `comm.subject_message.list` |
@@ -98,6 +99,10 @@ and that fact now comes from the host through `Belonging` — see
 gateway surface — minting a thread, room-level posts with no thread, and the
 `wallLabel` presentation — is still not declared.
 
+A fourth joined them as CM40 (2026-10-20): marking a thread read, with the
+thread list carrying each thread's unread count for the caller. It sits behind
+the same fence; see [read-markers.md](read-markers.md).
+
 ## What the manager carries, and why
 
 `dispatch` turns a request into one manager call. Six of comm's addresses are
@@ -144,8 +149,8 @@ type Belonging func(ctx context.Context, actorID, structureID string) (bool, err
 func (m *CommManager) UseBelonging(b Belonging)
 ```
 
-`ListChatThreadsFor`, `ListChatMessagesFor` and `PostChatMessageFor` ask it
-before anything is read or written. Four rules hold it:
+`ListChatThreadsFor`, `ListChatMessagesFor`, `PostChatMessageFor` and
+`MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
 
 - **404, never 403.** A caller who does not belong, a structure that does not
   exist, a thread that was never minted and a thread of *another* structure
@@ -178,7 +183,7 @@ for the host to put the caller's structures on the request, bound like
 (`Mount.Caller`, `Mount.Device`), so a list of structures would need a new
 kind of session fact in `mwanachama-backend-shared`, and it would make every
 request pay for a directory read whether or not it touched a room. A resolver
-asks one question, about one structure, only on the three operations that
+asks one question, about one structure, only on the four operations that
 need it — the shape `mwanachama-backend-agency`'s `ManagerResolver` and
 `mwanachama-wakala-api`'s own `mustBeMember` already take, and the one
 `dispatch` itself takes for the caller (`Caller` is a function the mount
@@ -261,7 +266,7 @@ lost quietly:
 
 ## Tests
 
-`routes/` has 41 tests across eight files, every one through a real
+`routes/` has 50 tests across ten files, every one through a real
 `httptest` server with the session carried on the context, because both of
 the bugs this repo's CLAUDE.md records escaped by calling handlers in Go.
 

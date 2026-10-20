@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Eighteen roles, 132 fields.
+- **`comm.blueprint.json` is the object set.** Nineteen roles, 138 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -62,7 +62,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Thirty-four addresses, each
+- **`comm.operations.json` is the route table.** Thirty-five addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -80,6 +80,13 @@ what is true of **comm** is in
   before anything else; a caller who does not belong gets the same 404 as an
   invented structure or thread, and a manager given none belongs nowhere.
   See [routes.md](documentation/2.%20design/routes.md#the-structure-fence).
+- **A room's threads carry a read marker per reader (CM40).**
+  `chat_read_marker` holds each reader's last-read point per thread; the
+  mark-read action moves it, never backwards, with the reader bound
+  `{"from": "caller"}`, behind the same structure fence. Listing a room's
+  threads returns each as `ChatThreadView` with its `unread` count: posts by
+  somebody else after the caller's point. See
+  [read-markers.md](documentation/2.%20design/read-markers.md).
 - **A subject thread is fenced by a standing the host supplies** (CM34).
   `subject_thread`/`subject_message` are conversations about something
   another module owns, named by an opaque `subject_kind` and `subject_id`.

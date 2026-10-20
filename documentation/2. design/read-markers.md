@@ -1,0 +1,87 @@
+# Read markers on a room's threads
+
+CM40, 2026-10-20, for the member app's decision 86: a member's rooms show
+what is new. Each reader keeps a last-read point per thread of a structure's
+room; marking a thread read moves it, and listing a room's threads returns
+each thread with its unread count for the caller.
+
+## What a room is here
+
+comm stores a structure's room as its threads (`chat_thread`), and a thread
+is what a client lists, reads and posts into. The school spec calls a thread
+a classroom's *board*, and wakala-api's self-test calls listing them "a
+resident lists their ward's rooms". So the marker is kept **per thread**, and
+`list_chat_threads` is the room list that carries the counts.
+
+Whether a group's room is one thread or several is still open on the member
+app's board (MF7). A per-thread marker serves either answer: if a room is one
+thread, its thread's count is the room's; if it is several, the room's count
+is the sum of its threads' and each thread still shows its own.
+
+## The object
+
+`chat_read_marker` (civic `chat_read_markers`, school `board_bookmarks`):
+
+| Field | What it holds |
+| --- | --- |
+| `id` | storage key, `cread-<uuid>` |
+| `structure_id` | the structure whose room the thread is in |
+| `thread_id` | the thread |
+| `reader_id` | whose read point it is, always the caller |
+| `read_at` | the last-read point: every post at or before it is read |
+| `marked_at` | when the reader last marked |
+
+Unique on `(thread_id, reader_id)`: marking again moves the same row. A
+reader with no marker has read nothing.
+
+## The two addresses
+
+| Method | Path | Action |
+| --- | --- | --- |
+| GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/read` | `comm.chat_thread.mark_read` |
+
+**Listing** returns each thread as `ChatThreadView`, the thread's own fields
+plus `unread`. The count is the thread's posts written **by somebody else**
+after the caller's `read_at`, or all of them with no marker. A reader's own
+posts are never unread to them, so posting does not light up one's own room.
+
+**Marking** takes a JSON object body. `{"message_id": "<post>"}` moves the
+point to that post's `created_at`, which is what a client should send: the
+last post it actually showed, so a post that arrives between reading and
+marking stays unread. `{}` moves the point to the server's clock. The answer
+is the marker as stored.
+
+## The rules
+
+- **The reader is the session's.** `reader_id` is `{"from": "caller"}`; a
+  body naming another reader, structure or thread is ignored, so nobody marks
+  a thread read for somebody else
+  (`TestNobodyMarksAThreadReadForSomebodyElse`).
+- **The point never moves backwards.** The upsert keeps the later of the
+  stored and the offered `read_at`, in SQL, so a late, repeated or reordered
+  mark cannot make read posts unread again
+  (`TestAReadPointMovesToTheNamedPostAndNeverBackwards`, mutation-checked by
+  replacing the comparison with a plain overwrite).
+- **The structure fence holds.** Marking goes through `inThread`, the same
+  check reading and posting use: a caller who does not belong, an invented
+  structure, an invented thread and a thread of another structure all answer
+  the same `ErrChatNotFound`. A `message_id` that is not a post of this
+  thread answers exactly as an invented one
+  (`TestAPostOfAnotherThreadAnswersAsAnInventedOne`). The fence tests in
+  `routes/chat_fence_security_test.go` cover the new address alongside the
+  other three.
+- **Read and unread are compared as stored text.** Every timestamp is
+  written in `specstore.TimeLayout`, a fixed-width UTC layout, so
+  `created_at > read_at` orders correctly on SQLite and Postgres alike. Two
+  posts with exactly the same instant as the named one count as read with
+  it; at nanosecond resolution that is a tie, not a race worth a second key.
+
+## What it does not do
+
+- Room-level posts with no thread are not counted: no declared address
+  writes one, and a marker names a thread.
+- A withheld post still counts until read, the same way listing a thread
+  still returns it.
+- Who may call the mark-read action is the mount's. On wakala-api a resident
+  is not admitted to it yet; that is WK114 there.

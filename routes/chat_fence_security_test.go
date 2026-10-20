@@ -34,6 +34,7 @@ func chatPaths(structureID, threadID string) []struct{ name, method, path string
 		{"the threads", http.MethodGet, "/groups/" + structureID + "/chat/threads"},
 		{"the posts", http.MethodGet, "/groups/" + structureID + "/chat/threads/" + threadID + "/messages"},
 		{"a post", http.MethodPost, "/groups/" + structureID + "/chat/threads/" + threadID + "/messages"},
+		{"marking read", http.MethodPost, "/groups/" + structureID + "/chat/threads/" + threadID + "/read"},
 	}
 }
 

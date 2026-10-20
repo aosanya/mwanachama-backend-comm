@@ -106,6 +106,65 @@
       ]
     },
     {
+      "role": "chat_read_marker",
+      "description": "How far one reader has read one thread of a structure's room. A thread's unread count for that reader is every post after this point that somebody else wrote; a reader with no marker has read nothing.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose room the thread belongs to. Carried so a marker is always read under the same structure its thread is.",
+          "required": true
+        },
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread this reader has read up to a point.",
+          "required": true
+        },
+        {
+          "name": "reader_id",
+          "type": "string",
+          "description": "Whose read point this is. A session fact: the reader is always the caller, never a body field.",
+          "required": true
+        },
+        {
+          "name": "read_at",
+          "type": "timestamp",
+          "description": "The reader's last-read point: every post in the thread at or before it is read. It only ever moves forward, so a late or repeated mark never makes read posts unread again."
+        },
+        {
+          "name": "marked_at",
+          "type": "timestamp",
+          "description": "When the reader last marked the thread read."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "thread_reader",
+          "description": "One marker per reader per thread, so marking a thread read again moves the same point rather than adding a second.",
+          "fields": [
+            "thread_id",
+            "reader_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "structure_reader",
+          "description": "Finds one reader's markers across a structure's room, which is what listing the room's threads with their unread counts reads.",
+          "fields": [
+            "structure_id",
+            "reader_id"
+          ]
+        }
+      ]
+    },
+    {
       "role": "subject_thread",
       "description": "One conversation about something another module owns, named by an opaque kind and id. A private thread is between one actor and whoever answers for the subject; a group thread is readable by everyone the subject reached and whoever answers for it. Which actors those are is the host's to say, never this module's.",
       "fields": [

@@ -32,6 +32,20 @@ type ChatMessage struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type ChatReadMarker struct {
+	ID          string    `json:"id"`
+	StructureID string    `json:"structure_id"`
+	ThreadID    string    `json:"thread_id"`
+	ReaderID    string    `json:"reader_id"`
+	ReadAt      time.Time `json:"read_at"`
+	MarkedAt    time.Time `json:"marked_at"`
+}
+
+type ChatThreadView struct {
+	ChatThread
+	Unread int `json:"unread"`
+}
+
 // ChatRepository is the persistence boundary for the chat domain.
 type ChatRepository interface {
 	MintThread(ctx context.Context, structureID, tagPath string) (ChatThread, error)

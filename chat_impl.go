@@ -28,8 +28,9 @@ func NewChatStore(db *gorm.DB, s *spec.Spec, clock Clock) (*ChatStore, error) {
 		clock = SystemClock
 	}
 	st, err := newStore(db, s, map[string]any{
-		roleChatThread:  models.ChatThread{},
-		roleChatMessage: models.ChatMessage{},
+		roleChatThread:     models.ChatThread{},
+		roleChatMessage:    models.ChatMessage{},
+		roleChatReadMarker: models.ChatReadMarker{},
 	})
 	if err != nil {
 		return nil, err

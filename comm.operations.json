@@ -27,7 +27,7 @@
       "action": "comm.chat_thread.list",
       "status": 200,
       "title": "A room's threads",
-      "description": "Every thread in one structure's room, oldest first, for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "description": "Every thread in one structure's room, oldest first, each with its unread count for the caller: the posts somebody else wrote after the caller's read point. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",
@@ -111,6 +111,44 @@
           "as": "body",
           "required": true,
           "description": "The post itself, as written."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "mark_chat_thread_read": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/read",
+      "call": "MarkChatThreadReadFor",
+      "action": "comm.chat_thread.mark_read",
+      "status": 200,
+      "title": "Mark a thread read",
+      "description": "Moves the caller's own read point in one thread of a structure's room they belong to, up to the post the body names or, naming none, up to now. The point never moves backwards. The reader is the session's: nobody marks a thread read for somebody else. An outsider, a thread that was never minted and a post of another thread all answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "reader_id",
+          "description": "The reader, from the session."
+        },
+        {
+          "from": "body",
+          "as": "message_id",
+          "description": "The last post the reader has seen, which must be in this thread. Absent marks everything posted until now as read."
         }
       ],
       "returns": [

@@ -23,8 +23,8 @@ func testSpec(t *testing.T) *spec.Spec {
 
 func TestBlueprintDeclaresEveryRoleTheDomainSpecFills(t *testing.T) {
 	s := testSpec(t)
-	if len(s.Objects) != 18 {
-		t.Fatalf("declared %d objects, want comm's 18 tables", len(s.Objects))
+	if len(s.Objects) != 19 {
+		t.Fatalf("declared %d objects, want comm's 19 tables", len(s.Objects))
 	}
 	for _, role := range allRoles {
 		if _, ok := s.ByRole(role); !ok {
@@ -64,6 +64,7 @@ func TestEveryObjectAndFieldCarriesADescription(t *testing.T) {
 var carriers = map[string]any{
 	roleChatThread:             models.ChatThread{},
 	roleChatMessage:            models.ChatMessage{},
+	roleChatReadMarker:         models.ChatReadMarker{},
 	roleSubjectThread:          models.SubjectThread{},
 	roleSubjectMessage:         models.SubjectThreadMessage{},
 	roleDMThread:               models.DMThread{},

@@ -16,6 +16,12 @@
       "description": "One post in a chapter's room."
     },
     {
+      "role": "chat_read_marker",
+      "name": "chat_read_marker",
+      "table": "chat_read_markers",
+      "description": "How far one member has read one thread of a chapter's room."
+    },
+    {
       "role": "subject_thread",
       "name": "form_thread",
       "table": "form_threads",

@@ -3,6 +3,7 @@ package mwanachamacomm
 const (
 	roleChatThread             = "chat_thread"
 	roleChatMessage            = "chat_message"
+	roleChatReadMarker         = "chat_read_marker"
 	roleSubjectThread          = "subject_thread"
 	roleSubjectMessage         = "subject_message"
 	roleDMThread               = "dm_thread"
@@ -24,6 +25,7 @@ const (
 var allRoles = []string{
 	roleChatThread,
 	roleChatMessage,
+	roleChatReadMarker,
 	roleSubjectThread,
 	roleSubjectMessage,
 	roleDMThread,

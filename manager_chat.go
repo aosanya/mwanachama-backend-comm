@@ -34,11 +34,41 @@ func (m *CommManager) inThread(ctx context.Context, structureID, threadID, calle
 	return err
 }
 
-func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, callerID string) ([]models.ChatThread, error) {
+func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, callerID string) ([]models.ChatThreadView, error) {
 	if err := m.inStructure(ctx, structureID, callerID); err != nil {
 		return nil, err
 	}
-	return m.ChatStore.ListThreads(ctx, structureID)
+	threads, err := m.ChatStore.ListThreads(ctx, structureID)
+	if err != nil {
+		return nil, err
+	}
+	unread, err := m.ChatStore.UnreadCounts(ctx, structureID, callerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.ChatThreadView, len(threads))
+	for i, t := range threads {
+		out[i] = models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}
+	}
+	return out, nil
+}
+
+func (m *CommManager) MarkChatThreadReadFor(ctx context.Context, structureID, threadID, readerID, messageID string) (models.ChatReadMarker, error) {
+	if err := m.inThread(ctx, structureID, threadID, readerID); err != nil {
+		return models.ChatReadMarker{}, err
+	}
+	readAt := m.ChatStore.clock()
+	if messageID != "" {
+		seen, err := m.ChatStore.GetMessage(ctx, messageID)
+		if err != nil {
+			return models.ChatReadMarker{}, err
+		}
+		if seen.StructureID != structureID || seen.ThreadID != threadID {
+			return models.ChatReadMarker{}, models.ErrChatNotFound
+		}
+		readAt = seen.CreatedAt
+	}
+	return m.ChatStore.MarkRead(ctx, structureID, threadID, readerID, readAt)
 }
 
 func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, threadID, callerID string) ([]models.ChatMessage, error) {

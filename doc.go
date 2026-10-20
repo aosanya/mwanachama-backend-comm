@@ -41,6 +41,8 @@ func AddressFormat(s string) string { return models.AddressFormat(s) }
 // persistence boundary over ChatMessage and ChatThread.
 type (
 	ChatMessage        = models.ChatMessage
+	ChatReadMarker     = models.ChatReadMarker
+	ChatThreadView     = models.ChatThreadView
 	ChatActivityQuery  = models.ChatActivityQuery
 	ChatActivityPage   = models.ChatActivityPage
 	ChatActivityReader = models.ChatActivityReader

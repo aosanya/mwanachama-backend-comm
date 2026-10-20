@@ -29,6 +29,7 @@ func mintID(prefix string) string { return prefix + "-" + specstore.NewID() }
 const (
 	prefixChatThread     = "cthread"
 	prefixChatMessage    = "msg"
+	prefixChatReadMarker = "cread"
 	prefixSubjectThread  = "sthread"
 	prefixSubjectMessage = "smsg"
 	prefixDMThread       = "dm"

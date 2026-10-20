@@ -22,3 +22,7 @@ shape, which did not change, not the Go package boundary, which did.
 [web-push.md](web-push.md) records CM35: the `push_subscription` role, the
 subscribe and unsubscribe addresses, how a raised notification becomes a Web
 Push, and the VAPID configuration a host supplies.
+
+[read-markers.md](read-markers.md) records CM40: the `chat_read_marker` role,
+marking a room's thread read, and the unread count each thread carries when a
+room's threads are listed.
