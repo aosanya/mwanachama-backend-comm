@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"gorm.io/gorm"
 
@@ -39,6 +40,42 @@ func NewChatStore(db *gorm.DB, s *spec.Spec, clock Clock) (*ChatStore, error) {
 }
 
 func (s *ChatStore) MintThread(ctx context.Context, structureID, tagPath string) (models.ChatThread, error) {
+	return s.mintThread(ctx, structureID, tagPath, "")
+}
+
+func (s *ChatStore) StartThread(ctx context.Context, structureID, label string) (models.ChatThread, error) {
+	label = strings.Join(strings.Fields(label), " ")
+	tagPath, ok := labelTagPath(label)
+	if !ok {
+		return models.ChatThread{}, fmt.Errorf("%w: label is required", models.ErrChatInvalid)
+	}
+	return s.mintThread(ctx, structureID, tagPath, label)
+}
+
+func labelTagPath(label string) (string, bool) {
+	var words []string
+	var word strings.Builder
+	flush := func() {
+		if word.Len() > 0 {
+			words = append(words, word.String())
+			word.Reset()
+		}
+	}
+	for _, r := range strings.ToLower(label) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			word.WriteRune(r)
+			continue
+		}
+		flush()
+	}
+	flush()
+	if len(words) == 0 {
+		return "", false
+	}
+	return "/" + strings.Join(words, "-"), true
+}
+
+func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label string) (models.ChatThread, error) {
 	if t, err := s.ResolveThread(ctx, structureID, tagPath); err == nil {
 		return t, nil
 	} else if !errors.Is(err, models.ErrChatNotFound) {
@@ -49,6 +86,7 @@ func (s *ChatStore) MintThread(ctx context.Context, structureID, tagPath string)
 		ID:          mintID(prefixChatThread),
 		StructureID: structureID,
 		TagPath:     tagPath,
+		Label:       label,
 		CreatedAt:   s.clock(),
 	}
 	if err := s.store.Insert(ctx, roleChatThread, t); err != nil {

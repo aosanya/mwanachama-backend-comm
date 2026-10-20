@@ -27,7 +27,7 @@
       "action": "comm.chat_thread.list",
       "status": 200,
       "title": "A room's threads",
-      "description": "Every thread in one structure's room, oldest first, each with its unread count for the caller: the posts somebody else wrote after the caller's read point. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "description": "Every thread in one structure's room, oldest first, each with its label and its unread count for the caller: the posts somebody else wrote after the caller's read point. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",
@@ -39,6 +39,39 @@
           "from": "caller",
           "as": "caller_id",
           "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "start_chat_thread": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads",
+      "call": "StartChatThreadFor",
+      "action": "comm.chat_thread.create",
+      "status": 201,
+      "title": "Start a thread",
+      "description": "Starts a thread with a label in one structure's room the caller belongs to. A label the room already has, in any case or spacing, answers with that thread rather than a second one. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        },
+        {
+          "from": "body",
+          "as": "label",
+          "required": true,
+          "description": "The thread's name, as the room's thread list shows it."
         }
       ],
       "returns": [

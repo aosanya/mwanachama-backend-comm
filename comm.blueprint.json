@@ -24,6 +24,11 @@
           "required": true
         },
         {
+          "name": "label",
+          "type": "string",
+          "description": "The thread's name as the room's thread list shows it, written by whoever started it. Empty for a thread minted by its topic alone."
+        },
+        {
           "name": "created_at",
           "type": "timestamp",
           "description": "When the thread was minted."

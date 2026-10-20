@@ -176,8 +176,8 @@ func TestEveryDeclaredAddressIsReachable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Shape: %v", err)
 	}
-	if len(built) != 35 {
-		t.Fatalf("the table declares %d addresses, want comm's 35", len(built))
+	if len(built) != 36 {
+		t.Fatalf("the table declares %d addresses, want comm's 36", len(built))
 	}
 	for _, rt := range built {
 		if rt.Action == "" {

@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-five addresses, declared in `comm.operations.json` and served by a
+Thirty-six addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -19,6 +19,7 @@ consumer is the gateway, and it is CM28.
 | --- | --- | --- |
 | GET | `/chat/activity` | `comm.chat.activity.read` |
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
+| POST | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.create` |
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/read` | `comm.chat_thread.mark_read` |
@@ -103,6 +104,10 @@ A fourth joined them as CM40 (2026-10-20): marking a thread read, with the
 thread list carrying each thread's unread count for the caller. It sits behind
 the same fence; see [read-markers.md](read-markers.md).
 
+A fifth joined them as CM41 (2026-10-20): starting a thread, which is the
+"minting a thread" half above. It sits behind the same fence; see
+[starting a thread](#starting-a-thread) below.
+
 ## What the manager carries, and why
 
 `dispatch` turns a request into one manager call. Six of comm's addresses are
@@ -149,8 +154,8 @@ type Belonging func(ctx context.Context, actorID, structureID string) (bool, err
 func (m *CommManager) UseBelonging(b Belonging)
 ```
 
-`ListChatThreadsFor`, `ListChatMessagesFor`, `PostChatMessageFor` and
-`MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
+`ListChatThreadsFor`, `StartChatThreadFor`, `ListChatMessagesFor`,
+`PostChatMessageFor` and `MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
 
 - **404, never 403.** A caller who does not belong, a structure that does not
   exist, a thread that was never minted and a thread of *another* structure
@@ -196,6 +201,50 @@ the other way, this seam is the one place to change.
 comm's `structure_id` is opaque. Which of the host's things a structure is —
 an agency, a group inside one — and which directory answers `Belonging` is a
 decision for the host's own board, not this module's.
+
+## Starting a thread
+
+CM41, 2026-10-20, for the member app's decision 100: a group's room holds
+several threads, each with a label.
+
+`POST /groups/{structure_id}/chat/threads` (`comm.chat_thread.create`) takes
+`{"label": "Road repairs"}` and answers 201 with the thread. It goes through
+`StartChatThreadFor`, which asks the structure fence first, then
+`ChatStore.StartThread`, which mints through the same resolve-or-insert path
+as `MintThread`.
+
+- **The label is a field on the thread.** `chat_thread.label` in the
+  blueprint and `ChatThread.Label` in `models/`, together. It is not
+  `required` in the declaration, because a thread minted by its topic alone
+  through `MintThread` has none, and a `not null` column added to a populated
+  table would refuse to migrate. Starting a thread requires one: an absent or
+  blank label, or one with no letter or digit in it, is `ErrChatInvalid`, a
+  400 (`TestAThreadNeedsALabel`).
+- **The label is stored tidied.** Leading, trailing and repeated whitespace
+  is collapsed, so `"  Road   repairs "` is stored and listed as
+  `"Road repairs"`.
+- **An existing label answers with that thread.** A started thread's
+  `tag_path` is derived from its label: lower-cased, its runs of letters and
+  digits joined by `-`, under `/` — `"Road repairs"` is `/road-repairs`,
+  `"Általános"` is `/általános`. That path is what the existing unique index
+  on `(structure_id, tag_path)` already guards, so starting `"General"`,
+  `"general"` or `" GENERAL "` again returns the first thread rather than a
+  second one, still with 201, and the same label in another structure is
+  another thread (`TestStartingAnExistingLabelAnswersWithThatThread`). A
+  thread minted by topic at the same path, `/general`, is the same thread,
+  and keeps whatever label it had.
+- **The list carries the label.** `list_chat_threads` returns `ChatThreadView`,
+  which embeds the thread, so `label` is on every row with `unread` beside it.
+- **Who may start one is the host's gate.** The operation carries an action
+  and nothing else; a group's leaders, an operator or any member are the
+  mount's answer (member app Q12, decision 103). What a member may see of a
+  thread once started — leaders-only until opened — is CM42, not this.
+
+The fence holds exactly as on the other room addresses: an outsider and an
+invented structure answer the same 404, and with no `Belonging` mounted
+nobody starts one (`TestStartingAThreadIsFencedLikeEveryOtherRoomAddress`,
+`TestWithNoBelongingSuppliedNobodyStartsAThread`, both mutation-checked
+against dropping the fence).
 
 ## The subject fence
 

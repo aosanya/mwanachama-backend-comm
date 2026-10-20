@@ -20,6 +20,7 @@ type ChatThread struct {
 	ID          string    `json:"id"`
 	StructureID string    `json:"structure_id"`
 	TagPath     string    `json:"tag_path"`
+	Label       string    `json:"label"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
