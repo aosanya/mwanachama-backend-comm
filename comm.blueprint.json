@@ -44,6 +44,17 @@
           "description": "The actor who asked for the thread, who reads and writes in it beside the leads before it is opened. Empty for a thread nobody asked for."
         },
         {
+          "name": "declined_at",
+          "type": "timestamp",
+          "description": "When a lead declined the request, closing the thread unopened. A declined thread is listed to nobody and answers every address as one that was never minted. Absent for a thread nobody declined.",
+          "nullable": true
+        },
+        {
+          "name": "declined_by",
+          "type": "string",
+          "description": "The lead who declined the request. Empty for a thread nobody declined."
+        },
+        {
           "name": "created_at",
           "type": "timestamp",
           "description": "When the thread was minted."
@@ -1000,7 +1011,7 @@
         {
           "name": "author_actor_id",
           "type": "string",
-          "description": "Who caused it, on the one event in the set that has an author. Empty everywhere else."
+          "description": "Who caused it, on an event that has one: on comm's own thread request the actor who asked, on its decline the lead who declined, and on any event a domain declares as authored. Empty everywhere else."
         },
         {
           "name": "seat_role_kind_id",
@@ -1023,19 +1034,22 @@
         {
           "name": "event",
           "type": "enum",
-          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the event it raises itself \u2014 a removal receipt from its own moderation; every other event belongs to whichever module raises it, and is declared by the domain.",
+          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the events it raises itself \u2014 a removal receipt from its own moderation, a reply on a subject thread, a thread asked for and a thread request declined; every other event belongs to whichever module raises it, and is declared by the domain.",
           "values": [
             "message_removed",
-            "thread_reply"
+            "thread_reply",
+            "thread_requested",
+            "thread_declined"
           ]
         },
         {
           "name": "subject_kind",
           "type": "enum",
-          "description": "Which table the subject id points into. Not a foreign key, because it points at as many tables as the domain has subjects. The module declares only the one its own event addresses.",
+          "description": "Which table the subject id points into. Not a foreign key, because it points at as many tables as the domain has subjects. The module declares only the ones its own events address.",
           "values": [
             "message",
-            "subject_thread"
+            "subject_thread",
+            "chat_thread"
           ]
         },
         {

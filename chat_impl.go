@@ -57,6 +57,9 @@ func (s *ChatStore) OpenThread(ctx context.Context, structureID, threadID string
 	if err != nil {
 		return models.ChatThread{}, err
 	}
+	if t.Declined() {
+		return models.ChatThread{}, models.ErrChatNotFound
+	}
 	if t.Audience == models.ChatAudienceGroup {
 		return t, nil
 	}
@@ -94,27 +97,72 @@ func labelTagPath(label string) (string, bool) {
 }
 
 func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label string, audience models.ChatAudience) (models.ChatThread, error) {
-	if t, err := s.ResolveThread(ctx, structureID, tagPath); err == nil {
-		return t, nil
-	} else if !errors.Is(err, models.ErrChatNotFound) {
-		return models.ChatThread{}, err
-	}
+	t, _, err := s.mintUnlessReusable(ctx, models.ChatThread{
+		StructureID: structureID, TagPath: tagPath, Label: label, Audience: audience,
+	}, func(models.ChatThread) bool { return true })
+	return t, err
+}
 
-	t := models.ChatThread{
-		ID:          mintID(prefixChatThread),
-		StructureID: structureID,
-		TagPath:     tagPath,
-		Label:       label,
-		Audience:    audience,
-		CreatedAt:   s.clock(),
+func (s *ChatStore) RequestThread(ctx context.Context, structureID, label, requestedBy string, reusable func(models.ChatThread) bool) (models.ChatThread, bool, error) {
+	label = strings.Join(strings.Fields(label), " ")
+	tagPath, ok := labelTagPath(label)
+	if !ok {
+		return models.ChatThread{}, false, fmt.Errorf("%w: topic is required", models.ErrChatInvalid)
 	}
+	if requestedBy == "" {
+		return models.ChatThread{}, false, models.ErrChatNotFound
+	}
+	return s.mintUnlessReusable(ctx, models.ChatThread{
+		StructureID: structureID, TagPath: tagPath, Label: label,
+		Audience: models.ChatAudienceLeads, RequestedBy: requestedBy,
+	}, reusable)
+}
+
+func (s *ChatStore) mintUnlessReusable(ctx context.Context, t models.ChatThread, reusable func(models.ChatThread) bool) (models.ChatThread, bool, error) {
+	t.ID = mintID(prefixChatThread)
+	existing, err := s.ResolveThread(ctx, t.StructureID, t.TagPath)
+	switch {
+	case err == nil && !existing.Declined() && reusable(existing):
+		return existing, false, nil
+	case err == nil:
+		t.TagPath = t.TagPath + "-" + strings.TrimPrefix(t.ID, prefixChatThread+"-")
+	case !errors.Is(err, models.ErrChatNotFound):
+		return models.ChatThread{}, false, err
+	}
+	t.CreatedAt = s.clock()
 	if err := s.store.Insert(ctx, roleChatThread, t); err != nil {
-		if existing, rerr := s.ResolveThread(ctx, structureID, tagPath); rerr == nil {
-			return existing, nil
+		if existing, rerr := s.ResolveThread(ctx, t.StructureID, t.TagPath); rerr == nil && !existing.Declined() && reusable(existing) {
+			return existing, false, nil
 		}
-		return models.ChatThread{}, classify(err)
+		return models.ChatThread{}, false, classify(err)
 	}
-	return t, nil
+	return t, true, nil
+}
+
+func (s *ChatStore) DeclineThread(ctx context.Context, structureID, threadID, declinedBy string) (models.ChatThread, bool, error) {
+	t, err := s.threadIn(ctx, structureID, threadID)
+	if err != nil {
+		return models.ChatThread{}, false, err
+	}
+	if t.Declined() {
+		return t, false, nil
+	}
+	if !t.Declinable() {
+		return models.ChatThread{}, false, models.ErrChatNotDeclinable
+	}
+	at := s.clock()
+	res := s.store.Query(ctx, roleChatThread).
+		Where("id = ? AND structure_id = ? AND audience = ?", threadID, structureID, string(models.ChatAudienceLeads)).
+		Where(s.store.Unset(roleChatThread, "DeclinedAt")).
+		Updates(map[string]any{"declined_at": stamp(at), "declined_by": declinedBy})
+	if res.Error != nil {
+		return models.ChatThread{}, false, classify(res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return s.DeclineThread(ctx, structureID, threadID, declinedBy)
+	}
+	t.DeclinedAt, t.DeclinedBy = &at, declinedBy
+	return t, true, nil
 }
 
 func (s *ChatStore) ResolveThread(ctx context.Context, structureID, tagPath string) (models.ChatThread, error) {

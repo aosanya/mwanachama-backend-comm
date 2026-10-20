@@ -1,6 +1,9 @@
 package models
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestAThreadWithTheLeadsIsReadByTheLeadsAndWhoAskedForIt(t *testing.T) {
 	leads := ChatThread{Audience: ChatAudienceLeads, RequestedBy: "asker"}
@@ -21,6 +24,29 @@ func TestAThreadWithTheLeadsIsReadByTheLeadsAndWhoAskedForIt(t *testing.T) {
 	for _, c := range cases {
 		if got := c.thread.ReadableBy(c.actor, c.lead); got != c.want {
 			t.Errorf("%s: ReadableBy = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestADeclinedThreadIsReadableByNobodyAndDeclinedOnce(t *testing.T) {
+	at := time.Unix(0, 0)
+	declined := ChatThread{Audience: ChatAudienceLeads, RequestedBy: "asker", DeclinedAt: &at}
+	if declined.ReadableBy("asker", false) || declined.ReadableBy("someone", true) {
+		t.Fatal("a declined thread is readable")
+	}
+	cases := []struct {
+		name   string
+		thread ChatThread
+		want   bool
+	}{
+		{"a request still with the leads", ChatThread{Audience: ChatAudienceLeads, RequestedBy: "asker"}, true},
+		{"a thread the leads started", ChatThread{Audience: ChatAudienceLeads}, false},
+		{"a request already opened", ChatThread{Audience: ChatAudienceGroup, RequestedBy: "asker"}, false},
+		{"a request already declined", declined, false},
+	}
+	for _, c := range cases {
+		if got := c.thread.Declinable(); got != c.want {
+			t.Errorf("%s: Declinable = %v, want %v", c.name, got, c.want)
 		}
 	}
 }

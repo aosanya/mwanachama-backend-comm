@@ -16,6 +16,8 @@ var ErrChatNotFound = errors.New("chat: not found")
 
 var ErrChatInvalid = errors.New("chat: invalid")
 
+var ErrChatNotDeclinable = errors.New("chat: only a thread somebody asked for, still with the leads, can be declined")
+
 type ChatThread struct {
 	ID          string       `json:"id"`
 	StructureID string       `json:"structure_id"`
@@ -23,6 +25,8 @@ type ChatThread struct {
 	Label       string       `json:"label"`
 	Audience    ChatAudience `json:"audience"`
 	RequestedBy string       `json:"requested_by,omitempty"`
+	DeclinedAt  *time.Time   `json:"declined_at,omitempty"`
+	DeclinedBy  string       `json:"declined_by,omitempty"`
 	CreatedAt   time.Time    `json:"created_at"`
 }
 
@@ -33,8 +37,16 @@ const (
 	ChatAudienceGroup ChatAudience = "group"
 )
 
+func (t ChatThread) Declined() bool { return t.DeclinedAt != nil }
+
+func (t ChatThread) Declinable() bool {
+	return !t.Declined() && t.Audience == ChatAudienceLeads && t.RequestedBy != ""
+}
+
 func (t ChatThread) ReadableBy(actorID string, leads bool) bool {
 	switch {
+	case t.Declined():
+		return false
 	case t.Audience != ChatAudienceLeads:
 		return true
 	case leads:

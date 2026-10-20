@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Nineteen roles, 141 fields.
+- **`comm.blueprint.json` is the object set.** Nineteen roles, 143 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -35,9 +35,11 @@ what is true of **comm** is in
   examples directory, so a third is swept without being named.
 - **The module owns no domain's vocabulary.** `notification`'s `category`,
   `event` and `subject_kind` declare only what comm's own acts produce —
-  `chat`, `message_removed` and `thread_reply`, `message` and
-  `subject_thread`. comm raises exactly two events, its moderation's removal
-  receipt and a reply on a subject thread; every other value is written by another
+  `chat`, `message_removed`, `thread_reply`, `thread_requested` and
+  `thread_declined`, `message`, `subject_thread` and `chat_thread`. comm
+  raises exactly four events, its moderation's removal receipt, a reply on a
+  subject thread, a thread asked for and a thread request declined; every
+  other value is written by another
   module through `NotificationRepository.Raise`, so each domain declares its
   own by widening the enum (shared's S37). `TestVocabularyMatchesTheBlueprint`
   holds the blueprint to comm's own set and `domain_agnostic_test.go` fails on
@@ -62,7 +64,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Thirty-seven addresses, each
+- **`comm.operations.json` is the route table.** Thirty-nine addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -88,6 +90,14 @@ what is true of **comm** is in
   readable by the leads and its `requested_by` alone — to anybody else it
   answers exactly as an invented thread. A manager given none has no leads.
   See [routes.md](documentation/2.%20design/routes.md#threads-with-the-leads).
+- **Any member asks for a thread; a lead may decline it (CM43).**
+  `comm.chat_thread.request` mints a `leads` thread whose `requested_by` is
+  the caller, and `UseLeads` names who is told (`thread_requested`, checked
+  against `Belonging` and `Leading`); asking never answers with a thread the
+  caller cannot read. `comm.chat_thread.decline` stamps `declined_at`, tells
+  the asker (`thread_declined`) and closes the thread for everybody, leads
+  included. See
+  [routes.md](documentation/2.%20design/routes.md#asking-for-a-thread).
 - **A room's threads carry a read marker per reader (CM40).**
   `chat_read_marker` holds each reader's last-read point per thread; the
   mark-read action moves it, never backwards, with the reader bound

@@ -105,6 +105,8 @@ const (
 	EventGroupJoinApproved         NotificationEvent = "group_join_approved"
 	EventGroupJoinDeclined         NotificationEvent = "group_join_declined"
 	EventThreadReply               NotificationEvent = "thread_reply"
+	EventThreadRequested           NotificationEvent = "thread_requested"
+	EventThreadDeclined            NotificationEvent = "thread_declined"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -128,6 +130,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventGroupJoinApproved:         CategoryMembership,
 	EventGroupJoinDeclined:         CategoryMembership,
 	EventThreadReply:               CategoryChat,
+	EventThreadRequested:           CategoryChat,
+	EventThreadDeclined:            CategoryChat,
 }
 
 func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
@@ -165,13 +169,14 @@ const (
 	SubjectPendingApproval    NotificationSubjectKind = "pending_approval"
 	SubjectGroup              NotificationSubjectKind = "group"
 	SubjectSubjectThread      NotificationSubjectKind = "subject_thread"
+	SubjectChatThread         NotificationSubjectKind = "chat_thread"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectSurvey, SubjectContribution, SubjectContributionReport,
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
-	SubjectGroup, SubjectSubjectThread,
+	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

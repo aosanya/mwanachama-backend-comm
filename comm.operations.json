@@ -113,6 +113,72 @@
         }
       ]
     },
+    "request_chat_thread": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/request",
+      "call": "RequestChatThreadFor",
+      "action": "comm.chat_thread.request",
+      "status": 201,
+      "title": "Ask for a thread",
+      "description": "Asks for a thread on a topic in one structure's room, for any caller the mount says belongs to that structure. The thread begins readable by the structure's leads and by the caller who asked, beside each other, until a lead opens it to the group or declines it. Every lead the mount names for the structure is told through a notification naming the thread. A topic the room already has in a thread the caller may read answers with that thread and tells nobody; a topic held by a thread the caller may not read is given a thread of its own, so asking never reveals one. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session, who becomes the thread's requester."
+        },
+        {
+          "from": "body",
+          "as": "topic",
+          "required": true,
+          "description": "What the thread is for, as the room's thread list shows it."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "decline_chat_thread": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/decline",
+      "call": "DeclineChatThreadFor",
+      "action": "comm.chat_thread.decline",
+      "status": 200,
+      "title": "Decline a thread request",
+      "description": "Closes a thread somebody asked for, still with the leads, without opening it. From then on it is listed to nobody and every address answers it as one that was never minted, and the caller who asked for it is told through a notification naming the thread and the lead who declined. Declining a thread already declined answers with it unchanged and tells nobody again. A thread that is already the group's, or that nobody asked for, is refused as a conflict. Only a caller the mount says leads the structure may decline one; anybody else, a thread that was never minted and a thread of another structure all answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "list_chat_messages": {
       "method": "GET",
       "path": "/groups/{structure_id}/chat/threads/{thread_id}/messages",
@@ -1087,6 +1153,7 @@
   "errors": {
     "ErrChatNotFound": 404,
     "ErrChatInvalid": 400,
+    "ErrChatNotDeclinable": 409,
     "ErrSubjectNotFound": 404,
     "ErrSubjectInvalid": 400,
     "ErrDMNotFound": 404,

@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-seven addresses, declared in `comm.operations.json` and served by a
+Thirty-nine addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -20,6 +20,9 @@ consumer is the gateway, and it is CM28.
 | GET | `/chat/activity` | `comm.chat.activity.read` |
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
 | POST | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.create` |
+| POST | `/groups/{structure_id}/chat/threads/request` | `comm.chat_thread.request` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/open` | `comm.chat_thread.open` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/decline` | `comm.chat_thread.decline` |
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/read` | `comm.chat_thread.mark_read` |
@@ -257,8 +260,8 @@ read by the structure's leads only until one of them opens it to the group.
   than the column, and every thread minted by its topic alone through
   `MintThread`, stays the group's. `ChatStore.StartThread` mints `leads`.
   `chat_thread.requested_by` names the actor who asked for a thread, who reads
-  and writes in it beside the leads; nothing writes it yet — the request flow
-  that does is CM43.
+  and writes in it beside the leads; the request flow writes it, see
+  [Asking for a thread](#asking-for-a-thread).
 - **Who leads is the host's.** comm does not know who a structure's leaders or
   an agency's operators are, so the host says, through a second seam beside
   `UseBelonging`:
@@ -300,6 +303,73 @@ read by the structure's leads only until one of them opens it to the group.
   once with `ChatStore.OpenThread`, which needs no caller
   (`TestAHostOpensAThreadItStartedSoTheRoomHasAnOpenGeneral`).
 
+## Asking for a thread
+
+CM43, 2026-10-20, for the member app's decisions 103, 107 and 108: any member
+asks for a thread, the leads talk in it with the member who asked, and the
+leads either open it to the group (CM42) or decline it.
+
+- **Asking.** `POST /groups/{structure_id}/chat/threads/request`
+  (`comm.chat_thread.request`) takes a `topic` from a caller `Belonging`
+  admits, and answers 201 with a `leads` thread whose `requested_by` is the
+  caller from the session, never the body. The topic is the thread's label,
+  normalised as a started thread's is. It is fenced like every room address:
+  an outsider and an invented structure answer the same 404, and a topic with
+  no letter or digit is a 400.
+- **Who is told.** comm knows neither a group's leaders nor an agency's
+  operators, so the host names them through a third seam beside `Belonging`
+  and `Leading`:
+
+  ```go
+  type Leads func(ctx context.Context, structureID string) ([]string, error)
+
+  func (m *CommManager) UseLeads(l Leads)
+  ```
+
+  Each actor it names gets one `thread_requested` notification, raised in the
+  same transaction as the thread: category `chat`, subject `chat_thread` and
+  the thread's id, `author_actor_id` the asker, `structure_id` the room.
+  Duplicates, empty ids and the asker are dropped, and so is anybody
+  `Belonging` or `Leading` does not confirm, so a host's list cannot tell
+  somebody who could not then read the thread. A muted recipient is skipped,
+  and each raised row is pushed after the commit like every other. A manager
+  with no `Leads` still takes requests and tells nobody — the leads find them
+  in the room's list.
+- **Asking never reveals a thread.** A topic the room already holds in a
+  thread the caller may read — the open General, or their own earlier request
+  — answers with that thread and tells nobody. A topic held by a thread the
+  caller may *not* read, another member's request or a thread the leads
+  started, is given a thread of its own under a tag path suffixed with the new
+  thread's id, so the answer is the same 201 with a fresh thread either way
+  (`TestAskingNeverRevealsAThreadTheAskerCannotRead`). The leads may therefore
+  see two threads with one label; which one to open is theirs.
+- **Declining.** `POST /groups/{structure_id}/chat/threads/{thread_id}/decline`
+  (`comm.chat_thread.decline`) is a lead's act, fenced exactly as opening is:
+  the asker, another member, a lead of another structure and an invented
+  thread all answer the same 404. It stamps `declined_at` and `declined_by`
+  and answers 200 with the thread. Only a thread somebody asked for, still
+  with the leads, can be declined; one the leads started themselves, or one
+  already opened, is `ErrChatNotDeclinable`, a 409, which tells a lead nothing
+  they could not already read. Declining a declined thread answers it
+  unchanged and tells nobody again.
+- **Who is told of a decline.** The asker gets one `thread_declined`: category
+  `chat`, subject `chat_thread`, `author_actor_id` the lead who declined (the
+  member app's M05.1 shows "from the Chair"), `structure_id` the room. A lead
+  who declines a thread they asked for themselves is not told.
+- **A declined thread is closed for everybody.** It leaves every list, the
+  leads' included, and the posts, a post, the read marker and opening all
+  answer it exactly as a thread that was never minted
+  (`TestADeclinedThreadClosesUnopenedAndTellsTheAsker`). Nothing is deleted:
+  the row and its posts stay, so a later decision to show the leads what they
+  declined needs no data back. `ChatThread.ReadableBy` refuses a declined
+  thread before anything else, which is the one rule every read goes through.
+- **A declined topic is free again.** Asking for, or starting, the label of a
+  declined thread mints a new thread rather than answering the closed one.
+- **Mutation-checked.** Letting a request reuse a thread the asker cannot
+  read, telling a name `Leading` does not confirm, reading a declined thread,
+  opening a declined thread, reusing a declined thread's label and declining
+  twice each turn a test red.
+
 ## The subject fence
 
 The four `subject` addresses (CM34, 2026-10-20) are fenced by a second host
@@ -334,7 +404,7 @@ obeyed.
 
 ## Statuses, transcribed rather than redesigned
 
-`errors` maps twenty-six sentinels; `ErrPushSubscriptionInvalid` is CM35's 400. Every status is the one the hand-written
+`errors` maps twenty-seven sentinels; `ErrPushSubscriptionInvalid` is CM35's 400 and `ErrChatNotDeclinable` CM43's 409. Every status is the one the hand-written
 handler gave, with one deliberate exception.
 
 **The exception is CM31.** `dmStatusFor` ended in `default:
@@ -369,7 +439,7 @@ lost quietly:
 
 ## Tests
 
-`routes/` has 50 tests across ten files, every one through a real
+`routes/` has 67 tests across thirteen files, every one through a real
 `httptest` server with the session carried on the context, because both of
 the bugs this repo's CLAUDE.md records escaped by calling handlers in Go.
 
