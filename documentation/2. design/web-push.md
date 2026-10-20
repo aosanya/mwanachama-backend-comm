@@ -112,8 +112,8 @@ trusted.
 Two corrections to the library, both in `WebPushSender.Send`:
 
 - it prepends `mailto:` to any subject that is not `https:`, so a configured
-  `mailto:` subject would reach the push service as `mailto:mailto:…`; the
-  prefix is stripped before it is handed over;
+  `mailto:` contact would reach the push service as `mailto:mailto:…`; the
+  prefix is stripped from the first contact before it is handed over;
 - it builds no client of its own worth keeping, so the default client is
   comm's (below).
 
@@ -156,13 +156,39 @@ manager.UseWebPush(sender, logPushFailure)
 | --- | --- |
 | `VAPID_PUBLIC_KEY` | base64url, the uncompressed P-256 point (65 bytes) — the same string the browser is given as `applicationServerKey` |
 | `VAPID_PRIVATE_KEY` | base64url, the raw 32-byte P-256 scalar, as `web-push generate-vapid-keys` prints it |
-| `VAPID_SUBJECT` | `mailto:` or `https:` contact the push services may use; Apple's refuses a push without one |
+| `VAPID_SUBJECT` | one or more `mailto:` or `https:` contacts the push services may use, comma-separated, in order of preference; Apple's refuses a push without one |
 
 `VAPIDFromEnv` reports `ok` when either key is set, so a half-configured
 deployment reaches `NewWebPushSender` and fails there by name rather than
 silently pushing nothing. `NewWebPushSender` refuses a pair whose public key
 is not the private key's, a key of the wrong length, and a missing or
 malformed subject — at boot, before anything is sent.
+
+### The contact comes from configuration (CM39)
+
+Member app decision 84 (owner, 2026-10-20): the contact a push names is a
+deployment setting, never a value built into comm or into a host. There is no
+fallback address anywhere in the code, so a deployment that has not said who
+the push services may reach has not configured Web Push.
+
+- **`VAPID_SUBJECT` is a list.** Entries are separated by a comma
+  (`VAPIDSubjectSeparator`), and the space around each entry is trimmed:
+  `mailto:push@example.org, https://example.org/contact`.
+- **Every entry is checked, not only the one that is sent.** Each must be a
+  `mailto:` address with a local part and a domain, or an `https:` URL with a
+  host and no credentials. An empty entry (`a,,b`, a trailing comma), an
+  `http:` URL or a bare address refuses the whole setting, so a typo in a
+  contact nobody is sending to yet is found at boot rather than the day it
+  is promoted to first.
+- **Each push carries the first entry.** The VAPID token's `sub` claim names
+  one contact, so the deployment orders them: the first is the one the push
+  services see. `VAPID.Contacts()` returns the list as parsed and
+  `VAPID.Contact()` the one that is sent.
+- **Unset or invalid behaves like a bad key.** With neither key set there is
+  no sender and nothing is pushed, whatever the subject says. With a key set,
+  a missing, blank or invalid `VAPID_SUBJECT` is `ErrVAPIDInvalid` from
+  `NewWebPushSender`, naming the entry it refused, and the host decides
+  whether that stops the boot — never a sender with a guessed contact.
 
 Tests make a throwaway pair per run with `crypto/ecdh`; no key material is
 committed.

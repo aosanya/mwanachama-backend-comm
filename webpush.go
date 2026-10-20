@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"syscall"
 	"time"
@@ -61,16 +62,61 @@ func (v VAPID) Validate() error {
 	if !bytes.Equal(key.PublicKey().Bytes(), pub) {
 		return fmt.Errorf("%w: the public key is not the private key's", ErrVAPIDInvalid)
 	}
-	if !strings.HasPrefix(v.Subject, "mailto:") && !strings.HasPrefix(v.Subject, "https://") {
-		return fmt.Errorf("%w: the subject must be a mailto: or https: contact", ErrVAPIDInvalid)
+	if _, err := v.Contact(); err != nil {
+		return err
 	}
 	return nil
 }
 
+const VAPIDSubjectSeparator = ","
+
+func (v VAPID) Contact() (string, error) {
+	contacts, err := v.Contacts()
+	if err != nil {
+		return "", err
+	}
+	return contacts[0], nil
+}
+
+func (v VAPID) Contacts() ([]string, error) {
+	if strings.TrimSpace(v.Subject) == "" {
+		return nil, fmt.Errorf("%w: %s names no contact", ErrVAPIDInvalid, EnvVAPIDSubject)
+	}
+	var contacts []string
+	for _, entry := range strings.Split(v.Subject, VAPIDSubjectSeparator) {
+		contact := strings.TrimSpace(entry)
+		if !validContact(contact) {
+			return nil, fmt.Errorf("%w: %q in %s is not a mailto: or https: contact", ErrVAPIDInvalid, contact, EnvVAPIDSubject)
+		}
+		contacts = append(contacts, contact)
+	}
+	return contacts, nil
+}
+
+func validContact(contact string) bool {
+	if contact == "" || strings.ContainsAny(contact, " \t\r\n") {
+		return false
+	}
+	u, err := url.Parse(contact)
+	if err != nil {
+		return false
+	}
+	switch u.Scheme {
+	case "mailto":
+		local, domain, ok := strings.Cut(u.Opaque, "@")
+		return ok && local != "" && domain != "" && !strings.ContainsAny(domain, "@?") && u.RawQuery == ""
+	case "https":
+		return u.Opaque == "" && u.Host != "" && u.User == nil
+	default:
+		return false
+	}
+}
+
 type WebPushSender struct {
-	vapid  VAPID
-	client webpush.HTTPClient
-	ttl    time.Duration
+	vapid   VAPID
+	contact string
+	client  webpush.HTTPClient
+	ttl     time.Duration
 }
 
 const pushTTL = 24 * time.Hour
@@ -79,10 +125,14 @@ func NewWebPushSender(v VAPID, client webpush.HTTPClient) (*WebPushSender, error
 	if err := v.Validate(); err != nil {
 		return nil, err
 	}
+	contact, err := v.Contact()
+	if err != nil {
+		return nil, err
+	}
 	if client == nil {
 		client = publicOnlyClient()
 	}
-	return &WebPushSender{vapid: v, client: client, ttl: pushTTL}, nil
+	return &WebPushSender{vapid: v, contact: contact, client: client, ttl: pushTTL}, nil
 }
 
 func (w *WebPushSender) Send(ctx context.Context, sub models.PushSubscription, payload []byte) error {
@@ -91,7 +141,7 @@ func (w *WebPushSender) Send(ctx context.Context, sub models.PushSubscription, p
 		Keys:     webpush.Keys{P256dh: sub.PublicKey, Auth: sub.AuthSecret},
 	}, &webpush.Options{
 		HTTPClient:      w.client,
-		Subscriber:      strings.TrimPrefix(w.vapid.Subject, "mailto:"),
+		Subscriber:      strings.TrimPrefix(w.contact, "mailto:"),
 		VAPIDPublicKey:  w.vapid.PublicKey,
 		VAPIDPrivateKey: w.vapid.PrivateKey,
 		TTL:             int(w.ttl.Seconds()),

@@ -103,7 +103,10 @@ what is true of **comm** is in
   `PushSender`, and `Raise` then sends in the background and drops a
   subscription the push service answers 404 or 410. No sender means no push.
   The VAPID pair is the host's, read from its environment through
-  `VAPIDFromEnv`; never commit one. See
+  `VAPIDFromEnv`; never commit one. So is the contact (CM39):
+  `VAPID_SUBJECT` is configuration only, a comma-separated list of `mailto:`
+  or `https:` contacts, every one checked and the first one sent, with no
+  built-in fallback. See
   [web-push.md](documentation/2.%20design/web-push.md).
 - **Every route test crosses a real mux with a real caller.** Both bugs this
   file records below escaped because the fixtures called handlers in Go.

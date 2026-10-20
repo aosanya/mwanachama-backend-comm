@@ -124,6 +124,12 @@ func TestAVAPIDPairIsCheckedBeforeAnythingIsSent(t *testing.T) {
 		"short public key": {PublicKey: "AAAA", PrivateKey: good.PrivateKey, Subject: good.Subject},
 		"no subject":       {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey},
 		"a bare address":   {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "push@example.org"},
+		"blank subject":    {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: " , "},
+		"http contact":     {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "http://example.org/contact"},
+		"bad second entry": {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "mailto:push@example.org, push@example.org"},
+		"empty entry":      {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "mailto:push@example.org,,https://example.org"},
+		"mailto no domain": {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "mailto:push@"},
+		"https no host":    {PublicKey: good.PublicKey, PrivateKey: good.PrivateKey, Subject: "https:example.org"},
 	} {
 		if _, err := mwanachamacomm.NewWebPushSender(v, nil); !errors.Is(err, mwanachamacomm.ErrVAPIDInvalid) {
 			t.Errorf("%s: err = %v, want ErrVAPIDInvalid", name, err)
@@ -145,9 +151,60 @@ func TestVAPIDIsReadFromTheEnvironment(t *testing.T) {
 	if !ok || v != good {
 		t.Fatalf("VAPIDFromEnv = %+v, %v; want the pair as set", v, ok)
 	}
+	keysOnly := map[string]string{
+		mwanachamacomm.EnvVAPIDPublicKey:  good.PublicKey,
+		mwanachamacomm.EnvVAPIDPrivateKey: good.PrivateKey,
+	}
+	unset, ok := mwanachamacomm.VAPIDFromEnv(func(k string) string { return keysOnly[k] })
+	if !ok || unset.Subject != "" {
+		t.Fatalf("VAPIDFromEnv = %+v, %v; want the pair with no subject supplied for it", unset, ok)
+	}
+	if _, err := mwanachamacomm.NewWebPushSender(unset, nil); !errors.Is(err, mwanachamacomm.ErrVAPIDInvalid) {
+		t.Fatalf("a pair with no %s built a sender: %v", mwanachamacomm.EnvVAPIDSubject, err)
+	}
 	if _, ok := mwanachamacomm.VAPIDFromEnv(func(string) string { return "" }); ok {
 		t.Fatalf("an unset environment reported a VAPID pair")
 	}
+}
+
+func TestAPushNamesTheFirstContactTheDeploymentLists(t *testing.T) {
+	vapid := throwawayVAPID(t)
+	vapid.Subject = "https://example.org/push-contact , mailto:push@example.org"
+	contacts, err := vapid.Contacts()
+	if err != nil || len(contacts) != 2 || contacts[0] != "https://example.org/push-contact" || contacts[1] != "mailto:push@example.org" {
+		t.Fatalf("Contacts = %v, %v; want both, in the order configured", contacts, err)
+	}
+	browser := newThrowawayBrowser(t)
+	srv, got := pushService(t, http.StatusCreated)
+	sender, err := mwanachamacomm.NewWebPushSender(vapid, srv.Client())
+	if err != nil {
+		t.Fatalf("NewWebPushSender: %v", err)
+	}
+	if err := sender.Send(context.Background(), models.PushSubscription{
+		Endpoint: srv.URL, PublicKey: browser.PublicKey, AuthSecret: browser.AuthSecret,
+	}, []byte("{}")); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	req := <-got
+	verifyVAPID(t, req.header.Get("Authorization"), vapid, srv.URL)
+}
+
+func TestAMailtoContactReachesThePushServiceOnce(t *testing.T) {
+	vapid := throwawayVAPID(t)
+	vapid.Subject = "mailto:push@example.org,https://example.org/push-contact"
+	browser := newThrowawayBrowser(t)
+	srv, got := pushService(t, http.StatusCreated)
+	sender, err := mwanachamacomm.NewWebPushSender(vapid, srv.Client())
+	if err != nil {
+		t.Fatalf("NewWebPushSender: %v", err)
+	}
+	if err := sender.Send(context.Background(), models.PushSubscription{
+		Endpoint: srv.URL, PublicKey: browser.PublicKey, AuthSecret: browser.AuthSecret,
+	}, []byte("{}")); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	req := <-got
+	verifyVAPID(t, req.header.Get("Authorization"), vapid, srv.URL)
 }
 
 func verifyVAPID(t *testing.T, header string, vapid mwanachamacomm.VAPID, origin string) {
@@ -168,8 +225,12 @@ func verifyVAPID(t *testing.T, header string, vapid mwanachamacomm.VAPID, origin
 		jwt.WithValidMethods([]string{"ES256"})); err != nil {
 		t.Fatalf("the VAPID token does not verify against the public key: %v", err)
 	}
-	if claims["aud"] != origin || claims["sub"] != vapid.Subject {
-		t.Fatalf("claims = %v, want aud %s and sub %s", claims, origin, vapid.Subject)
+	contact, err := vapid.Contact()
+	if err != nil {
+		t.Fatalf("Contact: %v", err)
+	}
+	if claims["aud"] != origin || claims["sub"] != contact {
+		t.Fatalf("claims = %v, want aud %s and sub %s", claims, origin, contact)
 	}
 }
 
