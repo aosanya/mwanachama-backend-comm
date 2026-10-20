@@ -225,7 +225,7 @@
       "action": "comm.subject_message.post",
       "status": 201,
       "title": "Post on a subject thread",
-      "description": "Posts one message to a thread about a subject the caller may read, and tells everyone it replies to through their notifications: on a private thread, the one it is with when the answering side posts; on a group thread, everyone else from the subject's audience who has posted there. The author is the session's.",
+      "description": "Posts one message to a thread about a subject the caller may read, and tells everyone it replies to through their notifications: on a private thread, the one it is with when the answering side posts, and everyone the host names as answering for the subject when the one it is with posts; on a group thread, everyone else from the subject's audience who has posted there. The author is the session's.",
       "args": [
         {
           "from": "path",

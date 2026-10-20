@@ -28,6 +28,7 @@ type CommManager struct {
 	spec      *spec.Spec
 	belonging Belonging
 	standing  Standing
+	answerers Answerers
 	push      *pushDelivery
 }
 

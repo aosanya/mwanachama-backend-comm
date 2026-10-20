@@ -100,17 +100,68 @@ side still sees who of them wrote it.
   opens the thread. It never carries an `author_actor_id`, for the reason
   above.
 - **Who is told.** On a private thread, the one it is with, when the
-  answering side posts. On a group thread, every actor from the subject's
-  audience who has posted there before, except the poster. The answering
-  side is never told through a member's Inbox, and nobody is told of their
-  own message. A recipient who muted `chat` is skipped and the post still
-  lands; any other failure rolls the message back with it.
+  answering side posts; and, when the one it is with posts, every actor the
+  host's `Answerers` names for the subject (below). On a group thread, every
+  actor from the subject's audience who has posted there before, except the
+  poster; the answering side is never told of a group post. Nobody is told
+  of their own message. A recipient who muted `chat` is skipped and the post
+  still lands; any other failure rolls the message back with it.
+- **Pushed like any other notification.** A reply's notifications are
+  raised inside the message's transaction, so they are handed to Web Push
+  (CM35) only after it commits; a rolled-back post pushes nothing.
+
+## Telling the answering side
+
+CM36, 2026-10-20. A private thread can be about a subject whose answering
+side are people with an Inbox of their own — a join request, decided by a
+group's leaders or an agency's owner (member app decision 63). For those a
+reply from the one applying has to reach the deciders, and comm cannot know
+who they are. The host names them through a second, optional seam:
+
+```go
+type Answerers func(ctx context.Context, subjectKind, subjectID string) ([]string, error)
+
+func (m *CommManager) UseAnswerers(a Answerers)
+```
+
+- **Asked only for a private-thread post by the one it is with**, before the
+  transaction opens. Every named actor is told once, the poster never, and an
+  empty id never.
+- **Each name is held to the standing seam.** A named actor `Standing` does
+  not call an answerer on that subject is skipped, so the two seams cannot
+  disagree into telling somebody about a thread they cannot open.
+- **No seam, or no names, tells nobody** — CM34's behaviour, and still the
+  answer for a subject kind the host returns nothing for. Whether a member's
+  private question on a form reaches anybody on the agency side remains the
+  owner's question; the seam lets the host answer it per kind without comm
+  changing.
+- **A failed lookup is a 500 and stores nothing**, like a failed standing.
+
+## A join request as a subject
+
+Nothing in comm names a join request. The host picks its own
+`subject_kind` for each kind of request (an agency's, a group's), and wires
+the two seams:
+
+| Seam | Answers for a join request |
+| --- | --- |
+| `Standing` | *audience* for the person applying, *answerer* for whoever decides it, *none* for anybody else |
+| `Answerers` | whoever decides it, so a message from the applicant reaches their Inbox |
+
+The applicant opens the private thread, as with a form. A decider cannot
+open one (a private thread is opened by the one it is with), so a host that
+wants the chat to exist before the applicant writes opens it in-process on
+the applicant's behalf when the request is filed. The applicant reads
+replies signed by the answering side, without a named author. Who the
+deciders are, and admitting an applicant who is not yet a member to the
+comm mount, are `mwanachama-wakala-api`'s (WK110).
 
 ## What is not here
 
-- **The answering side's own inbox.** A member's message on a private thread
-  raises nothing, because comm has no actor list for "the agency". How the
-  studio or an agent learns a member asked something is the host's to build.
+- **The answering side's own inbox, unless the host names it.** Without
+  `UseAnswerers`, a member's message on a private thread raises nothing,
+  because comm has no actor list for "the agency". How the studio or an
+  agent learns a member asked something is the host's to build.
 - **Per-thread read marks.** Unread is the notification badge; there is no
   "read up to here" per thread.
 - **The host's resolver.** Which subject kinds exist, who a form reached and

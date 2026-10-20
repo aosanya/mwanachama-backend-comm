@@ -15,6 +15,10 @@ type Standing func(ctx context.Context, actorID, subjectKind, subjectID string) 
 
 func (m *CommManager) UseStanding(s Standing) { m.standing = s }
 
+type Answerers func(ctx context.Context, subjectKind, subjectID string) ([]string, error)
+
+func (m *CommManager) UseAnswerers(a Answerers) { m.answerers = a }
+
 func (m *CommManager) standingOn(ctx context.Context, callerID, kind, id string) (models.SubjectStanding, error) {
 	if m.standing == nil || callerID == "" || kind == "" || id == "" {
 		return models.StandingNone, models.ErrSubjectNotFound
@@ -110,7 +114,14 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 	if strings.TrimSpace(body) == "" {
 		return models.SubjectThreadMessage{}, fmt.Errorf("%w: body is required", models.ErrSubjectInvalid)
 	}
-	var posted models.SubjectThreadMessage
+	answerers, err := m.answerersToTell(ctx, t, callerID, st)
+	if err != nil {
+		return models.SubjectThreadMessage{}, err
+	}
+	var (
+		posted models.SubjectThreadMessage
+		raised []models.Notification
+	)
 	err = m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		subjects, err := NewSubjectStore(tx, m.spec, m.subjects.clock)
 		if err != nil {
@@ -120,7 +131,7 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 		if err != nil {
 			return err
 		}
-		recipients, err := replyRecipients(ctx, subjects, t, callerID, st)
+		recipients, err := replyRecipients(ctx, subjects, t, callerID, st, answerers)
 		if err != nil {
 			return err
 		}
@@ -131,20 +142,26 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 		if err != nil {
 			return err
 		}
-		return raiseReplies(ctx, notices, t.ID, recipients)
+		raised, err = raiseReplies(ctx, notices, t.ID, recipients)
+		return err
 	})
 	if err != nil {
 		return models.SubjectThreadMessage{}, err
 	}
+	if m.NotificationStore.onRaised != nil {
+		for _, n := range raised {
+			m.NotificationStore.onRaised(ctx, n)
+		}
+	}
 	return posted.For(st), nil
 }
 
-func replyRecipients(ctx context.Context, subjects *SubjectStore, t models.SubjectThread, posterID string, poster models.SubjectStanding) ([]string, error) {
+func replyRecipients(ctx context.Context, subjects *SubjectStore, t models.SubjectThread, posterID string, poster models.SubjectStanding, answerers []string) ([]string, error) {
 	if t.Audience == models.AudiencePrivate {
 		if poster == models.StandingAnswerer && t.OwnerID != posterID {
 			return []string{t.OwnerID}, nil
 		}
-		return nil, nil
+		return answerers, nil
 	}
 	authors, err := subjects.AudienceAuthors(ctx, t.ID)
 	if err != nil {
@@ -159,18 +176,52 @@ func replyRecipients(ctx context.Context, subjects *SubjectStore, t models.Subje
 	return out, nil
 }
 
-func raiseReplies(ctx context.Context, notices *NotificationStore, threadID string, recipients []string) error {
+func (m *CommManager) answerersToTell(ctx context.Context, t models.SubjectThread, posterID string, poster models.SubjectStanding) ([]string, error) {
+	if m.answerers == nil || t.Audience != models.AudiencePrivate || poster != models.StandingAudience {
+		return nil, nil
+	}
+	named, err := m.answerers(ctx, t.SubjectKind, t.SubjectID)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{posterID: true, "": true}
+	out := make([]string, 0, len(named))
+	for _, a := range named {
+		if seen[a] {
+			continue
+		}
+		seen[a] = true
+		st, err := m.standingOn(ctx, a, t.SubjectKind, t.SubjectID)
+		if errors.Is(err, models.ErrSubjectNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if st == models.StandingAnswerer {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+func raiseReplies(ctx context.Context, notices *NotificationStore, threadID string, recipients []string) ([]models.Notification, error) {
+	raised := make([]models.Notification, 0, len(recipients))
 	for _, actorID := range recipients {
-		_, err := notices.Raise(ctx, models.Notification{
+		n, err := notices.Raise(ctx, models.Notification{
 			ActorID:     actorID,
 			Category:    models.CategoryChat,
 			Event:       models.EventThreadReply,
 			SubjectKind: models.SubjectSubjectThread,
 			SubjectID:   threadID,
 		})
-		if err != nil && !errors.Is(err, models.ErrNotificationMuted) {
-			return err
+		switch {
+		case errors.Is(err, models.ErrNotificationMuted):
+		case err != nil:
+			return nil, err
+		default:
+			raised = append(raised, n)
 		}
 	}
-	return nil
+	return raised, nil
 }

@@ -19,7 +19,7 @@
       "role": "subject_thread",
       "name": "form_thread",
       "table": "form_threads",
-      "description": "One conversation about a form or one of its questions: privately between a member and the agency, or among everyone the form was sent to and the agency."
+      "description": "One conversation about a form or one of its questions, privately between a member and the agency or among everyone the form was sent to and the agency; or about a join request, privately between the person applying and whoever decides it."
     },
     {
       "role": "subject_message",

@@ -87,7 +87,10 @@ what is true of **comm** is in
   *audience* or *answerer* for one caller on one subject; comm never learns
   who those are. Every miss is the same 404, a manager given none fences
   everybody out, and an answerer's message carries no author for anybody
-  else. See [subject-threads.md](documentation/2.%20design/subject-threads.md).
+  else. `UseAnswerers` (CM36) optionally names the answering side, so a
+  private-thread post by its owner reaches them — what a join request's
+  deciders need; without it that post tells nobody. See
+  [subject-threads.md](documentation/2.%20design/subject-threads.md).
 - **The caller and the handset are session facts.** `{"from": "caller"}` and
   `{"from": "device"}` bind them, and a body claiming either is overwritten
   rather than refused. That also keeps both out of any MCP tool schema.
