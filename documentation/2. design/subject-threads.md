@@ -131,10 +131,13 @@ func (m *CommManager) UseAnswerers(a Answerers)
   not call an answerer on that subject is skipped, so the two seams cannot
   disagree into telling somebody about a thread they cannot open.
 - **No seam, or no names, tells nobody** — CM34's behaviour, and still the
-  answer for a subject kind the host returns nothing for. Whether a member's
-  private question on a form reaches anybody on the agency side remains the
-  owner's question; the seam lets the host answer it per kind without comm
-  changing.
+  answer for a subject kind the host returns nothing for.
+- **A form's private chat reaches the agency** (CM38, owner, member app
+  decision 82). comm needed no change for it: the host names the agency's
+  answering side for its form and question kinds through this same seam, and
+  a member's post raises the same `thread_reply` a join request's applicant
+  raises. Which actors that is, and when a member is the audience who can
+  post at all, are the host's (`mwanachama-wakala-api`'s comm-mount.md).
 - **A failed lookup is a 500 and stores nothing**, like a failed standing.
 
 ## A join request as a subject
@@ -160,8 +163,8 @@ comm mount, are `mwanachama-wakala-api`'s (WK110).
 
 - **The answering side's own inbox, unless the host names it.** Without
   `UseAnswerers`, a member's message on a private thread raises nothing,
-  because comm has no actor list for "the agency". How the studio or an
-  agent learns a member asked something is the host's to build.
+  because comm has no actor list for "the agency"; the host names it per
+  subject kind (CM36, CM38).
 - **Per-thread read marks.** Unread is the notification badge; there is no
   "read up to here" per thread.
 - **The host's resolver.** Which subject kinds exist, who a form reached and
