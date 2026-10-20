@@ -24,6 +24,7 @@ W15 is CM15. The remaining `W`-on-`W` overlaps are noted, not touched.
 | CM37 | P2 | 🚀 | **A group join decision reaches the member even when membership notices are muted.** CM33's `group_join_approved` and `group_join_declined` are delivered whatever the member's mute setting for `membership`; every other membership event still honours it. Owner, member app decision 73, 2026-10-20. |
 | CM38 | P2 | 📋 | **The agency is told when a member writes on a form's private chat.** A member's post on a private thread about a form or question (CM34) raises an Inbox notification for whoever answers for the agency (the host's resolver: the owner, agents once wired). Owner, member app decision 82, 2026-10-20. |
 | CM39 | P2 | 📋 | **Web Push's contact comes from configuration.** `VAPID_SUBJECT` is a deployment setting, never a built-in value; it may list several `mailto:` or `https:` addresses, of which each push carries the first (a push names one contact), so a deployment orders them. Owner, member app decision 84, 2026-10-20. |
+| CM40 | P2 | 📋 | **A read marker for chat rooms.** Each member's last-read point per room, set by a mark-read action and returned with the room list as an unread count, so rooms show what is new. Owner, member app decision 86, 2026-10-20. |
 
 ## Overlapping row numbers on sibling boards
 
