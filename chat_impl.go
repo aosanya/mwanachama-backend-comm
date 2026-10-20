@@ -151,17 +151,18 @@ func (s *ChatStore) DeclineThread(ctx context.Context, structureID, threadID, de
 		return models.ChatThread{}, false, models.ErrChatNotDeclinable
 	}
 	at := s.clock()
+	asidePath := t.TagPath + "-" + strings.TrimPrefix(t.ID, prefixChatThread+"-")
 	res := s.store.Query(ctx, roleChatThread).
 		Where("id = ? AND structure_id = ? AND audience = ?", threadID, structureID, string(models.ChatAudienceLeads)).
 		Where(s.store.Unset(roleChatThread, "DeclinedAt")).
-		Updates(map[string]any{"declined_at": stamp(at), "declined_by": declinedBy})
+		Updates(map[string]any{"declined_at": stamp(at), "declined_by": declinedBy, "tag_path": asidePath})
 	if res.Error != nil {
 		return models.ChatThread{}, false, classify(res.Error)
 	}
 	if res.RowsAffected == 0 {
 		return s.DeclineThread(ctx, structureID, threadID, declinedBy)
 	}
-	t.DeclinedAt, t.DeclinedBy = &at, declinedBy
+	t.DeclinedAt, t.DeclinedBy, t.TagPath = &at, declinedBy, asidePath
 	return t, true, nil
 }
 

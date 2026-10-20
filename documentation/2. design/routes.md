@@ -363,8 +363,14 @@ leads either open it to the group (CM42) or decline it.
   the row and its posts stay, so a later decision to show the leads what they
   declined needs no data back. `ChatThread.ReadableBy` refuses a declined
   thread before anything else, which is the one rule every read goes through.
-- **A declined topic is free again.** Asking for, or starting, the label of a
-  declined thread mints a new thread rather than answering the closed one.
+- **A declined topic is free again.** Declining moves the thread's tag path
+  aside, suffixed with its own id, so its label's path is empty again: asking
+  for, or starting, that label mints one new thread at the label's own path,
+  and every later start or request answers that one, exactly as for a label
+  never declined (`TestADeclinedLabelIsStartedOnceAgainNotOnEveryStart`).
+  Before this a declined thread kept the path, and each start of its label
+  minted yet another thread beside it, which broke a host's idempotent
+  General (wakala-api WK121).
 - **Mutation-checked.** Letting a request reuse a thread the asker cannot
   read, telling a name `Leading` does not confirm, reading a declined thread,
   opening a declined thread, reusing a declined thread's label and declining
