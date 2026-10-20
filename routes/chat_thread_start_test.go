@@ -12,6 +12,7 @@ import (
 func TestStartingAThreadAddsItToTheRoomWithItsLabel(t *testing.T) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"actor-a"}}))
+	m.UseLeading(leadingOf(map[string][]string{"s-1": {"actor-a"}}))
 
 	started := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "actor-a", map[string]string{"label": "  Road   repairs "})
 	if started.code != http.StatusCreated {
@@ -37,6 +38,7 @@ func TestStartingAThreadAddsItToTheRoomWithItsLabel(t *testing.T) {
 func TestStartingAnExistingLabelAnswersWithThatThread(t *testing.T) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"actor-a", "actor-b"}, "s-2": {"actor-a"}}))
+	m.UseLeading(leadingOf(map[string][]string{"s-1": {"actor-a", "actor-b"}, "s-2": {"actor-a"}}))
 
 	start := func(structureID, caller, label string) models.ChatThread {
 		t.Helper()
@@ -71,6 +73,7 @@ func TestStartingAnExistingLabelAnswersWithThatThread(t *testing.T) {
 func TestAThreadNeedsALabel(t *testing.T) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"actor-a"}}))
+	m.UseLeading(leadingOf(map[string][]string{"s-1": {"actor-a"}}))
 
 	for _, body := range []any{map[string]string{}, map[string]string{"label": "   "}, map[string]string{"label": "?!"}} {
 		got := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "actor-a", body)
@@ -90,6 +93,7 @@ func TestAThreadNeedsALabel(t *testing.T) {
 func TestStartingAThreadIsFencedLikeEveryOtherRoomAddress(t *testing.T) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"actor-a"}}))
+	m.UseLeading(leadingOf(map[string][]string{"s-1": {"actor-a", "outsider-9"}}))
 	body := map[string]string{"label": "General"}
 
 	outsider := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "outsider-9", body)

@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-six addresses, declared in `comm.operations.json` and served by a
+Thirty-seven addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -154,8 +154,8 @@ type Belonging func(ctx context.Context, actorID, structureID string) (bool, err
 func (m *CommManager) UseBelonging(b Belonging)
 ```
 
-`ListChatThreadsFor`, `StartChatThreadFor`, `ListChatMessagesFor`,
-`PostChatMessageFor` and `MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
+`ListChatThreadsFor`, `StartChatThreadFor`, `OpenChatThreadFor`,
+`ListChatMessagesFor`, `PostChatMessageFor` and `MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
 
 - **404, never 403.** A caller who does not belong, a structure that does not
   exist, a thread that was never minted and a thread of *another* structure
@@ -235,16 +235,70 @@ as `MintThread`.
   and keeps whatever label it had.
 - **The list carries the label.** `list_chat_threads` returns `ChatThreadView`,
   which embeds the thread, so `label` is on every row with `unread` beside it.
-- **Who may start one is the host's gate.** The operation carries an action
-  and nothing else; a group's leaders, an operator or any member are the
-  mount's answer (member app Q12, decision 103). What a member may see of a
-  thread once started — leaders-only until opened — is CM42, not this.
+- **Who may start one is a lead.** Since CM42 a caller the host's `Leading`
+  does not name as a lead of the structure answers the same 404 as an
+  outsider, and the mount's gate on `comm.chat_thread.create` still applies
+  on top. A member asks for a thread instead (CM43). See
+  [Threads with the leads](#threads-with-the-leads).
 
 The fence holds exactly as on the other room addresses: an outsider and an
 invented structure answer the same 404, and with no `Belonging` mounted
 nobody starts one (`TestStartingAThreadIsFencedLikeEveryOtherRoomAddress`,
 `TestWithNoBelongingSuppliedNobodyStartsAThread`, both mutation-checked
 against dropping the fence).
+
+## Threads with the leads
+
+CM42, 2026-10-20, for the member app's decisions 103 and 107: a thread can be
+read by the structure's leads only until one of them opens it to the group.
+
+- **The audience is a field on the thread.** `chat_thread.audience` is an enum
+  of `leads` and `group`, declared with the default `group` so every row older
+  than the column, and every thread minted by its topic alone through
+  `MintThread`, stays the group's. `ChatStore.StartThread` mints `leads`.
+  `chat_thread.requested_by` names the actor who asked for a thread, who reads
+  and writes in it beside the leads; nothing writes it yet — the request flow
+  that does is CM43.
+- **Who leads is the host's.** comm does not know who a structure's leaders or
+  an agency's operators are, so the host says, through a second seam beside
+  `UseBelonging`:
+
+  ```go
+  type Leading func(ctx context.Context, actorID, structureID string) (bool, error)
+
+  func (m *CommManager) UseLeading(l Leading)
+  ```
+
+  It is asked only after `Belonging` has answered yes, so a lead the host does
+  not also count as belonging is still fenced out of the room. A manager with
+  no `Leading` has no leads: nobody starts or opens a thread through the
+  table, and a `leads` thread is readable by nobody but its requester.
+- **`models.ChatThread.ReadableBy(actor, leads)`** is the one rule: a `group`
+  thread is everybody's who belongs, a `leads` thread is the leads' and the
+  requester's.
+- **The list, the posts, a post and the read marker honour it.**
+  `ListChatThreadsFor` leaves out a thread the caller may not read;
+  `ListChatMessagesFor`, `PostChatMessageFor` and `MarkChatThreadReadFor`
+  answer such a thread exactly as an invented one, the same 404 with the same
+  text, so a member cannot learn that a leads thread exists
+  (`TestAStartedThreadBeginsWithTheLeadsAndAMemberCannotSeeItExists`).
+- **Opening it.** `POST /groups/{structure_id}/chat/threads/{thread_id}/open`
+  (`comm.chat_thread.open`) moves the thread to `group` and answers 200 with
+  it. Nothing about its posts changes, so every member reads what the leads
+  wrote before, unread (`TestOpeningAThreadGivesItToTheGroupWithWhatWasWrittenBefore`).
+  Opening an open thread answers it unchanged. Only a lead of that structure
+  opens one; a member, the requester, a lead of another structure and an
+  invented thread all answer the same 404
+  (`TestOnlyALeadOfTheStructureOpensOrStartsAThread`). The requester is
+  refused with 404 rather than 403 too, so the address never needs a second
+  refusal shape.
+- **Mutation-checked.** Reading every thread as a lead in the list, in the
+  thread fence, or letting a non-lead open one each turns a test red.
+- **The room's General.** The member app's decision 100 has every room hold an
+  open General thread, which the host makes. It can mint one by topic
+  (`MintThread`, already the group's) or start a labelled one and open it at
+  once with `ChatStore.OpenThread`, which needs no caller
+  (`TestAHostOpensAThreadItStartedSoTheRoomHasAnOpenGeneral`).
 
 ## The subject fence
 

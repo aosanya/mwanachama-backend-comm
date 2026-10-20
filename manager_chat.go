@@ -12,6 +12,17 @@ type Belonging func(ctx context.Context, actorID, structureID string) (bool, err
 
 func (m *CommManager) UseBelonging(b Belonging) { m.belonging = b }
 
+type Leading func(ctx context.Context, actorID, structureID string) (bool, error)
+
+func (m *CommManager) UseLeading(l Leading) { m.leading = l }
+
+func (m *CommManager) leads(ctx context.Context, structureID, callerID string) (bool, error) {
+	if m.leading == nil || callerID == "" || structureID == "" {
+		return false, nil
+	}
+	return m.leading(ctx, callerID, structureID)
+}
+
 func (m *CommManager) inStructure(ctx context.Context, structureID, callerID string) error {
 	if m.belonging == nil || callerID == "" || structureID == "" {
 		return models.ErrChatNotFound
@@ -30,8 +41,35 @@ func (m *CommManager) inThread(ctx context.Context, structureID, threadID, calle
 	if err := m.inStructure(ctx, structureID, callerID); err != nil {
 		return err
 	}
-	_, err := m.ChatStore.threadIn(ctx, structureID, threadID)
-	return err
+	t, err := m.ChatStore.threadIn(ctx, structureID, threadID)
+	if err != nil {
+		return err
+	}
+	if t.Audience != models.ChatAudienceLeads {
+		return nil
+	}
+	leads, err := m.leads(ctx, structureID, callerID)
+	if err != nil {
+		return err
+	}
+	if !t.ReadableBy(callerID, leads) {
+		return models.ErrChatNotFound
+	}
+	return nil
+}
+
+func (m *CommManager) asLead(ctx context.Context, structureID, callerID string) error {
+	if err := m.inStructure(ctx, structureID, callerID); err != nil {
+		return err
+	}
+	leads, err := m.leads(ctx, structureID, callerID)
+	if err != nil {
+		return err
+	}
+	if !leads {
+		return models.ErrChatNotFound
+	}
+	return nil
 }
 
 func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, callerID string) ([]models.ChatThreadView, error) {
@@ -46,18 +84,31 @@ func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, calle
 	if err != nil {
 		return nil, err
 	}
-	out := make([]models.ChatThreadView, len(threads))
-	for i, t := range threads {
-		out[i] = models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}
+	leads, err := m.leads(ctx, structureID, callerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.ChatThreadView, 0, len(threads))
+	for _, t := range threads {
+		if t.ReadableBy(callerID, leads) {
+			out = append(out, models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]})
+		}
 	}
 	return out, nil
 }
 
 func (m *CommManager) StartChatThreadFor(ctx context.Context, structureID, callerID, label string) (models.ChatThread, error) {
-	if err := m.inStructure(ctx, structureID, callerID); err != nil {
+	if err := m.asLead(ctx, structureID, callerID); err != nil {
 		return models.ChatThread{}, err
 	}
 	return m.ChatStore.StartThread(ctx, structureID, label)
+}
+
+func (m *CommManager) OpenChatThreadFor(ctx context.Context, structureID, threadID, callerID string) (models.ChatThread, error) {
+	if err := m.asLead(ctx, structureID, callerID); err != nil {
+		return models.ChatThread{}, err
+	}
+	return m.ChatStore.OpenThread(ctx, structureID, threadID)
 }
 
 func (m *CommManager) MarkChatThreadReadFor(ctx context.Context, structureID, threadID, readerID, messageID string) (models.ChatReadMarker, error) {

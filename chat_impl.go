@@ -40,7 +40,7 @@ func NewChatStore(db *gorm.DB, s *spec.Spec, clock Clock) (*ChatStore, error) {
 }
 
 func (s *ChatStore) MintThread(ctx context.Context, structureID, tagPath string) (models.ChatThread, error) {
-	return s.mintThread(ctx, structureID, tagPath, "")
+	return s.mintThread(ctx, structureID, tagPath, "", models.ChatAudienceGroup)
 }
 
 func (s *ChatStore) StartThread(ctx context.Context, structureID, label string) (models.ChatThread, error) {
@@ -49,7 +49,25 @@ func (s *ChatStore) StartThread(ctx context.Context, structureID, label string) 
 	if !ok {
 		return models.ChatThread{}, fmt.Errorf("%w: label is required", models.ErrChatInvalid)
 	}
-	return s.mintThread(ctx, structureID, tagPath, label)
+	return s.mintThread(ctx, structureID, tagPath, label, models.ChatAudienceLeads)
+}
+
+func (s *ChatStore) OpenThread(ctx context.Context, structureID, threadID string) (models.ChatThread, error) {
+	t, err := s.threadIn(ctx, structureID, threadID)
+	if err != nil {
+		return models.ChatThread{}, err
+	}
+	if t.Audience == models.ChatAudienceGroup {
+		return t, nil
+	}
+	err = s.store.Query(ctx, roleChatThread).
+		Where("id = ? AND structure_id = ?", threadID, structureID).
+		Updates(map[string]any{"audience": string(models.ChatAudienceGroup)}).Error
+	if err != nil {
+		return models.ChatThread{}, classify(err)
+	}
+	t.Audience = models.ChatAudienceGroup
+	return t, nil
 }
 
 func labelTagPath(label string) (string, bool) {
@@ -75,7 +93,7 @@ func labelTagPath(label string) (string, bool) {
 	return "/" + strings.Join(words, "-"), true
 }
 
-func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label string) (models.ChatThread, error) {
+func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label string, audience models.ChatAudience) (models.ChatThread, error) {
 	if t, err := s.ResolveThread(ctx, structureID, tagPath); err == nil {
 		return t, nil
 	} else if !errors.Is(err, models.ErrChatNotFound) {
@@ -87,6 +105,7 @@ func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label 
 		StructureID: structureID,
 		TagPath:     tagPath,
 		Label:       label,
+		Audience:    audience,
 		CreatedAt:   s.clock(),
 	}
 	if err := s.store.Insert(ctx, roleChatThread, t); err != nil {

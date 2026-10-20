@@ -27,7 +27,7 @@
       "action": "comm.chat_thread.list",
       "status": 200,
       "title": "A room's threads",
-      "description": "Every thread in one structure's room, oldest first, each with its label and its unread count for the caller: the posts somebody else wrote after the caller's read point. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "description": "Every thread in one structure's room the caller may read, oldest first, each with its label, its audience and its unread count for the caller: the posts somebody else wrote after the caller's read point. A thread still with the leads is listed only to the structure's leads and to the actor who asked for it. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",
@@ -54,7 +54,7 @@
       "action": "comm.chat_thread.create",
       "status": 201,
       "title": "Start a thread",
-      "description": "Starts a thread with a label in one structure's room the caller belongs to. A label the room already has, in any case or spacing, answers with that thread rather than a second one. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "description": "Starts a thread with a label in one structure's room, for a caller the mount says leads that structure. The thread begins readable by the structure's leads only, until one of them opens it to the group. A label the room already has, in any case or spacing, answers with that thread rather than a second one. A caller who does not lead the structure, one who does not belong to it and a structure that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",
@@ -72,6 +72,39 @@
           "as": "label",
           "required": true,
           "description": "The thread's name, as the room's thread list shows it."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "open_chat_thread": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/open",
+      "call": "OpenChatThreadFor",
+      "action": "comm.chat_thread.open",
+      "status": 200,
+      "title": "Open a thread to the group",
+      "description": "Opens a thread that only the structure's leads could read to everybody who belongs to the structure, keeping every post written before. Opening a thread that is already the group's answers with it unchanged. Only a caller the mount says leads the structure may open one; anybody else, a thread that was never minted and a thread of another structure all answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
         }
       ],
       "returns": [

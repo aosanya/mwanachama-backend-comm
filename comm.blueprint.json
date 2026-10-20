@@ -29,6 +29,21 @@
           "description": "The thread's name as the room's thread list shows it, written by whoever started it. Empty for a thread minted by its topic alone."
         },
         {
+          "name": "audience",
+          "type": "enum",
+          "description": "Who may read and write in the thread. Leads is the structure's leads only, as the host's resolver names them, plus the actor who asked for it; group is everybody who belongs to the structure. A started thread begins with leads and is opened to the group by a lead, keeping what was written before. A thread minted by its topic alone, and every row older than this field, is the group's.",
+          "default": "group",
+          "values": [
+            "leads",
+            "group"
+          ]
+        },
+        {
+          "name": "requested_by",
+          "type": "string",
+          "description": "The actor who asked for the thread, who reads and writes in it beside the leads before it is opened. Empty for a thread nobody asked for."
+        },
+        {
           "name": "created_at",
           "type": "timestamp",
           "description": "When the thread was minted."

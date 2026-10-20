@@ -27,6 +27,7 @@ type CommManager struct {
 	clock     Clock
 	spec      *spec.Spec
 	belonging Belonging
+	leading   Leading
 	standing  Standing
 	answerers Answerers
 	push      *pushDelivery

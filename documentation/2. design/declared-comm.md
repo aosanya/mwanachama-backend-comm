@@ -29,6 +29,7 @@ listed at the bottom of this page and on the board.
 | Consumer — `mwanachama-wakala-api` mounts it | CM22 | landed 2026-10-19, under `/comm` at `module:comm`; no handset is bound and moderation gets a refusing act writer, see wakala-api's `comm-mount.md` |
 | Documentation rewritten | CM23 | landed 2026-10-01 |
 | `chat_thread.label` and `comm.chat_thread.create` — starting a labelled thread, see [routes.md](routes.md#starting-a-thread) | CM41 | landed 2026-10-20 |
+| `chat_thread.audience`, `chat_thread.requested_by`, `UseLeading` and `comm.chat_thread.open` — a thread with the leads until it is opened, see [routes.md](routes.md#threads-with-the-leads) | CM42 | landed 2026-10-20 |
 
 Net across CM20 and CM21: about 2,900 lines deleted against 2,900 written,
 and the deletions are the acceptance — `gormstore/`'s nine files, `tables.go`,

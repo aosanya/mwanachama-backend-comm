@@ -17,11 +17,31 @@ var ErrChatNotFound = errors.New("chat: not found")
 var ErrChatInvalid = errors.New("chat: invalid")
 
 type ChatThread struct {
-	ID          string    `json:"id"`
-	StructureID string    `json:"structure_id"`
-	TagPath     string    `json:"tag_path"`
-	Label       string    `json:"label"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string       `json:"id"`
+	StructureID string       `json:"structure_id"`
+	TagPath     string       `json:"tag_path"`
+	Label       string       `json:"label"`
+	Audience    ChatAudience `json:"audience"`
+	RequestedBy string       `json:"requested_by,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+}
+
+type ChatAudience string
+
+const (
+	ChatAudienceLeads ChatAudience = "leads"
+	ChatAudienceGroup ChatAudience = "group"
+)
+
+func (t ChatThread) ReadableBy(actorID string, leads bool) bool {
+	switch {
+	case t.Audience != ChatAudienceLeads:
+		return true
+	case leads:
+		return true
+	default:
+		return actorID != "" && actorID == t.RequestedBy
+	}
 }
 
 type ChatMessage struct {
