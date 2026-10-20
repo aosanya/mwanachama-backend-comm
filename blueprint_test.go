@@ -23,8 +23,8 @@ func testSpec(t *testing.T) *spec.Spec {
 
 func TestBlueprintDeclaresEveryRoleTheDomainSpecFills(t *testing.T) {
 	s := testSpec(t)
-	if len(s.Objects) != 15 {
-		t.Fatalf("declared %d objects, want comm's 15 tables", len(s.Objects))
+	if len(s.Objects) != 17 {
+		t.Fatalf("declared %d objects, want comm's 17 tables", len(s.Objects))
 	}
 	for _, role := range allRoles {
 		if _, ok := s.ByRole(role); !ok {
@@ -61,13 +61,11 @@ func TestEveryObjectAndFieldCarriesADescription(t *testing.T) {
 	}
 }
 
-// carriers is the Go value that fills each role. specstore.New holds the two
-// to each other in both directions at construction, so this map plus
-// TestEveryExampleFitsTheTypes is what replaced the row structs the
-// conversion deleted.
 var carriers = map[string]any{
 	roleChatThread:             models.ChatThread{},
 	roleChatMessage:            models.ChatMessage{},
+	roleSubjectThread:          models.SubjectThread{},
+	roleSubjectMessage:         models.SubjectThreadMessage{},
 	roleDMThread:               models.DMThread{},
 	roleDMParticipant:          models.DMParticipant{},
 	roleDMMessage:              models.DMMessage{},
@@ -125,14 +123,10 @@ func TestEveryExampleFitsTheTypes(t *testing.T) {
 	}
 }
 
-// commsOwnVocabulary is every value comm's own acts produce. Its moderation
-// writes one removal receipt; everything else in a notification's vocabulary
-// is raised by another module through NotificationRepository.Raise, so the
-// module declares these and a domain declares the rest.
 var commsOwnVocabulary = map[string][]string{
 	roleNotification + ".category":           {"chat"},
-	roleNotification + ".event":              {"message_removed"},
-	roleNotification + ".subject_kind":       {"message"},
+	roleNotification + ".event":              {"message_removed", "thread_reply"},
+	roleNotification + ".subject_kind":       {"message", "subject_thread"},
 	roleNotificationPreference + ".category": {"chat"},
 }
 

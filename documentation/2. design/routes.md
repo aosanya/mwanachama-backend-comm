@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Twenty-eight addresses, declared in `comm.operations.json` and served by a
+Thirty-two addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -21,6 +21,10 @@ consumer is the gateway, and it is CM28.
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
+| POST | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.open` |
+| GET | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.list` |
+| GET | `/subject-threads/{thread_id}/messages` | `comm.subject_message.list` |
+| POST | `/subject-threads/{thread_id}/messages` | `comm.subject_message.post` |
 | GET | `/dm/threads` | `comm.dm_thread.list` |
 | GET | `/dm/threads/{thread_id}` | `comm.dm_thread.read` |
 | GET | `/dm/threads/{thread_id}/participants` | `comm.dm_participant.list` |
@@ -186,6 +190,16 @@ comm's `structure_id` is opaque. Which of the host's things a structure is —
 an agency, a group inside one — and which directory answers `Belonging` is a
 decision for the host's own board, not this module's.
 
+## The subject fence
+
+The four `subject` addresses (CM34, 2026-10-20) are fenced by a second host
+seam, `UseStanding`, in the same shape as the structure fence above and for
+the same reasons: one question about one caller and one subject, asked only
+by the operations that need it, closed when nothing is supplied, a failed
+lookup a redacted 500, and every miss the same 404. What a subject is, who
+its audience is and who answers for it are recorded in
+[subject-threads.md](subject-threads.md).
+
 ## The session, and what a body may not claim
 
 Two arguments come from the session rather than the request:
@@ -205,7 +219,7 @@ obeyed.
 
 ## Statuses, transcribed rather than redesigned
 
-`errors` maps twenty-three sentinels. Every status is the one the hand-written
+`errors` maps twenty-five sentinels. Every status is the one the hand-written
 handler gave, with one deliberate exception.
 
 **The exception is CM31.** `dmStatusFor` ended in `default:

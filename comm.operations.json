@@ -119,6 +119,143 @@
         }
       ]
     },
+    "open_subject_thread": {
+      "method": "POST",
+      "path": "/subjects/{subject_kind}/{subject_id}/threads",
+      "call": "OpenSubjectThreadFor",
+      "action": "comm.subject_thread.open",
+      "status": 200,
+      "title": "Open a thread about a subject",
+      "description": "Returns the caller's private thread on a subject, or the subject's group thread, opening it the first time. A private thread is always the caller's own. A caller the host gives no standing on the subject, and a subject that does not exist, answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "subject_kind",
+          "required": true,
+          "description": "What kind of thing the subject is, in the host's own vocabulary."
+        },
+        {
+          "from": "path",
+          "as": "subject_id",
+          "required": true,
+          "description": "Which thing of that kind the conversation is about."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        },
+        {
+          "from": "body",
+          "as": "audience",
+          "required": true,
+          "description": "private, for a thread between the caller and whoever answers for the subject; group, for the thread everyone the subject reached can read."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_subject_threads": {
+      "method": "GET",
+      "path": "/subjects/{subject_kind}/{subject_id}/threads",
+      "call": "ListSubjectThreadsFor",
+      "action": "comm.subject_thread.list",
+      "status": 200,
+      "title": "Threads about a subject",
+      "description": "The threads about one subject the caller may read, each with its message count and the time of its last message. Somebody the subject reached sees the group thread and their own private one; whoever answers for the subject sees every thread.",
+      "args": [
+        {
+          "from": "path",
+          "as": "subject_kind",
+          "required": true,
+          "description": "What kind of thing the subject is, in the host's own vocabulary."
+        },
+        {
+          "from": "path",
+          "as": "subject_id",
+          "required": true,
+          "description": "Which thing of that kind the conversation is about."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_subject_messages": {
+      "method": "GET",
+      "path": "/subject-threads/{thread_id}/messages",
+      "call": "ListSubjectMessagesFor",
+      "action": "comm.subject_message.list",
+      "status": 200,
+      "title": "Messages on a subject thread",
+      "description": "Every message on one thread about a subject, oldest first. A message posted by whoever answers for the subject carries no author for anybody else, so it reads as the answering side's. A thread the caller may not read and one that was never opened answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "post_subject_message": {
+      "method": "POST",
+      "path": "/subject-threads/{thread_id}/messages",
+      "call": "PostSubjectMessageFor",
+      "action": "comm.subject_message.post",
+      "status": 201,
+      "title": "Post on a subject thread",
+      "description": "Posts one message to a thread about a subject the caller may read, and tells everyone it replies to through their notifications: on a private thread, the one it is with when the answering side posts; on a group thread, everyone else from the subject's audience who has posted there. The author is the session's.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread."
+        },
+        {
+          "from": "caller",
+          "as": "author_id",
+          "description": "The author, from the session."
+        },
+        {
+          "from": "body",
+          "as": "body",
+          "required": true,
+          "description": "The message itself, as written."
+        },
+        {
+          "from": "body",
+          "as": "regarding_id",
+          "description": "An optional finer reference inside the subject the message is about. Empty means the subject as a whole."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "list_dm_threads": {
       "method": "GET",
       "path": "/dm/threads",
@@ -781,6 +918,8 @@
   "errors": {
     "ErrChatNotFound": 404,
     "ErrChatInvalid": 400,
+    "ErrSubjectNotFound": 404,
+    "ErrSubjectInvalid": 400,
     "ErrDMNotFound": 404,
     "ErrDMAlreadyActive": 409,
     "ErrDMSelfKick": 409,

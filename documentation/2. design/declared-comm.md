@@ -290,6 +290,7 @@ means lives here rather than beside the constant.
 | `contribution_report_refused` | `contribution` | "Report closed — not found"; the treasurer's note is a column on the report and is quoted from the subject row, never stored on the notification |
 | `merchandise_recorded` | `merchandise` | "Merchandise recorded · Cap · issued by …" |
 | `message_removed` | `chat` | comm's own removal receipt, which never names the moderator |
+| `thread_reply` | `chat` | comm's own: a reply on a thread about a subject (CM34); subject `subject_thread`, never an author — see [subject-threads.md](subject-threads.md) |
 | `identity_case_opened`, `identity_case_closed` | `security` | a duplicate-ID case notice, and the same case ended |
 | `enrollment_key_rotated` | `membership` | a rotation notice, the one notice with an author; its subject is the *retired* key, never the successor, whose identifier may not cross into a notice |
 | `actor_transferred` | `membership` | |

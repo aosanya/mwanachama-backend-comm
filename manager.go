@@ -12,11 +12,6 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// CommManager is the one value the declared route table dispatches against.
-// It aggregates the five stores rather than replacing them, and adds the
-// two things a declaration cannot state: the roster fences that decide
-// whether a caller may read a thread at all, and the per-caller projection
-// of a thread's own address index.
 type CommManager struct {
 	*ChatStore
 	*DMStore
@@ -25,8 +20,13 @@ type CommManager struct {
 	*NotificationStore
 	*AddressDirectoryStore
 
+	subjects *SubjectStore
+
+	db        *gorm.DB
+	clock     Clock
 	spec      *spec.Spec
 	belonging Belonging
+	standing  Standing
 }
 
 func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter, actorsTable string) (*CommManager, error) {
@@ -54,10 +54,14 @@ func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.Act
 	if err != nil {
 		return nil, err
 	}
+	subjects, err := NewSubjectStore(db, s, clock)
+	if err != nil {
+		return nil, err
+	}
 	return &CommManager{
 		ChatStore: chat, DMStore: dm, ModerationStore: moderation,
 		AddressStore: addr, NotificationStore: notif, AddressDirectoryStore: dir,
-		spec: s,
+		subjects: subjects, db: db, clock: clock, spec: s,
 	}, nil
 }
 

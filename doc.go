@@ -52,6 +52,27 @@ var ErrChatNotFound = models.ErrChatNotFound
 
 var ErrChatInvalid = models.ErrChatInvalid
 
+type (
+	SubjectThread        = models.SubjectThread
+	SubjectThreadView    = models.SubjectThreadView
+	SubjectThreadMessage = models.SubjectThreadMessage
+	SubjectAudience      = models.SubjectAudience
+	SubjectStanding      = models.SubjectStanding
+)
+
+const (
+	AudiencePrivate  = models.AudiencePrivate
+	AudienceGroup    = models.AudienceGroup
+	StandingNone     = models.StandingNone
+	StandingAudience = models.StandingAudience
+	StandingAnswerer = models.StandingAnswerer
+)
+
+var (
+	ErrSubjectNotFound = models.ErrSubjectNotFound
+	ErrSubjectInvalid  = models.ErrSubjectInvalid
+)
+
 // DMThread, DMMessage, DMParticipant, DMReaction and DMDeviceKey are the
 // direct/group-message domain's shapes; DMParticipantState is a
 // participant's lifecycle position; DMRepository is the persistence

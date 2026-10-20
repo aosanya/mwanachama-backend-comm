@@ -9,10 +9,10 @@ import (
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
-// invalidFor is the sentinel each role's refusals carry, so a declared rule
-// and the Go rule beside it answer a caller the same way.
 var invalidFor = map[string]error{
 	roleAddress:                models.ErrAddressBadSettings,
+	roleSubjectThread:          models.ErrSubjectInvalid,
+	roleSubjectMessage:         models.ErrSubjectInvalid,
 	roleAddressBlock:           models.ErrAddressBadSettings,
 	roleNotification:           models.ErrNotificationInvalid,
 	roleNotificationPreference: models.ErrNotificationInvalid,

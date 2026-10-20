@@ -27,15 +27,17 @@ func newID() string { return specstore.NewID() }
 func mintID(prefix string) string { return prefix + "-" + specstore.NewID() }
 
 const (
-	prefixChatThread  = "cthread"
-	prefixChatMessage = "msg"
-	prefixDMThread    = "dm"
-	prefixDMMessage   = "dmmsg"
-	prefixDMDeviceKey = "dkey"
-	prefixReport      = "modreport"
-	prefixRemoval     = "modremoval"
-	prefixDismissal   = "moddismissal"
-	prefixDispute     = "moddispute"
+	prefixChatThread     = "cthread"
+	prefixChatMessage    = "msg"
+	prefixSubjectThread  = "sthread"
+	prefixSubjectMessage = "smsg"
+	prefixDMThread       = "dm"
+	prefixDMMessage      = "dmmsg"
+	prefixDMDeviceKey    = "dkey"
+	prefixReport         = "modreport"
+	prefixRemoval        = "modremoval"
+	prefixDismissal      = "moddismissal"
+	prefixDispute        = "moddispute"
 )
 
 func columnName(field string) string { return specstore.ColumnName(field) }

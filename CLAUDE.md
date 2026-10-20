@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Fifteen roles, 112 fields.
+- **`comm.blueprint.json` is the object set.** Seventeen roles, 125 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -35,8 +35,9 @@ what is true of **comm** is in
   examples directory, so a third is swept without being named.
 - **The module owns no domain's vocabulary.** `notification`'s `category`,
   `event` and `subject_kind` declare only what comm's own acts produce —
-  `chat`, `message_removed`, `message`. comm raises exactly one event, its
-  moderation's removal receipt; every other value is written by another
+  `chat`, `message_removed` and `thread_reply`, `message` and
+  `subject_thread`. comm raises exactly two events, its moderation's removal
+  receipt and a reply on a subject thread; every other value is written by another
   module through `NotificationRepository.Raise`, so each domain declares its
   own by widening the enum (shared's S37). `TestVocabularyMatchesTheBlueprint`
   holds the blueprint to comm's own set and `domain_agnostic_test.go` fails on
@@ -61,7 +62,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Twenty-eight addresses, each
+- **`comm.operations.json` is the route table.** Thirty-two addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -79,6 +80,14 @@ what is true of **comm** is in
   before anything else; a caller who does not belong gets the same 404 as an
   invented structure or thread, and a manager given none belongs nowhere.
   See [routes.md](documentation/2.%20design/routes.md#the-structure-fence).
+- **A subject thread is fenced by a standing the host supplies** (CM34).
+  `subject_thread`/`subject_message` are conversations about something
+  another module owns, named by an opaque `subject_kind` and `subject_id`.
+  `UseStanding` gives the manager a `Standing` function answering *none*,
+  *audience* or *answerer* for one caller on one subject; comm never learns
+  who those are. Every miss is the same 404, a manager given none fences
+  everybody out, and an answerer's message carries no author for anybody
+  else. See [subject-threads.md](documentation/2.%20design/subject-threads.md).
 - **The caller and the handset are session facts.** `{"from": "caller"}` and
   `{"from": "device"}` bind them, and a body claiming either is overwritten
   rather than refused. That also keeps both out of any MCP tool schema.

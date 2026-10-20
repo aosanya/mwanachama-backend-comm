@@ -14,6 +14,8 @@ type Mount = dispatch.Mount
 var Sentinels = map[string]error{
 	"ErrChatNotFound":               mwanachamacomm.ErrChatNotFound,
 	"ErrChatInvalid":                mwanachamacomm.ErrChatInvalid,
+	"ErrSubjectNotFound":            mwanachamacomm.ErrSubjectNotFound,
+	"ErrSubjectInvalid":             mwanachamacomm.ErrSubjectInvalid,
 	"ErrDMNotFound":                 mwanachamacomm.ErrDMNotFound,
 	"ErrDMAlreadyActive":            mwanachamacomm.ErrDMAlreadyActive,
 	"ErrDMSelfKick":                 mwanachamacomm.ErrDMSelfKick,

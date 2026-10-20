@@ -106,6 +106,127 @@
       ]
     },
     {
+      "role": "subject_thread",
+      "description": "One conversation about something another module owns, named by an opaque kind and id. A private thread is between one actor and whoever answers for the subject; a group thread is readable by everyone the subject reached and whoever answers for it. Which actors those are is the host's to say, never this module's.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "subject_kind",
+          "type": "string",
+          "description": "What kind of thing the subject is, in the host's own vocabulary. Opaque here: the host's standing resolver is what refuses a kind it does not recognise.",
+          "required": true,
+          "matches": "subject_kind"
+        },
+        {
+          "name": "subject_id",
+          "type": "string",
+          "description": "Which thing of that kind the conversation is about. The kind and this together are the subject.",
+          "required": true
+        },
+        {
+          "name": "audience",
+          "type": "enum",
+          "description": "Who may read the thread besides whoever answers for the subject: one actor, or everyone the subject reached.",
+          "required": true,
+          "values": [
+            "private",
+            "group"
+          ]
+        },
+        {
+          "name": "owner_id",
+          "type": "string",
+          "description": "The one actor a private thread is with. Empty on a group thread, which is a real state rather than a missing value: a subject has at most one group thread."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When the thread was opened."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "subject_audience_owner",
+          "description": "Resolves a subject to its group thread, or to one actor's private thread on it. Unique, so opening twice returns the same thread.",
+          "fields": [
+            "subject_kind",
+            "subject_id",
+            "audience",
+            "owner_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "subject",
+          "description": "Lists every thread about one subject, which is what an answerer reads.",
+          "fields": [
+            "subject_kind",
+            "subject_id"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "subject_message",
+      "description": "One message on a thread about a subject. Never edited and never deleted.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread this was posted on.",
+          "required": true
+        },
+        {
+          "name": "author_id",
+          "type": "string",
+          "description": "The actor who posted it. Kept for the answering side and withheld from every other reader when the message was posted by an answerer, so a reply reads as the answering side's rather than one person's.",
+          "required": true
+        },
+        {
+          "name": "by_answerer",
+          "type": "bool",
+          "description": "Whether the author was answering for the subject when they posted, rather than one of its audience."
+        },
+        {
+          "name": "regarding_id",
+          "type": "string",
+          "description": "An optional finer reference inside the subject the message is about, opaque here. Empty means the subject as a whole."
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "description": "The message itself, as written.",
+          "required": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When it was posted. Second half of the listing index, because a thread is read in time order."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "thread_created",
+          "description": "Reads one thread's messages in time order, and is what the per-thread count reads over.",
+          "fields": [
+            "thread_id",
+            "created_at"
+          ]
+        }
+      ]
+    },
+    {
       "role": "dm_thread",
       "description": "One direct conversation. A group is a thread with more than one recipient rather than a separate concept, so there is no group object anywhere in this module.",
       "fields": [
@@ -825,7 +946,8 @@
           "type": "enum",
           "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the event it raises itself \u2014 a removal receipt from its own moderation; every other event belongs to whichever module raises it, and is declared by the domain.",
           "values": [
-            "message_removed"
+            "message_removed",
+            "thread_reply"
           ]
         },
         {
@@ -833,7 +955,8 @@
           "type": "enum",
           "description": "Which table the subject id points into. Not a foreign key, because it points at as many tables as the domain has subjects. The module declares only the one its own event addresses.",
           "values": [
-            "message"
+            "message",
+            "subject_thread"
           ]
         },
         {

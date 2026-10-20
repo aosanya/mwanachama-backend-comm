@@ -16,6 +16,18 @@
       "description": "One post in a chapter's room."
     },
     {
+      "role": "subject_thread",
+      "name": "form_thread",
+      "table": "form_threads",
+      "description": "One conversation about a form or one of its questions: privately between a member and the agency, or among everyone the form was sent to and the agency."
+    },
+    {
+      "role": "subject_message",
+      "name": "form_message",
+      "table": "form_messages",
+      "description": "One message on a conversation about a form, signed by the agency when the agency answers."
+    },
+    {
       "role": "dm_thread",
       "name": "dm_thread",
       "table": "dm_threads",
