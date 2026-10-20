@@ -7,6 +7,7 @@ import (
 	"time"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
+	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
 func newNotificationStore(t *testing.T) *mwanachamacomm.NotificationStore {
@@ -198,5 +199,61 @@ func TestNotificationIsMutedAbsentMeansOn(t *testing.T) {
 	muted, err := s.IsMuted(context.Background(), "nobody-ever-set-a-preference", mwanachamacomm.CategoryChat)
 	if err != nil || muted {
 		t.Fatalf("IsMuted for a actor with no rows = %v, err %v, want false", muted, err)
+	}
+}
+
+func TestNotificationRaisesADecidedGroupJoinUnderMembershipAboutTheGroup(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	for _, event := range []models.NotificationEvent{models.EventGroupJoinApproved, models.EventGroupJoinDeclined} {
+		n, err := s.Raise(ctx, mwanachamacomm.Notification{
+			ActorID:     "m-1",
+			Category:    models.CategoryMembership,
+			Event:       event,
+			SubjectKind: models.SubjectGroup,
+			SubjectID:   "group-1",
+		})
+		if err != nil {
+			t.Fatalf("Raise %s: %v", event, err)
+		}
+		if n.SubjectKind != models.SubjectGroup || n.SubjectID != "group-1" {
+			t.Fatalf("Raise %s subject = %s/%s, want group/group-1", event, n.SubjectKind, n.SubjectID)
+		}
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 2 {
+		t.Fatalf("List = %+v, err %v, want 2 rows", out, err)
+	}
+}
+
+func TestNotificationRefusesADecidedGroupJoinOutsideMembership(t *testing.T) {
+	s := newNotificationStore(t)
+	_, err := s.Raise(context.Background(), mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryApproval,
+		Event:       models.EventGroupJoinApproved,
+		SubjectKind: models.SubjectGroup,
+		SubjectID:   "group-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationInvalid) {
+		t.Fatalf("expected ErrNotificationInvalid, got %v", err)
+	}
+}
+
+func TestMutingMembershipSilencesADecidedGroupJoin(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	if _, err := s.SetPreference(ctx, "m-1", models.CategoryMembership, true); err != nil {
+		t.Fatalf("SetPreference: %v", err)
+	}
+	_, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventGroupJoinApproved,
+		SubjectKind: models.SubjectGroup,
+		SubjectID:   "group-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
+		t.Fatalf("expected ErrNotificationMuted, got %v", err)
 	}
 }

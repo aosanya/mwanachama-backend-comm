@@ -117,7 +117,9 @@
             "consent_version_published",
             "number_changed",
             "device_signed_out",
-            "approval_requested"
+            "approval_requested",
+            "group_join_approved",
+            "group_join_declined"
           ]
         },
         {
@@ -131,7 +133,8 @@
             "device",
             "enrollment_key",
             "actor_registration",
-            "pending_approval"
+            "pending_approval",
+            "group"
           ]
         }
       ]

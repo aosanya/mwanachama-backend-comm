@@ -81,56 +81,27 @@ func NotificationSMSChannel(c NotificationCategory) bool { return c == CategoryS
 type NotificationEvent string
 
 const (
-	// EventSurveyReached — "New survey reached you".
-	EventSurveyReached  NotificationEvent = "survey_reached"
-	EventSurveyReminder NotificationEvent = "survey_reminder"
-	EventSurveyNudge    NotificationEvent = "survey_nudge"
-	// EventResultsPublished — "You said, we heard".
-	EventResultsPublished NotificationEvent = "results_published"
-	// EventContributionMatched — "Contribution matched".
-	EventContributionMatched NotificationEvent = "contribution_matched"
-	// EventContributionOrphaned — an orphaned-contribution notice, told
-	// once.
-	EventContributionOrphaned NotificationEvent = "contribution_orphaned"
-	// EventContributionReportRefused — "Report closed — not found". It
-	// carries the treasurer's note without breaking the no-body rule: the
-	// note is a column on the *report*, and the renderer quotes it from
-	// the subject row.
+	EventSurveyReached             NotificationEvent = "survey_reached"
+	EventSurveyReminder            NotificationEvent = "survey_reminder"
+	EventSurveyNudge               NotificationEvent = "survey_nudge"
+	EventResultsPublished          NotificationEvent = "results_published"
+	EventContributionMatched       NotificationEvent = "contribution_matched"
+	EventContributionOrphaned      NotificationEvent = "contribution_orphaned"
 	EventContributionReportRefused NotificationEvent = "contribution_report_refused"
-	// EventMerchandiseRecorded — "Merchandise recorded · Cap · issued by
-	// …".
-	EventMerchandiseRecorded NotificationEvent = "merchandise_recorded"
-	// EventMessageRemoved — a removal receipt, which never names the
-	// moderator.
-	EventMessageRemoved     NotificationEvent = "message_removed"
-	EventIdentityCaseOpened NotificationEvent = "identity_case_opened"
-	// EventIdentityCaseClosed — the same case, ended.
-	EventIdentityCaseClosed NotificationEvent = "identity_case_closed"
-	// EventEnrollmentKeyRotated — a rotation notice, the one notification
-	// in the set with an author. Its subject is the *retired* key, never
-	// the successor, because the successor's identifier may not cross
-	// into a notice.
-	EventEnrollmentKeyRotated NotificationEvent = "enrollment_key_rotated"
-	EventActorTransferred     NotificationEvent = "actor_transferred"
-	// EventConsentVersionPublished — a new consent version.
-	EventConsentVersionPublished NotificationEvent = "consent_version_published"
-	// EventNumberChanged — a number-on-file change.
-	EventNumberChanged NotificationEvent = "number_changed"
-	// EventDeviceSignedOut — a security notice: a bare fact with no link,
-	// no control, no person, no place.
-	EventDeviceSignedOut NotificationEvent = "device_signed_out"
-	// EventApprovalRequested — an agent's proposed write named this actor
-	// Accountable and is waiting on their decision.
-	EventApprovalRequested NotificationEvent = "approval_requested"
+	EventMerchandiseRecorded       NotificationEvent = "merchandise_recorded"
+	EventMessageRemoved            NotificationEvent = "message_removed"
+	EventIdentityCaseOpened        NotificationEvent = "identity_case_opened"
+	EventIdentityCaseClosed        NotificationEvent = "identity_case_closed"
+	EventEnrollmentKeyRotated      NotificationEvent = "enrollment_key_rotated"
+	EventActorTransferred          NotificationEvent = "actor_transferred"
+	EventConsentVersionPublished   NotificationEvent = "consent_version_published"
+	EventNumberChanged             NotificationEvent = "number_changed"
+	EventDeviceSignedOut           NotificationEvent = "device_signed_out"
+	EventApprovalRequested         NotificationEvent = "approval_requested"
+	EventGroupJoinApproved         NotificationEvent = "group_join_approved"
+	EventGroupJoinDeclined         NotificationEvent = "group_join_declined"
 )
 
-// notificationEventCategory is the whole vocabulary of events, each mapped
-// to the category it is opted out of under.
-//
-// The map is the vocabulary, so an event with no category cannot exist:
-// Validate refuses one — a value added without an arm here fails at the
-// write rather than relocating the failure into a migration nobody
-// re-reads.
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventSurveyReached:             CategorySurvey,
 	EventSurveyReminder:            CategorySurvey,
@@ -149,6 +120,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventNumberChanged:             CategoryMembership,
 	EventDeviceSignedOut:           CategorySecurity,
 	EventApprovalRequested:         CategoryApproval,
+	EventGroupJoinApproved:         CategoryMembership,
+	EventGroupJoinDeclined:         CategoryMembership,
 }
 
 func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
@@ -183,15 +156,15 @@ const (
 	SubjectDevice             NotificationSubjectKind = "device"
 	SubjectEnrollmentKey      NotificationSubjectKind = "enrollment_key"
 	SubjectActorRegistration  NotificationSubjectKind = "actor_registration"
-	// SubjectPendingApproval — the row is a
-	// mwanachama-backend-api-shared PendingApproval id.
-	SubjectPendingApproval NotificationSubjectKind = "pending_approval"
+	SubjectPendingApproval    NotificationSubjectKind = "pending_approval"
+	SubjectGroup              NotificationSubjectKind = "group"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectSurvey, SubjectContribution, SubjectContributionReport,
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
+	SubjectGroup,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

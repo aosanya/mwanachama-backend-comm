@@ -270,3 +270,60 @@ Two things follow that are not just a list of strings moving:
 
 Neither is done. The scope of (2) is tracked as its own row rather than
 folded into CM20, because it is a format question, not a storage one.
+
+## The civic notification events, and who raises them
+
+`models/notification_category.go` keeps the civic vocabulary in Go until
+CM26 moves the event-to-category pairing into a declaration; `civic.comm.json`
+widens the blueprint's enums with the same values, and
+`TestVocabularyMatchesTheBlueprint` holds the two together. What each value
+means lives here rather than beside the constant.
+
+| Event | Category | Meaning |
+| --- | --- | --- |
+| `survey_reached` | `survey` | "New survey reached you" |
+| `survey_reminder` | `survey` | the reminder; capped one per actor per subject |
+| `survey_nudge` | `survey` | capped one per structure per subject, so it names a structure |
+| `results_published` | `results` | "You said, we heard" |
+| `contribution_matched` | `contribution` | "Contribution matched" |
+| `contribution_orphaned` | `contribution` | an orphaned contribution, told once |
+| `contribution_report_refused` | `contribution` | "Report closed — not found"; the treasurer's note is a column on the report and is quoted from the subject row, never stored on the notification |
+| `merchandise_recorded` | `merchandise` | "Merchandise recorded · Cap · issued by …" |
+| `message_removed` | `chat` | comm's own removal receipt, which never names the moderator |
+| `identity_case_opened`, `identity_case_closed` | `security` | a duplicate-ID case notice, and the same case ended |
+| `enrollment_key_rotated` | `membership` | a rotation notice, the one notice with an author; its subject is the *retired* key, never the successor, whose identifier may not cross into a notice |
+| `actor_transferred` | `membership` | |
+| `consent_version_published` | `membership` | a new consent version |
+| `number_changed` | `membership` | a number-on-file change |
+| `device_signed_out` | `security` | a bare fact: no link, no control, no person, no place |
+| `approval_requested` | `approval` | an agent-proposed write named this actor Accountable and waits on their decision (kazi's K6); subject `pending_approval`, a `mwanachama-backend-api-shared` PendingApproval id |
+| `group_join_approved` | `membership` | a request to join a confirmed group was approved (CM33); subject `group` |
+| `group_join_declined` | `membership` | the same request, declined (CM33); subject `group` |
+
+`survey` and `security` are exempt from muting, and `security` is the only
+category with an SMS channel.
+
+### A decided group join (CM33, 2026-10-20)
+
+The member app's Join Group (frontend-member MF22, MF23) tells a member in
+the Inbox when a leader decides their request. `mwanachama-wakala-api`
+raises the notification (its WK99) through `NotificationRepository.Raise`;
+comm only carries it.
+
+- **Two events, not one with an outcome.** `group_join_approved` and
+  `group_join_declined` are separate values, because a notification has no
+  stored body and the renderer picks its wording (frontend-member MF36) from
+  the event alone.
+- **The category is `membership`.** It is the nearest existing opt-out unit,
+  and it is not exempt from muting — a member who muted membership hears
+  about neither, which the muting test pins.
+- **The subject is the group, `subject_kind: group`.** Not the request: the
+  Inbox row opens that group's room, so it needs the group's id, and the
+  request row is the raiser's, not something a member's client reads.
+- **A silent decline is the raiser's decision, not comm's.** Member app
+  decision 58 lets a leader decline without telling the member; wakala-api
+  simply does not raise `group_join_declined` then. Nothing here knows the
+  difference.
+- `group` is not on `domain_agnostic_test.go`'s word list, so `SubjectGroup`
+  needs no exemption; the two event constants live in the CM26-exempt file
+  like every other civic event.
