@@ -18,3 +18,7 @@ Table-by-table datamodel notes (message-report.md, message-removal.md,
 removal-dispute.md) stayed in the gateway's own
 `documentation/2. design/architecture/datamodel/` — they describe the product
 shape, which did not change, not the Go package boundary, which did.
+
+[web-push.md](web-push.md) records CM35: the `push_subscription` role, the
+subscribe and unsubscribe addresses, how a raised notification becomes a Web
+Push, and the VAPID configuration a host supplies.

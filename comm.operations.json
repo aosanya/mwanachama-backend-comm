@@ -913,6 +913,71 @@
           "body": true
         }
       ]
+    },
+    "subscribe_push": {
+      "method": "POST",
+      "path": "/push-subscriptions",
+      "call": "SubscribePushFor",
+      "action": "comm.push_subscription.subscribe",
+      "status": 201,
+      "title": "Subscribe this browser to pushes",
+      "description": "Stores one of the caller's browser push subscriptions, so that every notification raised for the caller is also sent to this browser as a Web Push. The body is the browser's PushSubscription as it serialises it; the subscriber and the handset are session facts, so a body naming anybody else is ignored. Re-subscribing an endpoint replaces it, and an endpoint somebody else held becomes the caller's.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The subscriber, from the session."
+        },
+        {
+          "from": "device",
+          "as": "device_id",
+          "description": "The handset, from the session."
+        },
+        {
+          "from": "body",
+          "as": "endpoint",
+          "required": true,
+          "description": "The push service URL the browser minted."
+        },
+        {
+          "from": "body",
+          "as": "keys",
+          "required": true,
+          "description": "The browser's p256dh public key and auth secret, base64url."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "unsubscribe_push": {
+      "method": "POST",
+      "path": "/push-subscriptions/unsubscribe",
+      "call": "UnsubscribePushFor",
+      "action": "comm.push_subscription.unsubscribe",
+      "status": 204,
+      "title": "Stop pushes to this browser",
+      "description": "Removes one of the caller's own push subscriptions by its endpoint. An endpoint the caller does not hold is left alone and answers the same, so the call is safe to repeat.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The subscriber, from the session."
+        },
+        {
+          "from": "body",
+          "as": "endpoint",
+          "required": true,
+          "description": "The push service URL to stop sending to."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
     }
   },
   "errors": {
@@ -940,6 +1005,7 @@
     "ErrNotificationInvalid": 400,
     "ErrNotificationMuted": 409,
     "ErrInvalidReference": 400,
-    "ErrConflict": 409
+    "ErrConflict": 409,
+    "ErrPushSubscriptionInvalid": 400
   }
 }

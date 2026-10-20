@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Seventeen roles, 125 fields.
+- **`comm.blueprint.json` is the object set.** Eighteen roles, 132 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -62,7 +62,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Thirty-two addresses, each
+- **`comm.operations.json` is the route table.** Thirty-four addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -94,6 +94,14 @@ what is true of **comm** is in
 - **`Provision` is the whole provisioning story** — legacy adoption, then
   `spec.Migrate`, then the two notification caps, which are partial unique
   indexes over a condition the format cannot declare.
+- **A raised notification is also a Web Push (CM35).** `push_subscription`
+  holds each actor's browser subscriptions, unique by endpoint; the
+  subscriber is `{"from": "caller"}`. `UseWebPush` gives the manager a
+  `PushSender`, and `Raise` then sends in the background and drops a
+  subscription the push service answers 404 or 410. No sender means no push.
+  The VAPID pair is the host's, read from its environment through
+  `VAPIDFromEnv`; never commit one. See
+  [web-push.md](documentation/2.%20design/web-push.md).
 - **Every route test crosses a real mux with a real caller.** Both bugs this
   file records below escaped because the fixtures called handlers in Go.
 

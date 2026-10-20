@@ -1039,6 +1039,69 @@
           "unique": true
         }
       ]
+    },
+    {
+      "role": "push_subscription",
+      "description": "One browser's standing request to be woken when its owner is told something. When a notification is raised for an actor, every subscription that actor holds is sent a Web Push; one the push service reports gone is dropped.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Whose subscription this is. A session fact: the subscriber is the caller, never a body field.",
+          "required": true
+        },
+        {
+          "name": "device_id",
+          "type": "string",
+          "description": "The handset the session was minted for, when the session carries one. Absent is legitimate."
+        },
+        {
+          "name": "endpoint",
+          "type": "text",
+          "description": "The push service URL the browser minted for this subscription. Unique, because one browser subscription has one owner at a time: subscribing an endpoint somebody else held moves it.",
+          "required": true
+        },
+        {
+          "name": "public_key",
+          "type": "text",
+          "description": "The browser's P-256 public key (keys.p256dh), base64url, that a push's payload is encrypted to.",
+          "required": true
+        },
+        {
+          "name": "auth_secret",
+          "type": "text",
+          "description": "The browser's 16-byte authentication secret (keys.auth), base64url. Never returned by any address.",
+          "required": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "description": "When the browser last subscribed this endpoint."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "endpoint",
+          "description": "One row per push endpoint, so re-subscribing the same browser replaces rather than duplicates.",
+          "fields": [
+            "endpoint"
+          ],
+          "unique": true
+        },
+        {
+          "name": "actor",
+          "description": "Finds every subscription one actor holds, which is what sending a push walks.",
+          "fields": [
+            "actor_id"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -18,8 +18,9 @@ import (
 )
 
 type NotificationStore struct {
-	store *store
-	clock Clock
+	store    *store
+	clock    Clock
+	onRaised func(context.Context, models.Notification)
 }
 
 func NewNotificationStore(db *gorm.DB, s *spec.Spec, clock Clock) (*NotificationStore, error) {
@@ -103,6 +104,9 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 	}
 	if err := s.store.Insert(ctx, roleNotification, n); err != nil {
 		return models.Notification{}, classifyNotificationWrite(err)
+	}
+	if s.onRaised != nil {
+		s.onRaised(ctx, n)
 	}
 	return n, nil
 }

@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-two addresses, declared in `comm.operations.json` and served by a
+Thirty-four addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -49,6 +49,8 @@ consumer is the gateway, and it is CM28.
 | POST | `/notifications/read` | `comm.notification.mark_read` |
 | GET | `/notification-preferences` | `comm.notification_preference.list` |
 | PUT | `/notification-preferences/{category}` | `comm.notification_preference.set` |
+| POST | `/push-subscriptions` | `comm.push_subscription.subscribe` |
+| POST | `/push-subscriptions/unsubscribe` | `comm.push_subscription.unsubscribe` |
 
 `routes.Shape()` prints this without a database, and
 `TestEveryDeclaredAddressIsReachable` fails if the count drifts or an address
@@ -209,6 +211,11 @@ Two arguments come from the session rather than the request:
 - `{"from": "device"}` — which handset. Added to `dispatch` for this module
   (shared's S45).
 
+`subscribe_push` binds the caller and the handset the same way, but takes
+the subscription as named body arguments rather than the whole body, so a
+browser's `expirationTime` is ignored rather than refused and an `actor_id`
+in the body never reaches the row. See [web-push.md](web-push.md).
+
 `publish_dm_device_key` takes the whole body *and* both session facts, and
 the manager overwrites the body's `actor_id`, `published_by` and `device_id`
 from the session. Overwriting rather than refusing is deliberate and is
@@ -219,7 +226,7 @@ obeyed.
 
 ## Statuses, transcribed rather than redesigned
 
-`errors` maps twenty-five sentinels. Every status is the one the hand-written
+`errors` maps twenty-six sentinels; `ErrPushSubscriptionInvalid` is CM35's 400. Every status is the one the hand-written
 handler gave, with one deliberate exception.
 
 **The exception is CM31.** `dmStatusFor` ended in `default:
@@ -254,7 +261,7 @@ lost quietly:
 
 ## Tests
 
-`routes/` has 27 tests across five files, every one through a real
+`routes/` has 41 tests across eight files, every one through a real
 `httptest` server with the session carried on the context, because both of
 the bugs this repo's CLAUDE.md records escaped by calling handlers in Go.
 

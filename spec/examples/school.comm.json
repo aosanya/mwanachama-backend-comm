@@ -156,6 +156,12 @@
           ]
         }
       ]
+    },
+    {
+      "role": "push_subscription",
+      "name": "browser_alert",
+      "table": "browser_alerts",
+      "description": "One browser a parent or teacher asked to be alerted on when an announcement reaches them."
     }
   ]
 }

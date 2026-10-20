@@ -201,3 +201,13 @@ func IsNotificationCategoryExempt(c NotificationCategory) bool {
 
 // NotificationSMSChannel forwards to [models.NotificationSMSChannel].
 func NotificationSMSChannel(c NotificationCategory) bool { return models.NotificationSMSChannel(c) }
+
+type (
+	PushSubscription = models.PushSubscription
+	PushKeys         = models.PushKeys
+)
+
+var (
+	ErrPushSubscriptionInvalid = models.ErrPushSubscriptionInvalid
+	ErrPushSubscriptionGone    = models.ErrPushSubscriptionGone
+)

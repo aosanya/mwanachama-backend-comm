@@ -170,6 +170,12 @@
           ]
         }
       ]
+    },
+    {
+      "role": "push_subscription",
+      "name": "push_subscription",
+      "table": "push_subscriptions",
+      "description": "One member's browser that asked to be woken when they are told something."
     }
   ]
 }

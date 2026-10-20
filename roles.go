@@ -18,6 +18,7 @@ const (
 	roleAddressBlock           = "address_block"
 	roleNotification           = "notification"
 	roleNotificationPreference = "notification_preference"
+	rolePushSubscription       = "push_subscription"
 )
 
 var allRoles = []string{
@@ -38,4 +39,5 @@ var allRoles = []string{
 	roleAddressBlock,
 	roleNotification,
 	roleNotificationPreference,
+	rolePushSubscription,
 }
