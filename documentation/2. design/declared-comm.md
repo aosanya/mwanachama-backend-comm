@@ -302,7 +302,8 @@ means lives here rather than beside the constant.
 | `group_join_declined` | `membership` | the same request, declined (CM33); subject `group` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
-category with an SMS channel.
+category with an SMS channel. Two events are exempt on their own, inside a
+category that is not: `group_join_approved` and `group_join_declined` (CM37).
 
 ### A decided group join (CM33, 2026-10-20)
 
@@ -315,9 +316,8 @@ comm only carries it.
   `group_join_declined` are separate values, because a notification has no
   stored body and the renderer picks its wording (frontend-member MF36) from
   the event alone.
-- **The category is `membership`.** It is the nearest existing opt-out unit,
-  and it is not exempt from muting — a member who muted membership hears
-  about neither, which the muting test pins.
+- **The category is `membership`.** It is the nearest existing opt-out unit.
+  The two events themselves are exempt from muting since CM37 — see below.
 - **The subject is the group, `subject_kind: group`.** Not the request: the
   Inbox row opens that group's room, so it needs the group's id, and the
   request row is the raiser's, not something a member's client reads.
@@ -328,3 +328,32 @@ comm only carries it.
 - `group` is not on `domain_agnostic_test.go`'s word list, so `SubjectGroup`
   needs no exemption; the two event constants live in the CM26-exempt file
   like every other civic event.
+
+### A join decision is never muted (CM37, 2026-10-20)
+
+Member app decision 73: a member hears that a leader decided their request
+to join a group whatever their `membership` mute setting says. Every other
+`membership` event — `enrollment_key_rotated`, `actor_transferred`,
+`consent_version_published`, `number_changed` — still honours the mute.
+
+- **The exemption is per event, not per category.** Exempting `membership`
+  would unmute the other four; moving the two events to `security` or
+  `survey` would change what their row says it is and what an SMS channel
+  would carry. So `models.NotificationEventIgnoresMute` names the two events,
+  beside the category exemption `notificationExempt` it parallels.
+- **`Raise` asks it before the send-time mute read**
+  (`NotificationStore.refuseIfMuted`). A muted member's join decision is
+  stored, listed and pushed like any other notification. `IsMuted` is
+  unchanged and still answers for the category, because it is a fact about
+  the preference, not about one event.
+- **The preference itself is untouched.** `membership` can still be muted,
+  and `SetPreference` does not refuse it; the exemption only decides what
+  the mute reaches.
+- **Why it is in Go and not declared.** Like the event-to-category pairing,
+  an exemption hangs off a declared enum value, which `spec` has no
+  construct for. It is civic knowledge in Go and goes wherever CM26 takes
+  that pairing.
+- Pinned by `TestMutingMembershipStillDeliversADecidedGroupJoin`,
+  `TestMutingMembershipStillSilencesEveryOtherMembershipEvent` and
+  `TestOnlyTheTwoJoinDecisionsIgnoreMute`, all through `Raise` on a real
+  provisioned store.

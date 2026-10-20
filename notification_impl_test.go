@@ -240,20 +240,62 @@ func TestNotificationRefusesADecidedGroupJoinOutsideMembership(t *testing.T) {
 	}
 }
 
-func TestMutingMembershipSilencesADecidedGroupJoin(t *testing.T) {
+func TestMutingMembershipStillDeliversADecidedGroupJoin(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	if _, err := s.SetPreference(ctx, "m-1", models.CategoryMembership, true); err != nil {
 		t.Fatalf("SetPreference: %v", err)
 	}
-	_, err := s.Raise(ctx, mwanachamacomm.Notification{
-		ActorID:     "m-1",
-		Category:    models.CategoryMembership,
-		Event:       models.EventGroupJoinApproved,
-		SubjectKind: models.SubjectGroup,
-		SubjectID:   "group-1",
-	})
-	if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
-		t.Fatalf("expected ErrNotificationMuted, got %v", err)
+	for _, event := range []models.NotificationEvent{models.EventGroupJoinApproved, models.EventGroupJoinDeclined} {
+		if _, err := s.Raise(ctx, mwanachamacomm.Notification{
+			ActorID:     "m-1",
+			Category:    models.CategoryMembership,
+			Event:       event,
+			SubjectKind: models.SubjectGroup,
+			SubjectID:   "group-1",
+		}); err != nil {
+			t.Fatalf("Raise %s with membership muted: %v", event, err)
+		}
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 2 {
+		t.Fatalf("List = %+v, err %v, want both decisions delivered", out, err)
+	}
+}
+
+func TestMutingMembershipStillSilencesEveryOtherMembershipEvent(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	if _, err := s.SetPreference(ctx, "m-1", models.CategoryMembership, true); err != nil {
+		t.Fatalf("SetPreference: %v", err)
+	}
+	for _, event := range models.NotificationEvents() {
+		category, _ := models.NotificationCategoryOf(event)
+		if category != models.CategoryMembership || models.NotificationEventIgnoresMute(event) {
+			continue
+		}
+		_, err := s.Raise(ctx, mwanachamacomm.Notification{
+			ActorID:     "m-1",
+			Category:    models.CategoryMembership,
+			Event:       event,
+			SubjectKind: models.SubjectActorRegistration,
+			SubjectID:   "reg-1",
+		})
+		if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
+			t.Fatalf("Raise %s with membership muted: expected ErrNotificationMuted, got %v", event, err)
+		}
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("List = %+v, err %v, want nothing delivered", out, err)
+	}
+}
+
+func TestOnlyTheTwoJoinDecisionsIgnoreMute(t *testing.T) {
+	for _, event := range models.NotificationEvents() {
+		want := event == models.EventGroupJoinApproved || event == models.EventGroupJoinDeclined
+		if got := models.NotificationEventIgnoresMute(event); got != want {
+			t.Fatalf("NotificationEventIgnoresMute(%s) = %v, want %v", event, got, want)
+		}
 	}
 }

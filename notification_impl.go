@@ -89,12 +89,8 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 	if err := n.Validate(); err != nil {
 		return models.Notification{}, err
 	}
-	muted, err := s.IsMuted(ctx, n.ActorID, n.Category)
-	if err != nil {
+	if err := s.refuseIfMuted(ctx, n); err != nil {
 		return models.Notification{}, err
-	}
-	if muted {
-		return models.Notification{}, models.ErrNotificationMuted
 	}
 	if n.CreatedAt.IsZero() {
 		n.CreatedAt = s.clock()
@@ -109,6 +105,20 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 		s.onRaised(ctx, n)
 	}
 	return n, nil
+}
+
+func (s *NotificationStore) refuseIfMuted(ctx context.Context, n models.Notification) error {
+	if models.NotificationEventIgnoresMute(n.Event) {
+		return nil
+	}
+	muted, err := s.IsMuted(ctx, n.ActorID, n.Category)
+	if err != nil {
+		return err
+	}
+	if muted {
+		return models.ErrNotificationMuted
+	}
+	return nil
 }
 
 func classifyNotificationWrite(err error) error {

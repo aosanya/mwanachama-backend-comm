@@ -75,6 +75,10 @@ func IsNotificationCategoryExempt(c NotificationCategory) bool { return notifica
 
 func NotificationSMSChannel(c NotificationCategory) bool { return c == CategorySecurity }
 
+func NotificationEventIgnoresMute(e NotificationEvent) bool {
+	return e == EventGroupJoinApproved || e == EventGroupJoinDeclined
+}
+
 // NotificationEvent is the specific act a row is the by-product of. The
 // title and body are rendered from this and the subject, never stored as
 // text.
