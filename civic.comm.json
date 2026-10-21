@@ -161,7 +161,8 @@
             "actor_registration",
             "pending_approval",
             "group",
-            "group_join_request"
+            "group_join_request",
+            "group_join_decision"
           ]
         }
       ]

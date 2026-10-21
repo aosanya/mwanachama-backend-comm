@@ -380,6 +380,26 @@ carries it.
   `TestNotificationRefusesAJoinRequestOutsideMembership` and
   `TestALeaderWhoMutedMembershipGetsNoJoinRequest`.
 
+### A join decision is a subject kind (CM52, 2026-10-21)
+
+Member app decisions 198 and 199: a told decline can name the decision
+itself as its subject, so `group_join_decision` is declared beside
+`group_join_request` in `civic.comm.json`'s `subject_kind` values and as
+`models.SubjectGroupJoinDecision`. The subject id is the decision's id,
+`mwanachama-backend-actor`'s (its ACT22); comm never reads it.
+
+- **Declared here, so a host need not widen the list at load.** Until this,
+  a host raising a notification about a decision had to add the kind to the
+  loaded spec itself; with it in `civic.comm.json` that widening has nothing
+  left to add, and removing it is the host's change (wakala-api's WK144).
+- **Only the vocabulary moved.** Which subject a decline names, the group
+  (CM33) or the decision, is the raiser's choice; nothing in comm changes
+  how either is stored, listed, muted or pushed.
+- Pinned by `TestNotificationRaisesAToldDeclineAboutTheJoinDecision`, and
+  held to the Go constant by `TestCivicVocabularyMatchesTheGoConstants`.
+  The blueprint is untouched, so `TestVocabularyMatchesTheBlueprint` still
+  holds comm's own set to `message`, `subject_thread` and `chat_thread`.
+
 ### Mute is mute (CM45, 2026-10-20)
 
 Member app decision 120, superseding decision 73: a member who mutes

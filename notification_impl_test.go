@@ -407,3 +407,25 @@ func TestALeaderWhoMutedMembershipGetsNoJoinRequest(t *testing.T) {
 		t.Fatalf("List = %+v, err %v, want no join request delivered", out, err)
 	}
 }
+
+func TestNotificationRaisesAToldDeclineAboutTheJoinDecision(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	n, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventGroupJoinDeclined,
+		SubjectKind: models.SubjectGroupJoinDecision,
+		SubjectID:   "gjd-1",
+	})
+	if err != nil {
+		t.Fatalf("Raise %s about %s: %v", models.EventGroupJoinDeclined, models.SubjectGroupJoinDecision, err)
+	}
+	if n.SubjectKind != models.SubjectGroupJoinDecision || n.SubjectID != "gjd-1" {
+		t.Fatalf("Raise = about %s/%s, want group_join_decision/gjd-1", n.SubjectKind, n.SubjectID)
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 1 || out[0].SubjectKind != models.SubjectGroupJoinDecision {
+		t.Fatalf("List = %+v, err %v, want the one told decline", out, err)
+	}
+}

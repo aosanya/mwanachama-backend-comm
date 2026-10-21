@@ -171,6 +171,7 @@ const (
 	SubjectSubjectThread      NotificationSubjectKind = "subject_thread"
 	SubjectChatThread         NotificationSubjectKind = "chat_thread"
 	SubjectGroupJoinRequest   NotificationSubjectKind = "group_join_request"
+	SubjectGroupJoinDecision  NotificationSubjectKind = "group_join_decision"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -178,7 +179,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
-	SubjectGroupJoinRequest,
+	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
