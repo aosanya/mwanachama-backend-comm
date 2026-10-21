@@ -22,6 +22,12 @@
       "description": "Where a teacher or pupil stopped reading a classroom board, so the board shows what was posted since."
     },
     {
+      "role": "chat_archive",
+      "name": "board_shelf",
+      "table": "board_shelves",
+      "description": "A classroom board one teacher or pupil has put away for themselves, so it leaves their list of boards and nobody else's."
+    },
+    {
       "role": "subject_thread",
       "name": "homework_query",
       "table": "homework_queries",

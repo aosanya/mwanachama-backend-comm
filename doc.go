@@ -42,6 +42,7 @@ func AddressFormat(s string) string { return models.AddressFormat(s) }
 type (
 	ChatMessage        = models.ChatMessage
 	ChatReadMarker     = models.ChatReadMarker
+	ChatArchive        = models.ChatArchive
 	ChatThreadView     = models.ChatThreadView
 	ChatActivityQuery  = models.ChatActivityQuery
 	ChatActivityPage   = models.ChatActivityPage

@@ -93,8 +93,12 @@ func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, calle
 		return nil, err
 	}
 	out := make([]models.ChatThreadView, 0, len(threads))
+	archived, err := m.ChatStore.ArchivedThreads(ctx, structureID, callerID)
+	if err != nil {
+		return nil, err
+	}
 	for _, t := range threads {
-		if !t.ReadableBy(callerID, leads) {
+		if archived[t.ID] || !t.ReadableBy(callerID, leads) {
 			continue
 		}
 		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}

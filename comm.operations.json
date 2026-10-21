@@ -288,6 +288,72 @@
         }
       ]
     },
+    "archive_chat_thread": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/archive",
+      "call": "ArchiveChatThreadFor",
+      "action": "comm.chat_thread.archive",
+      "status": 200,
+      "title": "Archive a thread for yourself",
+      "description": "Sets one thread of a structure's room the caller may read aside for the caller alone: it leaves their list of the room's threads and stays in everybody else's. Archiving again keeps the first archive. The reader is the session's: nobody archives a thread for somebody else. An outsider and a thread that was never minted answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "reader_id",
+          "description": "The reader, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "unarchive_chat_thread": {
+      "method": "DELETE",
+      "path": "/groups/{structure_id}/chat/threads/{thread_id}/archive",
+      "call": "UnarchiveChatThreadFor",
+      "action": "comm.chat_thread.unarchive",
+      "status": 204,
+      "title": "Bring an archived thread back",
+      "description": "Removes the caller's own archive of one thread of a structure's room, so the thread is in their list again. A thread the caller never archived is already back and answers the same. An outsider and a thread that was never minted answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread, which must belong to that structure's room."
+        },
+        {
+          "from": "caller",
+          "as": "reader_id",
+          "description": "The reader, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "open_subject_thread": {
       "method": "POST",
       "path": "/subjects/{subject_kind}/{subject_id}/threads",

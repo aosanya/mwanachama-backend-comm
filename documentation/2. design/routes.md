@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Forty addresses, declared in `comm.operations.json` and served by a
+Forty-two addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -25,6 +25,8 @@ consumer is the gateway, and it is CM28.
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.post` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/read` | `comm.chat_thread.mark_read` |
+| POST | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.archive` |
+| DELETE | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.unarchive` |
 | POST | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.open` |
 | GET | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.list` |
 | GET | `/subject-threads/{thread_id}/messages` | `comm.subject_message.list` |
@@ -110,6 +112,10 @@ A fifth joined them as CM41 (2026-10-20): starting a thread, which is the
 "minting a thread" half above. It sits behind the same fence; see
 [starting a thread](#starting-a-thread) below.
 
+Two more joined them as CM49 (2026-10-21): archiving a thread for oneself
+and bringing it back. They sit behind the same fence; see
+[chat-archive.md](chat-archive.md).
+
 ## What the manager carries, and why
 
 `dispatch` turns a request into one manager call. Six of comm's addresses are
@@ -157,7 +163,7 @@ func (m *CommManager) UseBelonging(b Belonging)
 ```
 
 `ListChatThreadsFor`, `StartChatThreadFor`, `OpenChatThreadFor`,
-`ListChatMessagesFor`, `PostChatMessageFor` and `MarkChatThreadReadFor` ask it before anything is read or written. Four rules hold it:
+`ListChatMessagesFor`, `PostChatMessageFor`, `MarkChatThreadReadFor`, `ArchiveChatThreadFor` and `UnarchiveChatThreadFor` ask it before anything is read or written. Four rules hold it:
 
 - **404, never 403.** A caller who does not belong, a structure that does not
   exist, a thread that was never minted and a thread of *another* structure

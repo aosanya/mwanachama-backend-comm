@@ -30,6 +30,7 @@ const (
 	prefixChatThread     = "cthread"
 	prefixChatMessage    = "msg"
 	prefixChatReadMarker = "cread"
+	prefixChatArchive    = "carch"
 	prefixSubjectThread  = "sthread"
 	prefixSubjectMessage = "smsg"
 	prefixDMThread       = "dm"

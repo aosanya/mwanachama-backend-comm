@@ -196,6 +196,60 @@
       ]
     },
     {
+      "role": "chat_archive",
+      "description": "One reader setting one thread of a structure's room aside for themselves. An archived thread leaves that reader's list of the room's threads and nobody else's; unarchiving removes the record and brings it back.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "structure_id",
+          "type": "string",
+          "description": "The structure whose room the thread belongs to. Carried so an archive is always read under the same structure its thread is.",
+          "required": true
+        },
+        {
+          "name": "thread_id",
+          "type": "string",
+          "description": "The thread this reader has set aside.",
+          "required": true
+        },
+        {
+          "name": "reader_id",
+          "type": "string",
+          "description": "Whose archive this is. A session fact: the reader is always the caller, never a body field.",
+          "required": true
+        },
+        {
+          "name": "archived_at",
+          "type": "timestamp",
+          "description": "When the reader archived the thread."
+        }
+      ],
+      "indexes": [
+        {
+          "name": "thread_reader",
+          "description": "One archive per reader per thread, so archiving a thread again keeps the one record rather than adding a second.",
+          "fields": [
+            "thread_id",
+            "reader_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "structure_reader",
+          "description": "Finds one reader's archived threads across a structure's room, which is what listing the room's threads leaves out.",
+          "fields": [
+            "structure_id",
+            "reader_id"
+          ]
+        }
+      ]
+    },
+    {
       "role": "subject_thread",
       "description": "One conversation about something another module owns, named by an opaque kind and id. A private thread is between one actor and whoever answers for the subject; a group thread is readable by everyone the subject reached and whoever answers for it. Which actors those are is the host's to say, never this module's.",
       "fields": [

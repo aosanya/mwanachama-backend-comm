@@ -4,6 +4,7 @@ const (
 	roleChatThread             = "chat_thread"
 	roleChatMessage            = "chat_message"
 	roleChatReadMarker         = "chat_read_marker"
+	roleChatArchive            = "chat_archive"
 	roleSubjectThread          = "subject_thread"
 	roleSubjectMessage         = "subject_message"
 	roleDMThread               = "dm_thread"
@@ -26,6 +27,7 @@ var allRoles = []string{
 	roleChatThread,
 	roleChatMessage,
 	roleChatReadMarker,
+	roleChatArchive,
 	roleSubjectThread,
 	roleSubjectMessage,
 	roleDMThread,

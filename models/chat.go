@@ -74,6 +74,14 @@ type ChatReadMarker struct {
 	MarkedAt    time.Time `json:"marked_at"`
 }
 
+type ChatArchive struct {
+	ID          string    `json:"id"`
+	StructureID string    `json:"structure_id"`
+	ThreadID    string    `json:"thread_id"`
+	ReaderID    string    `json:"reader_id"`
+	ArchivedAt  time.Time `json:"archived_at"`
+}
+
 type ChatThreadView struct {
 	ChatThread
 	Unread        int        `json:"unread"`
