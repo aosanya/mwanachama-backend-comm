@@ -349,3 +349,61 @@ func TestAMemberWhoMutedMembershipGetsNoGroupInvitation(t *testing.T) {
 		t.Fatalf("List = %+v, err %v, want no invitation delivered", out, err)
 	}
 }
+
+func TestNotificationRaisesAJoinRequestUnderMembershipAboutTheRequest(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	n, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "lead-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventJoinRequested,
+		SubjectKind: models.SubjectGroupJoinRequest,
+		SubjectID:   "gjr-1",
+	})
+	if err != nil {
+		t.Fatalf("Raise %s: %v", models.EventJoinRequested, err)
+	}
+	if n.Event != models.EventJoinRequested || n.SubjectKind != models.SubjectGroupJoinRequest || n.SubjectID != "gjr-1" {
+		t.Fatalf("Raise = %s about %s/%s, want join_requested about group_join_request/gjr-1", n.Event, n.SubjectKind, n.SubjectID)
+	}
+	out, err := s.List(ctx, "lead-1", 0)
+	if err != nil || len(out) != 1 || out[0].Event != models.EventJoinRequested {
+		t.Fatalf("List = %+v, err %v, want the one join request", out, err)
+	}
+}
+
+func TestNotificationRefusesAJoinRequestOutsideMembership(t *testing.T) {
+	s := newNotificationStore(t)
+	_, err := s.Raise(context.Background(), mwanachamacomm.Notification{
+		ActorID:     "lead-1",
+		Category:    models.CategoryChat,
+		Event:       models.EventJoinRequested,
+		SubjectKind: models.SubjectGroupJoinRequest,
+		SubjectID:   "gjr-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationInvalid) {
+		t.Fatalf("expected ErrNotificationInvalid, got %v", err)
+	}
+}
+
+func TestALeaderWhoMutedMembershipGetsNoJoinRequest(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	if _, err := s.SetPreference(ctx, "lead-1", models.CategoryMembership, true); err != nil {
+		t.Fatalf("SetPreference: %v", err)
+	}
+	_, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "lead-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventJoinRequested,
+		SubjectKind: models.SubjectGroupJoinRequest,
+		SubjectID:   "gjr-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
+		t.Fatalf("expected ErrNotificationMuted, got %v", err)
+	}
+	out, err := s.List(ctx, "lead-1", 0)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("List = %+v, err %v, want no join request delivered", out, err)
+	}
+}

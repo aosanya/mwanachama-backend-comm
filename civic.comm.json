@@ -138,7 +138,8 @@
             "approval_requested",
             "group_join_approved",
             "group_join_declined",
-            "group_invited"
+            "group_invited",
+            "join_requested"
           ]
         },
         {
@@ -153,7 +154,8 @@
             "enrollment_key",
             "actor_registration",
             "pending_approval",
-            "group"
+            "group",
+            "group_join_request"
           ]
         }
       ]

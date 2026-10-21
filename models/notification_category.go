@@ -101,6 +101,7 @@ const (
 	EventGroupJoinApproved         NotificationEvent = "group_join_approved"
 	EventGroupJoinDeclined         NotificationEvent = "group_join_declined"
 	EventGroupInvited              NotificationEvent = "group_invited"
+	EventJoinRequested             NotificationEvent = "join_requested"
 	EventThreadReply               NotificationEvent = "thread_reply"
 	EventThreadRequested           NotificationEvent = "thread_requested"
 	EventThreadDeclined            NotificationEvent = "thread_declined"
@@ -127,6 +128,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventGroupJoinApproved:         CategoryMembership,
 	EventGroupJoinDeclined:         CategoryMembership,
 	EventGroupInvited:              CategoryMembership,
+	EventJoinRequested:             CategoryMembership,
 	EventThreadReply:               CategoryChat,
 	EventThreadRequested:           CategoryChat,
 	EventThreadDeclined:            CategoryChat,
@@ -168,6 +170,7 @@ const (
 	SubjectGroup              NotificationSubjectKind = "group"
 	SubjectSubjectThread      NotificationSubjectKind = "subject_thread"
 	SubjectChatThread         NotificationSubjectKind = "chat_thread"
+	SubjectGroupJoinRequest   NotificationSubjectKind = "group_join_request"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -175,6 +178,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectHandout, SubjectMessage, SubjectIdentityCase, SubjectDevice,
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
+	SubjectGroupJoinRequest,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

@@ -306,6 +306,7 @@ means lives here rather than beside the constant.
 | `group_join_approved` | `membership` | a request to join a confirmed group was approved (CM33); subject `group` |
 | `group_join_declined` | `membership` | the same request, declined (CM33); subject `group` |
 | `group_invited` | `membership` | a leader invited the recipient to a group (CM44); subject `group` |
+| `join_requested` | `membership` | a member asked to join, or appealed a decline, at a group the recipient leads (CM46); subject `group_join_request` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. No event is exempt on its own: muting a
@@ -355,6 +356,29 @@ does the join decisions.
   `TestNotificationRefusesAnIssuedGroupInvitationOutsideMembership` and
   `TestAMemberWhoMutedMembershipGetsNoGroupInvitation`.
 
+### A join request told to the leaders (CM46, 2026-10-21)
+
+Member app decision 134: each new join request or appeal puts a notice in
+every leader's Inbox, under Membership, and tapping it opens that request on
+Join requests. `mwanachama-wakala-api` raises it (its WK131) to each of the
+group's leaders after a request or an appeal on the actor mount; comm only
+carries it.
+
+- **One event, `join_requested`, category `membership`, for a request and an
+  appeal alike.** An appeal is the same request asked again, and the leader's
+  next step is the same, so the renderer needs no second event to word it.
+- **Mutable like the rest of Membership** (decision 120): a leader who muted
+  `membership` is not told, and nothing bypasses that.
+- **The subject is the request, `subject_kind: group_join_request`, subject
+  id the request.** Unlike the join decisions, whose Inbox row opens the
+  group, this row opens the request itself on Join requests. The name is
+  `mwanachama-backend-actor`'s role for the row; comm never reads it.
+- Declared in `civic.comm.json` (event and subject kind) and in the Go maps
+  CM26 will retire. Pinned by
+  `TestNotificationRaisesAJoinRequestUnderMembershipAboutTheRequest`,
+  `TestNotificationRefusesAJoinRequestOutsideMembership` and
+  `TestALeaderWhoMutedMembershipGetsNoJoinRequest`.
+
 ### Mute is mute (CM45, 2026-10-20)
 
 Member app decision 120, superseding decision 73: a member who mutes
@@ -369,7 +393,8 @@ stay exempt, and no event inside a mutable category bypasses its mute.
   member's join decision is refused with `ErrNotificationMuted`, neither
   stored, listed nor pushed.
 - **No new event gets a bypass.** A declined thread, an issued group
-  invitation and any later event follow their category's mute.
+  invitation, a join request and any later event follow their category's
+  mute.
 - **The preference is untouched.** `membership` can still be muted, and
   `SetPreference` does not refuse it.
 - Pinned by `TestAMemberWhoMutedMembershipGetsNoJoinDecision` and
