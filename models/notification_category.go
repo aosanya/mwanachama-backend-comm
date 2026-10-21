@@ -113,6 +113,8 @@ const (
 	EventItemStatusChanged         NotificationEvent = "item_status_changed"
 	EventItemFiledForYou           NotificationEvent = "item_filed_for_you"
 	EventItemsOverdue              NotificationEvent = "items_overdue"
+	EventRecordChangeApproved      NotificationEvent = "record_change_approved"
+	EventRecordChangeRefused       NotificationEvent = "record_change_refused"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -147,6 +149,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventItemStatusChanged:         CategoryItem,
 	EventItemFiledForYou:           CategoryItem,
 	EventItemsOverdue:              CategoryItem,
+	EventRecordChangeApproved:      CategoryMembership,
+	EventRecordChangeRefused:       CategoryMembership,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -196,6 +200,7 @@ const (
 	SubjectGroupJoinDecision  NotificationSubjectKind = "group_join_decision"
 	SubjectItem               NotificationSubjectKind = "item"
 	SubjectItemDigest         NotificationSubjectKind = "item_digest"
+	SubjectRecordChange       NotificationSubjectKind = "record_change"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -204,7 +209,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
-	SubjectItem, SubjectItemDigest,
+	SubjectItem, SubjectItemDigest, SubjectRecordChange,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

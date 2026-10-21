@@ -317,6 +317,8 @@ means lives here rather than beside the constant.
 | `item_status_changed` | `item` | an item the recipient raised moved to another status (CM54); subject `item` |
 | `item_filed_for_you` | `item` | a clerk or councillor filed an item on the recipient's behalf (CM54); subject `item` |
 | `items_overdue` | `item` | the daily digest of overdue items, to each of the agency's owners (CM54); subject `item_digest`, capped one per actor per subject |
+| `record_change_approved` | `membership` | a correction the recipient proposed to their own register record was approved (CM55); the clerk as author; subject `record_change` |
+| `record_change_refused` | `membership` | a correction the recipient proposed to their own register record was refused (CM55); the clerk as author; subject `record_change`, whose refusal carries the reason |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
@@ -345,6 +347,22 @@ once a day. `mwanachama-wakala-api` raises every one of these (WK166) through
   the same owner for the same day is `ErrNotificationCapSpent`, so a host
   that runs its sweep twice tells nobody twice. Choosing when the sweep runs,
   and what is overdue, is the host's.
+
+### Register correction notices (CM55, 2026-10-21)
+
+Member app decision 231: a resident sees their own register record and
+proposes corrections, and the clerk approves or refuses each. The resident is
+told either way. `mwanachama-wakala-api` raises both (WK164) through
+`NotificationRepository.Raise`; comm carries them and owns no register logic.
+
+- **Two events, under `membership`.** The register record is the resident's
+  standing with the agency, so its corrections sit beside the other
+  membership notices and are muted with them. Neither is unmutable.
+- **The reason rides on the subject, not on the notice.** A notification
+  stores no title or body, so `record_change_refused` names subject kind
+  `record_change` with the change request's id in the module that holds the
+  register (catalog CAT53), and the client reads the refusal's reason from
+  there. The clerk who decided is the author.
 
 ### A decided group join (CM33, 2026-10-20)
 

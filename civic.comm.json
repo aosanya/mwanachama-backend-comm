@@ -153,7 +153,9 @@
             "item_answered",
             "item_status_changed",
             "item_filed_for_you",
-            "items_overdue"
+            "items_overdue",
+            "record_change_approved",
+            "record_change_refused"
           ]
         },
         {
@@ -172,7 +174,8 @@
             "group_join_request",
             "group_join_decision",
             "item",
-            "item_digest"
+            "item_digest",
+            "record_change"
           ]
         }
       ]
