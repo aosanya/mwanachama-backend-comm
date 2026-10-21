@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-nine addresses, declared in `comm.operations.json` and served by a
+Thirty-eight addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -20,7 +20,6 @@ consumer is the gateway, and it is CM28.
 | GET | `/chat/activity` | `comm.chat.activity.read` |
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
 | POST | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.create` |
-| POST | `/groups/{structure_id}/chat/threads/request` | `comm.chat_thread.request` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/open` | `comm.chat_thread.open` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/decline` | `comm.chat_thread.decline` |
 | GET | `/groups/{structure_id}/chat/threads/{thread_id}/messages` | `comm.chat_message.list` |
@@ -238,11 +237,16 @@ as `MintThread`.
   and keeps whatever label it had.
 - **The list carries the label.** `list_chat_threads` returns `ChatThreadView`,
   which embeds the thread, so `label` is on every row with `unread` beside it.
-- **Who may start one is a lead.** Since CM42 a caller the host's `Leading`
-  does not name as a lead of the structure answers the same 404 as an
-  outsider, and the mount's gate on `comm.chat_thread.create` still applies
-  on top. A member asks for a thread instead (CM43). See
-  [Threads with the leads](#threads-with-the-leads).
+- **Anybody who belongs starts one.** Since CM48 every caller `Belonging`
+  admits may start a thread; the mount's gate on `comm.chat_thread.create`
+  still applies on top. What the caller gets depends on whether the host's
+  `Leading` names them a lead of the structure: a lead's thread is the leads'
+  with no requester, anybody else's is the leads' with the caller as its
+  requester and tells the leads. See
+  [Threads with the leads](#threads-with-the-leads) and
+  [A thread a member starts](#a-thread-a-member-starts). From CM42 until
+  CM48 only a lead started one and anybody else answered the same 404 as an
+  outsider.
 
 The fence holds exactly as on the other room addresses: an outsider and an
 invented structure answer the same 404, and with no `Belonging` mounted
@@ -259,9 +263,9 @@ read by the structure's leads only until one of them opens it to the group.
   of `leads` and `group`, declared with the default `group` so every row older
   than the column, and every thread minted by its topic alone through
   `MintThread`, stays the group's. `ChatStore.StartThread` mints `leads`.
-  `chat_thread.requested_by` names the actor who asked for a thread, who reads
-  and writes in it beside the leads; the request flow writes it, see
-  [Asking for a thread](#asking-for-a-thread).
+  `chat_thread.requested_by` names the member who started a thread without
+  leading the structure, who reads and writes in it beside the leads, see
+  [A thread a member starts](#a-thread-a-member-starts).
 - **Who leads is the host's.** comm does not know who a structure's leaders or
   an agency's operators are, so the host says, through a second seam beside
   `UseBelonging`:
@@ -274,8 +278,16 @@ read by the structure's leads only until one of them opens it to the group.
 
   It is asked only after `Belonging` has answered yes, so a lead the host does
   not also count as belonging is still fenced out of the room. A manager with
-  no `Leading` has no leads: nobody starts or opens a thread through the
-  table, and a `leads` thread is readable by nobody but its requester.
+  no `Leading` has no leads: nobody opens a thread through the table, every
+  start is a member's, and a `leads` thread is readable by nobody but its
+  requester.
+- **The leads are the room's admins.** The member app calls them admins
+  (decisions 150 and 151): the group's leaders and the agency's owners and
+  agents. comm draws no line between the three; `Leading` answers yes for all
+  of them and `Leads` names all of them, and which actors those are is the
+  host's fact entirely. A host that answers only for the group's leaders
+  leaves the agency's owners and agents as members of the room, so their
+  starts carry them as requester and they cannot open or decline.
 - **`models.ChatThread.ReadableBy(actor, leads)`** is the one rule: a `group`
   thread is everybody's who belongs, a `leads` thread is the leads' and the
   requester's.
@@ -292,7 +304,7 @@ read by the structure's leads only until one of them opens it to the group.
   Opening an open thread answers it unchanged. Only a lead of that structure
   opens one; a member, the requester, a lead of another structure and an
   invented thread all answer the same 404
-  (`TestOnlyALeadOfTheStructureOpensOrStartsAThread`). The requester is
+  (`TestOnlyALeadOfTheStructureOpensAThread`). The requester is
   refused with 404 rather than 403 too, so the address never needs a second
   refusal shape.
 - **Mutation-checked.** Reading every thread as a lead in the list, in the
@@ -303,19 +315,27 @@ read by the structure's leads only until one of them opens it to the group.
   once with `ChatStore.OpenThread`, which needs no caller
   (`TestAHostOpensAThreadItStartedSoTheRoomHasAnOpenGeneral`).
 
-## Asking for a thread
+## A thread a member starts
 
-CM43, 2026-10-20, for the member app's decisions 103, 107 and 108: any member
-asks for a thread, the leads talk in it with the member who asked, and the
-leads either open it to the group (CM42) or decline it.
+CM43, 2026-10-20, for the member app's decisions 103, 107 and 108, and CM48,
+2026-10-21, for decisions 150 and 151: any member starts a thread, the leads
+talk in it with the member who started it, and the leads either open it to
+the group (CM42) or decline it.
 
-- **Asking.** `POST /groups/{structure_id}/chat/threads/request`
-  (`comm.chat_thread.request`) takes a `topic` from a caller `Belonging`
-  admits, and answers 201 with a `leads` thread whose `requested_by` is the
-  caller from the session, never the body. The topic is the thread's label,
-  normalised as a started thread's is. It is fenced like every room address:
-  an outsider and an invented structure answer the same 404, and a topic with
-  no letter or digit is a 400.
+- **Starting.** `POST /groups/{structure_id}/chat/threads`
+  (`comm.chat_thread.create`) takes a `label` from a caller `Belonging`
+  admits and `Leading` does not, and answers 201 with a `leads` thread whose
+  `requested_by` is the caller from the session, never the body. The label is
+  normalised as a lead's is. It is fenced like every room address: an
+  outsider and an invented structure answer the same 404, and a label with no
+  letter or digit is a 400.
+- **The request address folded into start.** CM43 shipped this as its own
+  address, `POST /groups/{structure_id}/chat/threads/request` with the action
+  `comm.chat_thread.request` and a `topic`. CM48 removed both: the member app
+  offers one Start a thread to everybody (decision 150), so one address serves
+  everybody and the caller's standing decides the shape. The stored event
+  keeps its name, `thread_requested`, because a stored enum value outlives a
+  rename.
 - **Who is told.** comm knows neither a group's leaders nor an agency's
   operators, so the host names them through a third seam beside `Belonging`
   and `Leading`:
@@ -333,15 +353,15 @@ leads either open it to the group (CM42) or decline it.
   `Belonging` or `Leading` does not confirm, so a host's list cannot tell
   somebody who could not then read the thread. A muted recipient is skipped,
   and each raised row is pushed after the commit like every other. A manager
-  with no `Leads` still takes requests and tells nobody — the leads find them
+  with no `Leads` still takes a member's start and tells nobody — the leads find them
   in the room's list.
-- **Asking never reveals a thread.** A topic the room already holds in a
-  thread the caller may read — the open General, or their own earlier request
-  — answers with that thread and tells nobody. A topic held by a thread the
-  caller may *not* read, another member's request or a thread the leads
+- **Starting never reveals a thread.** A label the room already holds in a
+  thread the caller may read — the open General, or their own earlier start
+  — answers with that thread and tells nobody. A label held by a thread the
+  caller may *not* read, another member's thread or a thread the leads
   started, is given a thread of its own under a tag path suffixed with the new
   thread's id, so the answer is the same 201 with a fresh thread either way
-  (`TestAskingNeverRevealsAThreadTheAskerCannotRead`). The leads may therefore
+  (`TestAMemberStartingNeverRevealsAThreadTheyCannotRead`). The leads may therefore
   see two threads with one label; which one to open is theirs.
 - **Declining.** `POST /groups/{structure_id}/chat/threads/{thread_id}/decline`
   (`comm.chat_thread.decline`) is a lead's act, fenced exactly as opening is:
@@ -364,14 +384,14 @@ leads either open it to the group (CM42) or decline it.
   declined needs no data back. `ChatThread.ReadableBy` refuses a declined
   thread before anything else, which is the one rule every read goes through.
 - **A declined topic is free again.** Declining moves the thread's tag path
-  aside, suffixed with its own id, so its label's path is empty again: asking
-  for, or starting, that label mints one new thread at the label's own path,
-  and every later start or request answers that one, exactly as for a label
+  aside, suffixed with its own id, so its label's path is empty again: starting
+  that label again mints one new thread at the label's own path,
+  and every later start answers that one, exactly as for a label
   never declined (`TestADeclinedLabelIsStartedOnceAgainNotOnEveryStart`).
   Before this a declined thread kept the path, and each start of its label
   minted yet another thread beside it, which broke a host's idempotent
   General (wakala-api WK121).
-- **Mutation-checked.** Letting a request reuse a thread the asker cannot
+- **Mutation-checked.** Letting a member's start reuse a thread they cannot
   read, telling a name `Leading` does not confirm, reading a declined thread,
   opening a declined thread, reusing a declined thread's label and declining
   twice each turn a test red.

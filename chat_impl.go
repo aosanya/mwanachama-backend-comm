@@ -107,7 +107,7 @@ func (s *ChatStore) RequestThread(ctx context.Context, structureID, label, reque
 	label = strings.Join(strings.Fields(label), " ")
 	tagPath, ok := labelTagPath(label)
 	if !ok {
-		return models.ChatThread{}, false, fmt.Errorf("%w: topic is required", models.ErrChatInvalid)
+		return models.ChatThread{}, false, fmt.Errorf("%w: label is required", models.ErrChatInvalid)
 	}
 	if requestedBy == "" {
 		return models.ChatThread{}, false, models.ErrChatNotFound

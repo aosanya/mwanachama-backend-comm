@@ -30,7 +30,8 @@ listed at the bottom of this page and on the board.
 | Documentation rewritten | CM23 | landed 2026-10-01 |
 | `chat_thread.label` and `comm.chat_thread.create` — starting a labelled thread, see [routes.md](routes.md#starting-a-thread) | CM41 | landed 2026-10-20 |
 | `chat_thread.audience`, `chat_thread.requested_by`, `UseLeading` and `comm.chat_thread.open` — a thread with the leads until it is opened, see [routes.md](routes.md#threads-with-the-leads) | CM42 | landed 2026-10-20 |
-| `chat_thread.declined_at`/`declined_by`, `UseLeads`, `comm.chat_thread.request` and `comm.chat_thread.decline`, raising `thread_requested` and `thread_declined` on subject `chat_thread` — a member asks for a thread and a lead declines it, see [routes.md](routes.md#asking-for-a-thread) | CM43 | landed 2026-10-20 |
+| `chat_thread.declined_at`/`declined_by`, `UseLeads`, `comm.chat_thread.request` (folded into `comm.chat_thread.create` by CM48) and `comm.chat_thread.decline`, raising `thread_requested` and `thread_declined` on subject `chat_thread` — a member asks for a thread and a lead declines it, see [routes.md](routes.md#a-thread-a-member-starts) | CM43 | landed 2026-10-20 |
+| `comm.chat_thread.create` open to every member: a lead's start has no requester, anybody else's is a requested thread that tells the leads, and the request address is gone — see [routes.md](routes.md#a-thread-a-member-starts) | CM48 | landed 2026-10-21 |
 
 Net across CM20 and CM21: about 2,900 lines deleted against 2,900 written,
 and the deletions are the acceptance — `gormstore/`'s nine files, `tables.go`,
@@ -294,7 +295,7 @@ means lives here rather than beside the constant.
 | `merchandise_recorded` | `merchandise` | "Merchandise recorded · Cap · issued by …" |
 | `message_removed` | `chat` | comm's own removal receipt, which never names the moderator |
 | `thread_reply` | `chat` | comm's own: a reply on a thread about a subject (CM34); subject `subject_thread`, never an author — see [subject-threads.md](subject-threads.md) |
-| `thread_requested` | `chat` | comm's own: a member asked for a thread in a room the recipient leads (CM43); subject `chat_thread`, the asker as author, the room as `structure_id` — see [routes.md](routes.md#asking-for-a-thread) |
+| `thread_requested` | `chat` | comm's own: a member who does not lead the room started a thread in it (CM43, CM48); subject `chat_thread`, the starter as author, the room as `structure_id` — see [routes.md](routes.md#a-thread-a-member-starts) |
 | `thread_declined` | `chat` | comm's own: a lead declined the thread the recipient asked for (CM43); subject `chat_thread`, the lead as author, the room as `structure_id` |
 | `identity_case_opened`, `identity_case_closed` | `security` | a duplicate-ID case notice, and the same case ended |
 | `enrollment_key_rotated` | `membership` | a rotation notice, the one notice with an author; its subject is the *retired* key, never the successor, whose identifier may not cross into a notice |

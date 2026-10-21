@@ -123,16 +123,15 @@ func TestOpeningAThreadGivesItToTheGroupWithWhatWasWrittenBefore(t *testing.T) {
 	}
 }
 
-func TestOnlyALeadOfTheStructureOpensOrStartsAThread(t *testing.T) {
+func TestOnlyALeadOfTheStructureOpensAThread(t *testing.T) {
 	srv, m := roomWithALeadAndAMember(t)
 	th := startAs(t, srv, "s-1", "lead-a", "Budget")
 
 	refusals := map[string]reply{
-		"a member":              call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "member-b", nil),
-		"another lead":          call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "lead-z", nil),
-		"another structure":     call(t, srv, http.MethodPost, "/groups/s-2/chat/threads/"+th.ID+"/open", "lead-z", nil),
-		"an invented thread":    call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/cthread-never/open", "lead-a", nil),
-		"a member starting one": call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "member-b", map[string]string{"label": "Budget"}),
+		"a member":           call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "member-b", nil),
+		"another lead":       call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "lead-z", nil),
+		"another structure":  call(t, srv, http.MethodPost, "/groups/s-2/chat/threads/"+th.ID+"/open", "lead-z", nil),
+		"an invented thread": call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/cthread-never/open", "lead-a", nil),
 	}
 	want := refusals["an invented thread"]
 	for who, got := range refusals {
@@ -172,8 +171,10 @@ func TestWithNoLeadingSuppliedNobodyLeads(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if own := memberStartAs(t, srv, "s-1", "actor-a", "Other"); own.RequestedBy != "actor-a" || own.Audience != models.ChatAudienceLeads {
+		t.Fatalf("with no leading mounted a start = %+v, want a private thread the starter asked for", own)
+	}
 	for _, got := range []reply{
-		call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "actor-a", map[string]string{"label": "Other"}),
 		call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "actor-a", nil),
 		call(t, srv, http.MethodGet, "/groups/s-1/chat/threads/"+th.ID+"/messages", "actor-a", nil),
 	} {

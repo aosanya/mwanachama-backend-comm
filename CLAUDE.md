@@ -64,7 +64,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Thirty-nine addresses, each
+- **`comm.operations.json` is the route table.** Thirty-eight addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is seventy
   lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
@@ -86,18 +86,23 @@ what is true of **comm** is in
   `chat_thread.audience` is `leads` or `group`; a started thread begins with
   the leads, a topic-minted one and every older row are the group's.
   `UseLeading` gives the manager a `Leading` function naming a structure's
-  leads; only a lead starts or opens a thread, and a `leads` thread is
+  leads; only a lead opens a thread, and a `leads` thread is
   readable by the leads and its `requested_by` alone — to anybody else it
   answers exactly as an invented thread. A manager given none has no leads.
   See [routes.md](documentation/2.%20design/routes.md#threads-with-the-leads).
-- **Any member asks for a thread; a lead may decline it (CM43).**
-  `comm.chat_thread.request` mints a `leads` thread whose `requested_by` is
-  the caller, and `UseLeads` names who is told (`thread_requested`, checked
-  against `Belonging` and `Leading`); asking never answers with a thread the
-  caller cannot read. `comm.chat_thread.decline` stamps `declined_at`, tells
-  the asker (`thread_declined`) and closes the thread for everybody, leads
-  included. See
-  [routes.md](documentation/2.%20design/routes.md#asking-for-a-thread).
+- **Any member starts a thread; a lead may decline it (CM43, CM48).**
+  `comm.chat_thread.create` is open to everybody `Belonging` admits. A lead's
+  thread has no requester; anybody else's is a `leads` thread whose
+  `requested_by` is the caller, and `UseLeads` names who is told
+  (`thread_requested`, checked against `Belonging` and `Leading`); a member's
+  start never answers with a thread the caller cannot read. CM43's separate
+  `comm.chat_thread.request` address folded into start in CM48. The leads are
+  the room's admins — the group's leaders and the agency's owners and agents
+  — and naming all three is the host's `Leading` and `Leads`.
+  `comm.chat_thread.decline` stamps `declined_at`, tells the starter
+  (`thread_declined`) and closes the thread for everybody, leads included.
+  See
+  [routes.md](documentation/2.%20design/routes.md#a-thread-a-member-starts).
 - **A room's threads carry a read marker per reader (CM40).**
   `chat_read_marker` holds each reader's last-read point per thread; the
   mark-read action moves it, never backwards, with the reader bound

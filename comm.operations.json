@@ -54,7 +54,7 @@
       "action": "comm.chat_thread.create",
       "status": 201,
       "title": "Start a thread",
-      "description": "Starts a thread with a label in one structure's room, for a caller the mount says leads that structure. The thread begins readable by the structure's leads only, until one of them opens it to the group. A label the room already has, in any case or spacing, answers with that thread rather than a second one. A caller who does not lead the structure, one who does not belong to it and a structure that does not exist answer identically, as a not-found.",
+      "description": "Starts a thread with a label in one structure's room, for any caller the mount says belongs to that structure. The thread begins in the private stage, readable by the callers the mount says lead the structure until one of them opens it to the group. A thread a caller who does not lead the structure starts names them as its requester, so they read and write in it beside the leads, and every lead the mount names for the structure is told through a notification naming the thread. A lead's label the room already has, in any case or spacing, answers with that thread rather than a second one; anybody else's answers with it only when the caller may already read it and tells nobody, and a label held by a thread the caller may not read is given a thread of its own, so starting never reveals one. A caller who does not belong to the structure and a structure that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",
@@ -65,7 +65,7 @@
         {
           "from": "caller",
           "as": "caller_id",
-          "description": "The caller, from the session."
+          "description": "The caller, from the session, who becomes the thread's requester unless they lead the structure."
         },
         {
           "from": "body",
@@ -105,39 +105,6 @@
           "from": "caller",
           "as": "caller_id",
           "description": "The caller, from the session."
-        }
-      ],
-      "returns": [
-        {
-          "body": true
-        }
-      ]
-    },
-    "request_chat_thread": {
-      "method": "POST",
-      "path": "/groups/{structure_id}/chat/threads/request",
-      "call": "RequestChatThreadFor",
-      "action": "comm.chat_thread.request",
-      "status": 201,
-      "title": "Ask for a thread",
-      "description": "Asks for a thread on a topic in one structure's room, for any caller the mount says belongs to that structure. The thread begins readable by the structure's leads and by the caller who asked, beside each other, until a lead opens it to the group or declines it. Every lead the mount names for the structure is told through a notification naming the thread. A topic the room already has in a thread the caller may read answers with that thread and tells nobody; a topic held by a thread the caller may not read is given a thread of its own, so asking never reveals one. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
-      "args": [
-        {
-          "from": "path",
-          "as": "structure_id",
-          "required": true,
-          "description": "The structure whose room this is."
-        },
-        {
-          "from": "caller",
-          "as": "caller_id",
-          "description": "The caller, from the session, who becomes the thread's requester."
-        },
-        {
-          "from": "body",
-          "as": "topic",
-          "required": true,
-          "description": "What the thread is for, as the room's thread list shows it."
         }
       ],
       "returns": [

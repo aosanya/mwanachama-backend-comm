@@ -13,7 +13,7 @@ type Leads func(ctx context.Context, structureID string) ([]string, error)
 
 func (m *CommManager) UseLeads(l Leads) { m.leadsOf = l }
 
-func (m *CommManager) RequestChatThreadFor(ctx context.Context, structureID, callerID, topic string) (models.ChatThread, error) {
+func (m *CommManager) StartChatThreadFor(ctx context.Context, structureID, callerID, label string) (models.ChatThread, error) {
 	if err := m.inStructure(ctx, structureID, callerID); err != nil {
 		return models.ChatThread{}, err
 	}
@@ -21,14 +21,21 @@ func (m *CommManager) RequestChatThreadFor(ctx context.Context, structureID, cal
 	if err != nil {
 		return models.ChatThread{}, err
 	}
+	if callerLeads {
+		return m.ChatStore.StartThread(ctx, structureID, label)
+	}
+	return m.startRequested(ctx, structureID, callerID, label)
+}
+
+func (m *CommManager) startRequested(ctx context.Context, structureID, callerID, label string) (models.ChatThread, error) {
 	toTell, err := m.leadsToTell(ctx, structureID, callerID)
 	if err != nil {
 		return models.ChatThread{}, err
 	}
-	readable := func(t models.ChatThread) bool { return t.ReadableBy(callerID, callerLeads) }
+	readable := func(t models.ChatThread) bool { return t.ReadableBy(callerID, false) }
 	var thread models.ChatThread
 	raised, err := m.inChatTransaction(ctx, func(chat *ChatStore, notices *NotificationStore) ([]models.Notification, error) {
-		t, minted, err := chat.RequestThread(ctx, structureID, topic, callerID, readable)
+		t, minted, err := chat.RequestThread(ctx, structureID, label, callerID, readable)
 		thread = t
 		if err != nil || !minted {
 			return nil, err

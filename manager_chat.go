@@ -97,13 +97,6 @@ func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, calle
 	return out, nil
 }
 
-func (m *CommManager) StartChatThreadFor(ctx context.Context, structureID, callerID, label string) (models.ChatThread, error) {
-	if err := m.asLead(ctx, structureID, callerID); err != nil {
-		return models.ChatThread{}, err
-	}
-	return m.ChatStore.StartThread(ctx, structureID, label)
-}
-
 func (m *CommManager) OpenChatThreadFor(ctx context.Context, structureID, threadID, callerID string) (models.ChatThread, error) {
 	if err := m.asLead(ctx, structureID, callerID); err != nil {
 		return models.ChatThread{}, err

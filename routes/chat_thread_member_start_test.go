@@ -26,11 +26,11 @@ func roomWithLeadsAndAsker(t *testing.T) (*httptest.Server, *mwanachamacomm.Comm
 	return srv, m
 }
 
-func requestAs(t *testing.T, srv *httptest.Server, structureID, caller, topic string) models.ChatThread {
+func memberStartAs(t *testing.T, srv *httptest.Server, structureID, caller, label string) models.ChatThread {
 	t.Helper()
-	got := call(t, srv, http.MethodPost, "/groups/"+structureID+"/chat/threads/request", caller, map[string]string{"topic": topic})
+	got := call(t, srv, http.MethodPost, "/groups/"+structureID+"/chat/threads", caller, map[string]string{"label": label})
 	if got.code != http.StatusCreated {
-		t.Fatalf("request %q as %s = %d: %s", topic, caller, got.code, got.body)
+		t.Fatalf("start %q as %s = %d: %s", label, caller, got.code, got.body)
 	}
 	var th models.ChatThread
 	got.decode(t, &th)
@@ -52,9 +52,9 @@ func toldOf(t *testing.T, m *mwanachamacomm.CommManager, actorID string, event m
 	return out
 }
 
-func TestARequestedThreadIsTheLeadsAndTheAskersAndTellsEveryLead(t *testing.T) {
+func TestAThreadAMemberStartsIsTheLeadsAndTheStartersAndTellsEveryLead(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
-	th := requestAs(t, srv, "s-1", "asker-b", "  Water point   at the school ")
+	th := memberStartAs(t, srv, "s-1", "asker-b", "  Water point   at the school ")
 	if th.Audience != models.ChatAudienceLeads || th.RequestedBy != "asker-b" || th.Label != "Water point at the school" {
 		t.Fatalf("a requested thread = %+v, want the leads' audience, requested by asker-b, the topic as its label", th)
 	}
@@ -95,41 +95,41 @@ func TestARequestedThreadIsTheLeadsAndTheAskersAndTellsEveryLead(t *testing.T) {
 	}
 }
 
-func TestAskingIsFencedLikeEveryOtherRoomAddress(t *testing.T) {
+func TestAMemberStartingIsFencedLikeEveryOtherRoomAddress(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
-	outsider := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/request", "lead-z", map[string]string{"topic": "Budget"})
-	invented := call(t, srv, http.MethodPost, "/groups/s-never/chat/threads/request", "lead-z", map[string]string{"topic": "Budget"})
+	outsider := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "lead-z", map[string]string{"label": "Budget"})
+	invented := call(t, srv, http.MethodPost, "/groups/s-never/chat/threads", "lead-z", map[string]string{"label": "Budget"})
 	if outsider.code != http.StatusNotFound || invented.code != outsider.code || invented.message(t) != outsider.message(t) {
 		t.Fatalf("an outsider asking = %d %q, an invented structure %d %q; want the same 404",
 			outsider.code, outsider.message(t), invented.code, invented.message(t))
 	}
-	if empty := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/request", "asker-b", map[string]string{"topic": " - "}); empty.code != http.StatusBadRequest {
-		t.Fatalf("asking with no topic = %d, want 400: %s", empty.code, empty.body)
+	if empty := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads", "asker-b", map[string]string{"label": " - "}); empty.code != http.StatusBadRequest {
+		t.Fatalf("starting with no label = %d, want 400: %s", empty.code, empty.body)
 	}
 	if got := toldOf(t, m, "lead-a", models.EventThreadRequested); len(got) != 0 {
 		t.Fatalf("a refused request told the lead %v", got)
 	}
 }
 
-func TestAskingNeverRevealsAThreadTheAskerCannotRead(t *testing.T) {
+func TestAMemberStartingNeverRevealsAThreadTheyCannotRead(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
 	general := seedChatThread(t, m, "s-1", "/general")
 	started := startAs(t, srv, "s-1", "lead-a", "Budget")
-	theirs := requestAs(t, srv, "s-1", "other-c", "Market day")
+	theirs := memberStartAs(t, srv, "s-1", "other-c", "Market day")
 
-	if got := requestAs(t, srv, "s-1", "asker-b", "budget"); got.ID == started.ID || got.RequestedBy != "asker-b" {
+	if got := memberStartAs(t, srv, "s-1", "asker-b", "budget"); got.ID == started.ID || got.RequestedBy != "asker-b" {
 		t.Fatalf("asking for a topic the leads hold privately answered %+v, want a thread of the asker's own", got)
 	}
-	if got := requestAs(t, srv, "s-1", "asker-b", "Market Day"); got.ID == theirs.ID || got.RequestedBy != "asker-b" {
+	if got := memberStartAs(t, srv, "s-1", "asker-b", "Market Day"); got.ID == theirs.ID || got.RequestedBy != "asker-b" {
 		t.Fatalf("asking for a topic another member asked for answered %+v, want a thread of the asker's own", got)
 	}
 
 	before := len(toldOf(t, m, "lead-a", models.EventThreadRequested))
-	if got := requestAs(t, srv, "s-1", "asker-b", "General"); got.ID != general {
+	if got := memberStartAs(t, srv, "s-1", "asker-b", "General"); got.ID != general {
 		t.Fatalf("asking for the room's open General answered %s, want General %s", got.ID, general)
 	}
-	mine := requestAs(t, srv, "s-1", "asker-b", "Water point")
-	if again := requestAs(t, srv, "s-1", "asker-b", "water POINT"); again.ID != mine.ID {
+	mine := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
+	if again := memberStartAs(t, srv, "s-1", "asker-b", "water POINT"); again.ID != mine.ID {
 		t.Fatalf("asking twice for one topic answered %s then %s, want the same thread", mine.ID, again.ID)
 	}
 	if got := len(toldOf(t, m, "lead-a", models.EventThreadRequested)) - before; got != 1 {
@@ -139,7 +139,7 @@ func TestAskingNeverRevealsAThreadTheAskerCannotRead(t *testing.T) {
 
 func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
-	th := requestAs(t, srv, "s-1", "asker-b", "Water point")
+	th := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
 	call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/messages", "asker-b", map[string]string{"body": "the tap is dry"})
 
 	declined := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/decline", "operator-o", nil)
@@ -187,7 +187,7 @@ func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
 		t.Fatalf("declining again told the asker %d times in all, want once", len(told))
 	}
 
-	fresh := requestAs(t, srv, "s-1", "asker-b", "Water point")
+	fresh := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
 	if fresh.ID == th.ID || fresh.Declined() {
 		t.Fatalf("asking again after a decline answered %+v, want a new thread", fresh)
 	}
@@ -198,7 +198,7 @@ func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
 
 func TestOnlyALeadOfTheStructureDeclinesAndOnlyARequest(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
-	th := requestAs(t, srv, "s-1", "asker-b", "Water point")
+	th := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
 	for _, who := range []string{"asker-b", "other-c", "lead-z"} {
 		refused := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/decline", who, nil)
 		invented := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/cthread-never/decline", who, nil)
@@ -221,22 +221,54 @@ func TestOnlyALeadOfTheStructureDeclinesAndOnlyARequest(t *testing.T) {
 			t.Fatalf("declining %s = %d, want 409: %s", name, got.code, got.body)
 		}
 	}
-	opened := requestAs(t, srv, "s-1", "other-c", "Market day")
+	opened := memberStartAs(t, srv, "s-1", "other-c", "Market day")
 	call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+opened.ID+"/open", "lead-a", nil)
 	if got := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+opened.ID+"/decline", "lead-a", nil); got.code != http.StatusConflict {
 		t.Fatalf("declining a request already opened = %d, want 409: %s", got.code, got.body)
 	}
 }
 
-func TestWithNoLeadsNamedAskingStillWorksAndTellsNobody(t *testing.T) {
+func TestWithNoLeadsNamedAMemberStartingStillWorksAndTellsNobody(t *testing.T) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"lead-a", "asker-b"}}))
 	m.UseLeading(leadingOf(map[string][]string{"s-1": {"lead-a"}}))
-	th := requestAs(t, srv, "s-1", "asker-b", "Water point")
+	th := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
 	if _, listed := listedIDs(t, srv, "s-1", "lead-a")[th.ID]; !listed {
 		t.Fatal("the lead does not list a requested thread")
 	}
 	if got := toldOf(t, m, "lead-a", models.EventThreadRequested); len(got) != 0 {
 		t.Fatalf("with no Leads mounted the lead was told %v", got)
+	}
+}
+
+func TestAnyMemberStartsAThreadAndOnlyALeadStartsOneWithNoStarter(t *testing.T) {
+	srv, m := roomWithLeadsAndAsker(t)
+	byMember := memberStartAs(t, srv, "s-1", "other-c", "Budget")
+	if byMember.RequestedBy != "other-c" || byMember.Audience != models.ChatAudienceLeads || !byMember.Declinable() {
+		t.Fatalf("a member's start = %+v, want a private thread with its starter beside the leads", byMember)
+	}
+	byLead := startAs(t, srv, "s-1", "operator-o", "Road repairs")
+	if byLead.RequestedBy != "" || byLead.Audience != models.ChatAudienceLeads {
+		t.Fatalf("a lead's start = %+v, want a private thread with no starter on it", byLead)
+	}
+	if got := toldOf(t, m, "lead-a", models.EventThreadRequested); len(got) != 1 || got[0].SubjectID != byMember.ID {
+		t.Fatalf("lead-a was told %+v, want one notice, for the member's thread only", got)
+	}
+	if _, listed := listedIDs(t, srv, "s-1", "other-c")[byLead.ID]; listed {
+		t.Fatal("a member lists a thread a lead started before it is opened")
+	}
+	if opened := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+byMember.ID+"/open", "lead-a", nil); opened.code != http.StatusOK {
+		t.Fatalf("a lead opening a member's thread = %d: %s", opened.code, opened.body)
+	}
+	if _, listed := listedIDs(t, srv, "s-1", "asker-b")[byMember.ID]; !listed {
+		t.Fatal("an opened member thread is not listed to the rest of the group")
+	}
+}
+
+func TestTheRequestAddressIsGone(t *testing.T) {
+	srv, _ := roomWithLeadsAndAsker(t)
+	got := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/request", "asker-b", map[string]string{"topic": "Budget"})
+	if got.code == http.StatusCreated {
+		t.Fatalf("the folded request address still mints a thread: %s", got.body)
 	}
 }
