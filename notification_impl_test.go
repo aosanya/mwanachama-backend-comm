@@ -291,3 +291,61 @@ func TestMutingMembershipSilencesEveryMembershipEvent(t *testing.T) {
 		t.Fatalf("List = %+v, err %v, want nothing delivered", out, err)
 	}
 }
+
+func TestNotificationRaisesAnIssuedGroupInvitationUnderMembershipAboutTheGroup(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	n, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventGroupInvited,
+		SubjectKind: models.SubjectGroup,
+		SubjectID:   "group-1",
+	})
+	if err != nil {
+		t.Fatalf("Raise %s: %v", models.EventGroupInvited, err)
+	}
+	if n.Event != models.EventGroupInvited || n.SubjectKind != models.SubjectGroup || n.SubjectID != "group-1" {
+		t.Fatalf("Raise = %s about %s/%s, want group_invited about group/group-1", n.Event, n.SubjectKind, n.SubjectID)
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 1 || out[0].Event != models.EventGroupInvited {
+		t.Fatalf("List = %+v, err %v, want the one invitation", out, err)
+	}
+}
+
+func TestNotificationRefusesAnIssuedGroupInvitationOutsideMembership(t *testing.T) {
+	s := newNotificationStore(t)
+	_, err := s.Raise(context.Background(), mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryChat,
+		Event:       models.EventGroupInvited,
+		SubjectKind: models.SubjectGroup,
+		SubjectID:   "group-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationInvalid) {
+		t.Fatalf("expected ErrNotificationInvalid, got %v", err)
+	}
+}
+
+func TestAMemberWhoMutedMembershipGetsNoGroupInvitation(t *testing.T) {
+	s := newNotificationStore(t)
+	ctx := context.Background()
+	if _, err := s.SetPreference(ctx, "m-1", models.CategoryMembership, true); err != nil {
+		t.Fatalf("SetPreference: %v", err)
+	}
+	_, err := s.Raise(ctx, mwanachamacomm.Notification{
+		ActorID:     "m-1",
+		Category:    models.CategoryMembership,
+		Event:       models.EventGroupInvited,
+		SubjectKind: models.SubjectGroup,
+		SubjectID:   "group-1",
+	})
+	if !errors.Is(err, mwanachamacomm.ErrNotificationMuted) {
+		t.Fatalf("expected ErrNotificationMuted, got %v", err)
+	}
+	out, err := s.List(ctx, "m-1", 0)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("List = %+v, err %v, want no invitation delivered", out, err)
+	}
+}

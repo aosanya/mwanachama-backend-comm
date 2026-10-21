@@ -100,6 +100,7 @@ const (
 	EventApprovalRequested         NotificationEvent = "approval_requested"
 	EventGroupJoinApproved         NotificationEvent = "group_join_approved"
 	EventGroupJoinDeclined         NotificationEvent = "group_join_declined"
+	EventGroupInvited              NotificationEvent = "group_invited"
 	EventThreadReply               NotificationEvent = "thread_reply"
 	EventThreadRequested           NotificationEvent = "thread_requested"
 	EventThreadDeclined            NotificationEvent = "thread_declined"
@@ -125,6 +126,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventApprovalRequested:         CategoryApproval,
 	EventGroupJoinApproved:         CategoryMembership,
 	EventGroupJoinDeclined:         CategoryMembership,
+	EventGroupInvited:              CategoryMembership,
 	EventThreadReply:               CategoryChat,
 	EventThreadRequested:           CategoryChat,
 	EventThreadDeclined:            CategoryChat,

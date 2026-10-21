@@ -305,6 +305,7 @@ means lives here rather than beside the constant.
 | `approval_requested` | `approval` | an agent-proposed write named this actor Accountable and waits on their decision (kazi's K6); subject `pending_approval`, a `mwanachama-backend-api-shared` PendingApproval id |
 | `group_join_approved` | `membership` | a request to join a confirmed group was approved (CM33); subject `group` |
 | `group_join_declined` | `membership` | the same request, declined (CM33); subject `group` |
+| `group_invited` | `membership` | a leader invited the recipient to a group (CM44); subject `group` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. No event is exempt on its own: muting a
@@ -334,6 +335,25 @@ comm only carries it.
 - `group` is not on `domain_agnostic_test.go`'s word list, so `SubjectGroup`
   needs no exemption; the two event constants live in the CM26-exempt file
   like every other civic event.
+
+### An issued group invitation (CM44, 2026-10-21)
+
+Member app decision 106: an invitation reaches the invitee as an Inbox row,
+answered Join or Decline. `mwanachama-wakala-api` raises it (its WK122) to
+the invitee when `actor.invitation` is issued; comm only carries it, as it
+does the join decisions.
+
+- **One event, `group_invited`, category `membership`.** The same opt-out
+  unit as the join decisions, and like them it follows the category's mute
+  (decision 120): a member who muted `membership` is not told.
+- **The subject is the group, `subject_kind: group`, subject id the group.**
+  Not the invitation row, which is `mwanachama-backend-actor`'s; the client
+  finds the caller's open invitation to that group through the actor mount.
+- Declared in `civic.comm.json` and in the Go map CM26 will retire, the way
+  CM33 declared the join decisions. Pinned by
+  `TestNotificationRaisesAnIssuedGroupInvitationUnderMembershipAboutTheGroup`,
+  `TestNotificationRefusesAnIssuedGroupInvitationOutsideMembership` and
+  `TestAMemberWhoMutedMembershipGetsNoGroupInvitation`.
 
 ### Mute is mute (CM45, 2026-10-20)
 
