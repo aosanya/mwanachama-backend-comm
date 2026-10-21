@@ -397,6 +397,23 @@ the group (CM42) or decline it.
   opening a declined thread, reusing a declined thread's label and declining
   twice each turn a test red.
 
+## Posts since a known one
+
+`list_chat_messages` takes an optional `after` query argument, a post's id
+(HS27, Hub Steward gap 4). Omitted, the listing is unchanged: every post in
+the thread, oldest first. Given, only the posts that sort after that one in
+the same `created_at, id` order the full listing uses, so a client holding
+the newest post it has seen asks for what is new without fetching the
+thread again. Posts written in the same instant are ordered by id, which is
+why the comparison is on the pair rather than on the time alone.
+
+The room fence runs first, so an outsider naming any `after` gets the
+not-found an outsider always gets. An `after` that names no post, or a post
+of another thread or another structure, answers the same not-found as an
+invented thread rather than an empty list or a 400, so the argument cannot
+be used to learn which posts exist elsewhere. Pinned in
+`routes/chat_messages_after_test.go`.
+
 ## The subject fence
 
 The four `subject` addresses (CM34, 2026-10-20) are fenced by a second host

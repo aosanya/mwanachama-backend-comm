@@ -219,6 +219,14 @@ func (s *ChatStore) ListMessages(ctx context.Context, structureID, threadID stri
 	return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
 }
 
+func (s *ChatStore) ListMessagesAfter(ctx context.Context, after models.ChatMessage) ([]models.ChatMessage, error) {
+	at := stamp(after.CreatedAt)
+	q := s.store.Query(ctx, roleChatMessage).
+		Where("structure_id = ? AND thread_id = ?", after.StructureID, after.ThreadID).
+		Where("created_at > ? OR (created_at = ? AND id > ?)", at, at, after.ID)
+	return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
+}
+
 var _ models.ChatRepository = (*ChatStore)(nil)
 
 const chatRoomFilter = "/*room*/"

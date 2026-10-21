@@ -131,11 +131,21 @@ func (m *CommManager) MarkChatThreadReadFor(ctx context.Context, structureID, th
 	return m.ChatStore.MarkRead(ctx, structureID, threadID, readerID, readAt)
 }
 
-func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, threadID, callerID string) ([]models.ChatMessage, error) {
+func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, threadID, callerID, afterID string) ([]models.ChatMessage, error) {
 	if err := m.inThread(ctx, structureID, threadID, callerID); err != nil {
 		return nil, err
 	}
-	return m.ChatStore.ListMessages(ctx, structureID, threadID)
+	if afterID == "" {
+		return m.ChatStore.ListMessages(ctx, structureID, threadID)
+	}
+	after, err := m.ChatStore.GetMessage(ctx, afterID)
+	if err != nil {
+		return nil, err
+	}
+	if after.StructureID != structureID || after.ThreadID != threadID {
+		return nil, models.ErrChatNotFound
+	}
+	return m.ChatStore.ListMessagesAfter(ctx, after)
 }
 
 func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threadID, callerID, body string) (models.ChatMessage, error) {

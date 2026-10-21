@@ -153,7 +153,7 @@
       "action": "comm.chat_message.list",
       "status": 200,
       "title": "Posts in a thread",
-      "description": "Every post in one thread of a structure's room, oldest first, for a caller who belongs to that structure. An outsider, a thread that was never minted and a thread of another structure all answer the same not-found.",
+      "description": "Every post in one thread of a structure's room, oldest first, for a caller who belongs to that structure. An outsider, a thread that was never minted and a thread of another structure all answer the same not-found. Given after, only the posts that come after that one, so a reader asks for what is new since the last post it holds; an after naming no post of this thread answers the same not-found.",
       "args": [
         {
           "from": "path",
@@ -171,6 +171,11 @@
           "from": "caller",
           "as": "caller_id",
           "description": "The caller, from the session."
+        },
+        {
+          "from": "query",
+          "as": "after",
+          "description": "Optional. A post's id in this thread: only posts after it are returned. Omitted, every post is."
         }
       ],
       "returns": [
