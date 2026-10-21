@@ -236,7 +236,8 @@ as `MintThread`.
   thread minted by topic at the same path, `/general`, is the same thread,
   and keeps whatever label it had.
 - **The list carries the label.** `list_chat_threads` returns `ChatThreadView`,
-  which embeds the thread, so `label` is on every row with `unread` beside it.
+  which embeds the thread, so `label` is on every row with `unread` and
+  `last_message_at` beside it (see [read-markers.md](read-markers.md)).
 - **Anybody who belongs starts one.** Since CM48 every caller `Belonging`
   admits may start a thread; the mount's gate on `comm.chat_thread.create`
   still applies on top. What the caller gets depends on whether the host's

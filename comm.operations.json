@@ -27,7 +27,7 @@
       "action": "comm.chat_thread.list",
       "status": 200,
       "title": "A room's threads",
-      "description": "Every thread in one structure's room the caller may read, oldest first, each with its label, its audience and its unread count for the caller: the posts somebody else wrote after the caller's read point. A thread still with the leads is listed only to the structure's leads and to the actor who asked for it. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "description": "Every thread in one structure's room the caller may read, oldest first, each with its label, its audience, its unread count for the caller (the posts somebody else wrote after the caller's read point) and last_message_at, the time of its latest post, absent when nobody has posted, so a client orders rooms by the latest across the threads it may read. A thread still with the leads is listed only to the structure's leads and to the actor who asked for it. Only for a caller the mount says belongs to that structure. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
       "args": [
         {
           "from": "path",

@@ -46,6 +46,13 @@ plus `unread`. The count is the thread's posts written **by somebody else**
 after the caller's `read_at`, or all of them with no marker. A reader's own
 posts are never unread to them, so posting does not light up one's own room.
 
+**Each listed thread also carries `last_message_at`** (CM47, the member
+app's decision 146): the `created_at` of the thread's latest post, by anybody,
+the caller included. A thread nobody has posted in carries no
+`last_message_at` at all, rather than a zero time. A client orders a room by
+the latest of its threads' `last_message_at`, so a room moves up when any
+thread it can read hears something, not only its first one.
+
 **Marking** takes a JSON object body. `{"message_id": "<post>"}` moves the
 point to that post's `created_at`, which is what a client should send: the
 last post it actually showed, so a post that arrives between reading and
@@ -71,6 +78,14 @@ is the marker as stored.
   (`TestAPostOfAnotherThreadAnswersAsAnInventedOne`). The fence tests in
   `routes/chat_fence_security_test.go` cover the new address alongside the
   other three.
+- **A room's latest activity is the caller's.** `last_message_at` is set
+  only on the threads the list returns, and the list returns only what
+  `ReadableBy` admits. A post in a `leads` thread, or in somebody else's
+  request, never reaches a member it is hidden from, not even as a time:
+  maxing across the threads a member is given cannot reveal that the leads
+  spoke (`TestALeadsThreadsPostDoesNotMoveARoomForSomebodyWhoCannotReadIt`).
+  It is a per-thread `max(created_at)` in one grouped query beside the
+  unread counts, and the fence is applied in Go to both alike.
 - **Read and unread are compared as stored text.** Every timestamp is
   written in `specstore.TimeLayout`, a fixed-width UTC layout, so
   `created_at > read_at` orders correctly on SQLite and Postgres alike. Two

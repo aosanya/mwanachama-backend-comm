@@ -84,15 +84,24 @@ func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, calle
 	if err != nil {
 		return nil, err
 	}
+	latest, err := m.ChatStore.LatestPosts(ctx, structureID)
+	if err != nil {
+		return nil, err
+	}
 	leads, err := m.leads(ctx, structureID, callerID)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]models.ChatThreadView, 0, len(threads))
 	for _, t := range threads {
-		if t.ReadableBy(callerID, leads) {
-			out = append(out, models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]})
+		if !t.ReadableBy(callerID, leads) {
+			continue
 		}
+		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}
+		if at, ok := latest[t.ID]; ok {
+			view.LastMessageAt = &at
+		}
+		out = append(out, view)
 	}
 	return out, nil
 }

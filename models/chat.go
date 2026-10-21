@@ -76,7 +76,8 @@ type ChatReadMarker struct {
 
 type ChatThreadView struct {
 	ChatThread
-	Unread int `json:"unread"`
+	Unread        int        `json:"unread"`
+	LastMessageAt *time.Time `json:"last_message_at,omitempty"`
 }
 
 // ChatRepository is the persistence boundary for the chat domain.

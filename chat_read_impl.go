@@ -77,3 +77,30 @@ func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID stri
 	}
 	return counts, rows.Err()
 }
+
+func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[string]time.Time, error) {
+	query := `
+	SELECT thread_id, max(created_at)
+	  FROM ` + s.store.Table(roleChatMessage) + `
+	 WHERE structure_id = ? AND thread_id <> ''
+	 GROUP BY thread_id`
+	rows, err := s.store.Query(ctx, roleChatMessage).Raw(query, structureID).Rows()
+	if err != nil {
+		return nil, classify(err)
+	}
+	defer rows.Close()
+	latest := map[string]time.Time{}
+	for rows.Next() {
+		var (
+			threadID string
+			at       flexTime
+		)
+		if err := rows.Scan(&threadID, &at); err != nil {
+			return nil, err
+		}
+		if at.Valid {
+			latest[threadID] = at.Time.UTC()
+		}
+	}
+	return latest, rows.Err()
+}
