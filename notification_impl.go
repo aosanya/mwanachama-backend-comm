@@ -121,7 +121,7 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 }
 
 func (s *NotificationStore) refuseIfMuted(ctx context.Context, n models.Notification) error {
-	if s.hostSaysUnmutable(ctx, n.Event) {
+	if models.NotificationEventUnmutable(n.Event) || s.hostSaysUnmutable(ctx, n.Event) {
 		return nil
 	}
 	muted, err := s.IsMuted(ctx, n.ActorID, n.Category)

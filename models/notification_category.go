@@ -105,6 +105,8 @@ const (
 	EventThreadReply               NotificationEvent = "thread_reply"
 	EventThreadRequested           NotificationEvent = "thread_requested"
 	EventThreadDeclined            NotificationEvent = "thread_declined"
+	EventGroupMemberRemoved        NotificationEvent = "group_member_removed"
+	EventAgencyMemberRemoved       NotificationEvent = "agency_member_removed"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -132,7 +134,16 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventThreadReply:               CategoryChat,
 	EventThreadRequested:           CategoryChat,
 	EventThreadDeclined:            CategoryChat,
+	EventGroupMemberRemoved:        CategoryMembership,
+	EventAgencyMemberRemoved:       CategoryMembership,
 }
+
+var notificationEventUnmutable = map[NotificationEvent]bool{
+	EventGroupMemberRemoved:  true,
+	EventAgencyMemberRemoved: true,
+}
+
+func NotificationEventUnmutable(e NotificationEvent) bool { return notificationEventUnmutable[e] }
 
 func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
 	c, ok := notificationEventCategory[e]

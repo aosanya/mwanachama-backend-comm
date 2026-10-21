@@ -308,10 +308,12 @@ means lives here rather than beside the constant.
 | `group_join_declined` | `membership` | the same request, declined (CM33); subject `group` |
 | `group_invited` | `membership` | a leader invited the recipient to a group (CM44); subject `group` |
 | `join_requested` | `membership` | a member asked to join, or appealed a decline, at a group the recipient leads (CM46); subject `group_join_request` |
+| `group_member_removed` | `membership` | the recipient was removed from a group (CM53); the remover as author; cannot be muted |
+| `agency_member_removed` | `membership` | the recipient was removed from the agency (CM53); the remover as author; cannot be muted |
 
 `survey` and `security` are exempt from muting, and `security` is the only
-category with an SMS channel. No event is exempt on its own: muting a
-category silences every event in it (CM45).
+category with an SMS channel. Muting a category silences every event in it
+(CM45), bar the two removal notices, which cannot be muted (CM53).
 
 ### A decided group join (CM33, 2026-10-20)
 
@@ -421,6 +423,36 @@ stay exempt, and no event inside a mutable category bypasses its mute.
 - Pinned by `TestAMemberWhoMutedMembershipGetsNoJoinDecision` and
   `TestMutingMembershipSilencesEveryMembershipEvent`, through `Raise` on a
   real provisioned store.
+
+### A removal notice (CM53, 2026-10-21)
+
+Member app decision 220: a member removed from a group, or from the agency,
+is told in the Inbox, and told who removed them. `mwanachama-wakala-api`
+raises both (its WK158); comm only carries them.
+
+- **Two events, `group_member_removed` and `agency_member_removed`, both
+  under `membership`.** Separate values because the renderer words them from
+  the event alone, as with the join decisions.
+- **The remover is the author**, `author_actor_id`, the way
+  `thread_declined` names the lead who declined. Who removed is the raiser's
+  to supply; comm stores it as given.
+- **They cannot be muted.** `models.NotificationEventUnmutable` names exactly
+  these two, and `Raise` skips the mute read for them before asking the
+  host's `Mutable`, so no host answer and no member preference can hold one
+  back. This is the one event-level exemption since CM45 removed CM37's, and
+  it is an owner decision, not a widening of mute bypasses. It lives beside
+  the event-to-category map and moves with it when CM26 lands.
+- **An agency removal's notice stays readable to the removed member.** A
+  notification is read by its recipient's `actor_id` and by nothing about
+  their membership: comm never deletes or fences a notification when a
+  membership ends, so the notice stays in the removed member's list. The
+  host must keep the removed member able to sign in and reach
+  `GET /notifications`; that is wakala-api's, not comm's.
+- **The subject is the raiser's choice**; no new subject kind was declared.
+- Pinned by `TestARemovalNoticeRaisesUnderMembershipNamingWhoRemoved`,
+  `TestARemovalNoticeOutsideMembershipIsRefused` and
+  `TestARemovalNoticeReachesAMemberWhoMutedMembership` (the last with a host
+  `Mutable` answering mutable, to show it cannot override).
 
 ## Whether an event can be muted is the host's to say (CM50)
 

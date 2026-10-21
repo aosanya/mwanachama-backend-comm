@@ -272,7 +272,7 @@ func TestMutingMembershipSilencesEveryMembershipEvent(t *testing.T) {
 	}
 	for _, event := range models.NotificationEvents() {
 		category, _ := models.NotificationCategoryOf(event)
-		if category != models.CategoryMembership {
+		if category != models.CategoryMembership || models.NotificationEventUnmutable(event) {
 			continue
 		}
 		_, err := s.Raise(ctx, mwanachamacomm.Notification{
