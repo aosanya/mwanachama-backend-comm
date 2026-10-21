@@ -211,8 +211,10 @@ Everything a spec cannot state, beside the type it is about:
 - `Removal.Room()` and `Dismissal.Reporter()`, the two projections that
   enforce G47's anonymity by omission
 - `AddressHours.OpenAt`, which errs open
-- the two notification caps, which are partial unique indexes rather than
-  counters
+- the three notification caps, which are partial unique indexes rather than
+  counters: one `survey_reminder` per actor per subject, one `survey_nudge`
+  per structure per subject, and one `items_overdue` per actor per subject
+  (CM54)
 
 The notification vocabulary is the one piece that moved *into* the
 declaration. `category`, `event` and `subject_kind` are declared `enum`
@@ -310,10 +312,39 @@ means lives here rather than beside the constant.
 | `join_requested` | `membership` | a member asked to join, or appealed a decline, at a group the recipient leads (CM46); subject `group_join_request` |
 | `group_member_removed` | `membership` | the recipient was removed from a group (CM53); the remover as author; cannot be muted |
 | `agency_member_removed` | `membership` | the recipient was removed from the agency (CM53); the remover as author; cannot be muted |
+| `item_acknowledged` | `item` | an item the recipient raised was acknowledged (CM54); subject `item` |
+| `item_answered` | `item` | an item the recipient raised was answered (CM54); subject `item` |
+| `item_status_changed` | `item` | an item the recipient raised moved to another status (CM54); subject `item` |
+| `item_filed_for_you` | `item` | a clerk or councillor filed an item on the recipient's behalf (CM54); subject `item` |
+| `items_overdue` | `item` | the daily digest of overdue items, to each of the agency's owners (CM54); subject `item_digest`, capped one per actor per subject |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
 (CM45), bar the two removal notices, which cannot be muted (CM53).
+
+### Board notices (CM54, 2026-10-21)
+
+Member app decisions 232 and 233: a resident raises an idea, report or
+complaint, or a clerk files one for them, and is told as it moves; past its
+due dates it joins the agency's Overdue list and the agency's owners are told
+once a day. `mwanachama-wakala-api` raises every one of these (WK166) through
+`NotificationRepository.Raise`; comm carries them and owns no item logic.
+
+- **A category of their own, `item`.** None of the existing categories is
+  the right opt-out unit for a resident's own raised items, so they get one,
+  declared in `civic.comm.json` beside `notification_preference.category`.
+  Muting `item` silences all five; none is unmutable and none is exempt.
+- **Four events to the raiser, one digest to the owners.** The renderer picks
+  wording from the event alone, so acknowledged, answered, a status change and
+  filed-for-you are separate values. Their subject kind is `item`, the subject
+  id the item's own id in whichever module holds the board.
+- **Once a day is a cap, not a scheduler.** `items_overdue` names subject
+  kind `item_digest` with the day (`YYYY-MM-DD`, the agency's local date) as
+  its subject id, and `Provision` adds a partial unique index over
+  `(actor_id, subject_id) where event = 'items_overdue'`. A second digest to
+  the same owner for the same day is `ErrNotificationCapSpent`, so a host
+  that runs its sweep twice tells nobody twice. Choosing when the sweep runs,
+  and what is overdue, is the host's.
 
 ### A decided group join (CM33, 2026-10-20)
 

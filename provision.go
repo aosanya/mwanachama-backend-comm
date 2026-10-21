@@ -109,10 +109,6 @@ func renameColumns(db *gorm.DB, table string, o spec.Object) error {
 	return nil
 }
 
-// syncNotificationCaps applies the two caps the declaration has no way to
-// carry: one reminder per actor per subject, and one nudge per structure per
-// subject. Both are partial unique indexes over a condition that is not
-// `deleted`, which is the only one the format names.
 func syncNotificationCaps(db *gorm.DB, s *spec.Spec) error {
 	o, ok := s.ByRole(roleNotification)
 	if !ok {
@@ -126,6 +122,10 @@ func syncNotificationCaps(db *gorm.DB, s *spec.Spec) error {
 		),
 		fmt.Sprintf(
 			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_nudge_per_subject ON %s (structure_id, subject_id) WHERE event = 'survey_nudge'`,
+			table, table,
+		),
+		fmt.Sprintf(
+			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_digest_per_day ON %s (actor_id, subject_id) WHERE event = 'items_overdue'`,
 			table, table,
 		),
 	}

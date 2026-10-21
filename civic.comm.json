@@ -120,7 +120,8 @@
             "merchandise",
             "membership",
             "security",
-            "approval"
+            "approval",
+            "item"
           ]
         },
         {
@@ -147,7 +148,12 @@
             "group_invited",
             "join_requested",
             "group_member_removed",
-            "agency_member_removed"
+            "agency_member_removed",
+            "item_acknowledged",
+            "item_answered",
+            "item_status_changed",
+            "item_filed_for_you",
+            "items_overdue"
           ]
         },
         {
@@ -164,7 +170,9 @@
             "pending_approval",
             "group",
             "group_join_request",
-            "group_join_decision"
+            "group_join_decision",
+            "item",
+            "item_digest"
           ]
         }
       ]
@@ -184,7 +192,8 @@
             "merchandise",
             "membership",
             "security",
-            "approval"
+            "approval",
+            "item"
           ]
         }
       ]

@@ -30,6 +30,7 @@ const (
 	// CategoryApproval — an agent-proposed write is waiting on the actor
 	// named Accountable for it (mwanachama-backend-api-kazi's K6).
 	CategoryApproval NotificationCategory = "approval"
+	CategoryItem     NotificationCategory = "item"
 )
 
 // notificationCategories is the whole vocabulary, in the order the object
@@ -37,7 +38,7 @@ const (
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
-	CategoryApproval,
+	CategoryApproval, CategoryItem,
 }
 
 // NotificationCategories returns the vocabulary. A copy, so a caller
@@ -107,6 +108,11 @@ const (
 	EventThreadDeclined            NotificationEvent = "thread_declined"
 	EventGroupMemberRemoved        NotificationEvent = "group_member_removed"
 	EventAgencyMemberRemoved       NotificationEvent = "agency_member_removed"
+	EventItemAcknowledged          NotificationEvent = "item_acknowledged"
+	EventItemAnswered              NotificationEvent = "item_answered"
+	EventItemStatusChanged         NotificationEvent = "item_status_changed"
+	EventItemFiledForYou           NotificationEvent = "item_filed_for_you"
+	EventItemsOverdue              NotificationEvent = "items_overdue"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -136,6 +142,11 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventThreadDeclined:            CategoryChat,
 	EventGroupMemberRemoved:        CategoryMembership,
 	EventAgencyMemberRemoved:       CategoryMembership,
+	EventItemAcknowledged:          CategoryItem,
+	EventItemAnswered:              CategoryItem,
+	EventItemStatusChanged:         CategoryItem,
+	EventItemFiledForYou:           CategoryItem,
+	EventItemsOverdue:              CategoryItem,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -183,6 +194,8 @@ const (
 	SubjectChatThread         NotificationSubjectKind = "chat_thread"
 	SubjectGroupJoinRequest   NotificationSubjectKind = "group_join_request"
 	SubjectGroupJoinDecision  NotificationSubjectKind = "group_join_decision"
+	SubjectItem               NotificationSubjectKind = "item"
+	SubjectItemDigest         NotificationSubjectKind = "item_digest"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -191,6 +204,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectEnrollmentKey, SubjectActorRegistration, SubjectPendingApproval,
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
+	SubjectItem, SubjectItemDigest,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
