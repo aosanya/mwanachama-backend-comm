@@ -223,6 +223,33 @@
         }
       ]
     },
+    "get_chat_message": {
+      "method": "GET",
+      "path": "/chat/messages/{message_id}",
+      "call": "GetChatMessageFor",
+      "action": "comm.chat_message.read",
+      "status": 200,
+      "title": "A chat message by id",
+      "description": "One message in a structure's room, read by its id, answering its structure_id and thread_id so a notice naming the message can open where it was posted. Its author reads it while they belong to the structure, even once it has been removed; anybody else reads it only while they may read its thread and only while it stands. A message the caller may not read, a removed one read by anybody but its author and an invented id answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "message_id",
+          "required": true,
+          "description": "The message."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "mark_chat_thread_read": {
       "method": "POST",
       "path": "/groups/{structure_id}/chat/threads/{thread_id}/read",
@@ -320,6 +347,33 @@
           "as": "subject_id",
           "required": true,
           "description": "Which thing of that kind the conversation is about."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "get_subject_thread": {
+      "method": "GET",
+      "path": "/subject-threads/{thread_id}",
+      "call": "GetSubjectThreadFor",
+      "action": "comm.subject_thread.read",
+      "status": 200,
+      "title": "A subject thread by id",
+      "description": "One thread about a subject, read by its id, answering its subject_kind, subject_id and audience (private or group) so a notice naming the thread can open what it is about. Behind the same standing as its messages: a thread the caller may not read and one that was never opened answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "required": true,
+          "description": "The thread."
         },
         {
           "from": "caller",

@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Thirty-eight addresses, declared in `comm.operations.json` and served by a
+Forty addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -413,6 +413,26 @@ of another thread or another structure, answers the same not-found as an
 invented thread rather than an empty list or a 400, so the argument cannot
 be used to learn which posts exist elsewhere. Pinned in
 `routes/chat_messages_after_test.go`.
+
+## Reading by id (CM51)
+
+A notice names one thing — a `thread_reply` a subject thread, a
+`message_removed` a chat message — and a client opening it has only that id.
+Two addresses answer it, both behind the fence the thing already sits behind
+(member app decision 191):
+
+- `GET /subject-threads/{thread_id}` answers the thread's `subject_kind`,
+  `subject_id` and `audience` (`private` or `group`). It is the same
+  `readableThread` check the thread's messages use, so a caller without
+  standing on the subject, another actor's private thread and an invented id
+  are the same 404.
+- `GET /chat/messages/{message_id}` answers the message with its
+  `structure_id` and `thread_id`. Its author reads it while they belong to
+  the structure, removed or not, because the removal notice is theirs and has
+  to open. Anybody else reads it only through the thread fence (a thread
+  still with the leads stays theirs and its requester's) and only while no
+  removal names it. Every miss — outside the structure, outside the thread,
+  removed and not the author's, invented — is the same 404.
 
 ## The subject fence
 
