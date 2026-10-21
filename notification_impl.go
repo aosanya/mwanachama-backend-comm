@@ -21,6 +21,19 @@ type NotificationStore struct {
 	store    *store
 	clock    Clock
 	onRaised func(context.Context, models.Notification)
+	mutable  Mutable
+}
+
+type Mutable func(ctx context.Context, event models.NotificationEvent) (mutable bool, known bool)
+
+func (s *NotificationStore) UseMutable(m Mutable) { s.mutable = m }
+
+func (s *NotificationStore) hostSaysUnmutable(ctx context.Context, e models.NotificationEvent) bool {
+	if s.mutable == nil {
+		return false
+	}
+	mutable, known := s.mutable(ctx, e)
+	return known && !mutable
 }
 
 func NewNotificationStore(db *gorm.DB, s *spec.Spec, clock Clock) (*NotificationStore, error) {
@@ -108,6 +121,9 @@ func (s *NotificationStore) Raise(ctx context.Context, n models.Notification) (m
 }
 
 func (s *NotificationStore) refuseIfMuted(ctx context.Context, n models.Notification) error {
+	if s.hostSaysUnmutable(ctx, n.Event) {
+		return nil
+	}
 	muted, err := s.IsMuted(ctx, n.ActorID, n.Category)
 	if err != nil {
 		return err

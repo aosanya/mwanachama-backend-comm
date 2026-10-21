@@ -401,3 +401,23 @@ stay exempt, and no event inside a mutable category bypasses its mute.
 - Pinned by `TestAMemberWhoMutedMembershipGetsNoJoinDecision` and
   `TestMutingMembershipSilencesEveryMembershipEvent`, through `Raise` on a
   real provisioned store.
+
+## Whether an event can be muted is the host's to say (CM50)
+
+`UseMutable` gives the notification store a `Mutable` function answering, for
+one event, whether a member's mute may hold it back and whether the host knows
+the event at all. `Raise` asks it before reading the member's preference:
+
+- **known and unmutable** — the notification is raised whatever the member
+  muted. This is how a host keeps an event its own rules fix as unmutable (a
+  new form, member app decision 128) reaching people whatever an agency sets.
+- **known and mutable** — the member's mute for the event's category holds,
+  as before.
+- **not known, or no function given** — exactly the behaviour before CM50:
+  the mute holds, and the fixed `survey`/`security` exemption still applies,
+  because `SetPreference` refuses to store a mute for those two at all.
+
+A host cannot make a `survey` or `security` event mutable through this: no
+muted preference for those categories can exist, so there is nothing for a
+mutable answer to honour. Which events an agency may mute is the host's
+notification-rules data, per mount; comm only honours the answer.
