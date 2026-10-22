@@ -323,6 +323,9 @@ means lives here rather than beside the constant.
 | `case_closed` | `case` | the same case was done or cancelled (CM56); subject `case` |
 | `task_assigned` | `task` | a task was assigned to the recipient, or to a role they hold (CM56); subject `task` |
 | `task_overdue` | `task` | the due date of a task assigned to the recipient, or to a role they hold, passed (CM56); subject `task` |
+| `appointment_booked` | `case` | the recipient booked a time with a service request (CM101); subject `case` |
+| `appointment_cancelled` | `case` | the agency cancelled the recipient's appointment, with its reason (CM101); subject `case` |
+| `appointment_cancelled_by_member` | `case` | the applicant cancelled their appointment, told to staff (CM101); subject `case` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
@@ -396,6 +399,31 @@ them and owns no case or task logic.
 - **No once-a-day cap on `task_overdue`.** Unlike `items_overdue` it names the
   task rather than a day, and no decision asks for a cap, so a host that
   raises it twice for the same task tells its recipients twice.
+
+### Service request and appointment notices (CM101, 2026-10-22)
+
+Member app decisions 322 and 325, mockup M24.6: a service request is a case
+(decision 276), and the Inbox carries a line when an appointment is booked,
+when the agency cancels it with its reason, when the request is done with the
+agency's reply, and when it is cancelled; staff are told when the member
+cancels. `mwanachama-wakala-api` raises them (WK199); comm carries them and
+owns no service or appointment logic.
+
+- **Declared by the civic spec, not the blueprint**, exactly as CM56's case
+  notices: `civic.comm.json` widens `notification.event` with
+  `appointment_booked`, `appointment_cancelled` and
+  `appointment_cancelled_by_member`. The school example declares none.
+- **Done and cancelled are `case_closed`.** A request is a case, so CM56's
+  event already says it; the client reads done or cancelled, and the
+  agency's reply or reason, from the case itself.
+- **Subject kind `case`, category `case`.** Every line opens the request, so
+  the subject is the case; the appointment's time and the cancel reason are
+  read from it, not stored on the notification. Muting `case` silences them
+  with the rest of a member's case notices.
+- **Who cancelled is two events.** The member is told the agency cancelled
+  (`appointment_cancelled`); staff are told the member cancelled
+  (`appointment_cancelled_by_member`), raised once per staff member to tell.
+  Which staff that is belongs to the raiser.
 
 ### A decided group join (CM33, 2026-10-20)
 

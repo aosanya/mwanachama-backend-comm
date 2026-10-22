@@ -84,87 +84,93 @@ func NotificationSMSChannel(c NotificationCategory) bool { return c == CategoryS
 type NotificationEvent string
 
 const (
-	EventSurveyReached             NotificationEvent = "survey_reached"
-	EventSurveyReminder            NotificationEvent = "survey_reminder"
-	EventSurveyNudge               NotificationEvent = "survey_nudge"
-	EventResultsPublished          NotificationEvent = "results_published"
-	EventContributionMatched       NotificationEvent = "contribution_matched"
-	EventContributionOrphaned      NotificationEvent = "contribution_orphaned"
-	EventContributionReportRefused NotificationEvent = "contribution_report_refused"
-	EventMerchandiseRecorded       NotificationEvent = "merchandise_recorded"
-	EventMessageRemoved            NotificationEvent = "message_removed"
-	EventIdentityCaseOpened        NotificationEvent = "identity_case_opened"
-	EventIdentityCaseClosed        NotificationEvent = "identity_case_closed"
-	EventEnrollmentKeyRotated      NotificationEvent = "enrollment_key_rotated"
-	EventActorTransferred          NotificationEvent = "actor_transferred"
-	EventConsentVersionPublished   NotificationEvent = "consent_version_published"
-	EventNumberChanged             NotificationEvent = "number_changed"
-	EventDeviceSignedOut           NotificationEvent = "device_signed_out"
-	EventApprovalRequested         NotificationEvent = "approval_requested"
-	EventGroupJoinApproved         NotificationEvent = "group_join_approved"
-	EventGroupJoinDeclined         NotificationEvent = "group_join_declined"
-	EventGroupInvited              NotificationEvent = "group_invited"
-	EventJoinRequested             NotificationEvent = "join_requested"
-	EventThreadReply               NotificationEvent = "thread_reply"
-	EventThreadRequested           NotificationEvent = "thread_requested"
-	EventThreadDeclined            NotificationEvent = "thread_declined"
-	EventRecordMessage             NotificationEvent = "record_message"
-	EventRecordAccessEnded         NotificationEvent = "record_access_ended"
-	EventGroupMemberRemoved        NotificationEvent = "group_member_removed"
-	EventAgencyMemberRemoved       NotificationEvent = "agency_member_removed"
-	EventItemAcknowledged          NotificationEvent = "item_acknowledged"
-	EventItemAnswered              NotificationEvent = "item_answered"
-	EventItemStatusChanged         NotificationEvent = "item_status_changed"
-	EventItemFiledForYou           NotificationEvent = "item_filed_for_you"
-	EventItemsOverdue              NotificationEvent = "items_overdue"
-	EventRecordChangeApproved      NotificationEvent = "record_change_approved"
-	EventRecordChangeRefused       NotificationEvent = "record_change_refused"
-	EventCaseOpened                NotificationEvent = "case_opened"
-	EventCaseClosed                NotificationEvent = "case_closed"
-	EventTaskAssigned              NotificationEvent = "task_assigned"
-	EventTaskOverdue               NotificationEvent = "task_overdue"
+	EventSurveyReached                NotificationEvent = "survey_reached"
+	EventSurveyReminder               NotificationEvent = "survey_reminder"
+	EventSurveyNudge                  NotificationEvent = "survey_nudge"
+	EventResultsPublished             NotificationEvent = "results_published"
+	EventContributionMatched          NotificationEvent = "contribution_matched"
+	EventContributionOrphaned         NotificationEvent = "contribution_orphaned"
+	EventContributionReportRefused    NotificationEvent = "contribution_report_refused"
+	EventMerchandiseRecorded          NotificationEvent = "merchandise_recorded"
+	EventMessageRemoved               NotificationEvent = "message_removed"
+	EventIdentityCaseOpened           NotificationEvent = "identity_case_opened"
+	EventIdentityCaseClosed           NotificationEvent = "identity_case_closed"
+	EventEnrollmentKeyRotated         NotificationEvent = "enrollment_key_rotated"
+	EventActorTransferred             NotificationEvent = "actor_transferred"
+	EventConsentVersionPublished      NotificationEvent = "consent_version_published"
+	EventNumberChanged                NotificationEvent = "number_changed"
+	EventDeviceSignedOut              NotificationEvent = "device_signed_out"
+	EventApprovalRequested            NotificationEvent = "approval_requested"
+	EventGroupJoinApproved            NotificationEvent = "group_join_approved"
+	EventGroupJoinDeclined            NotificationEvent = "group_join_declined"
+	EventGroupInvited                 NotificationEvent = "group_invited"
+	EventJoinRequested                NotificationEvent = "join_requested"
+	EventThreadReply                  NotificationEvent = "thread_reply"
+	EventThreadRequested              NotificationEvent = "thread_requested"
+	EventThreadDeclined               NotificationEvent = "thread_declined"
+	EventRecordMessage                NotificationEvent = "record_message"
+	EventRecordAccessEnded            NotificationEvent = "record_access_ended"
+	EventGroupMemberRemoved           NotificationEvent = "group_member_removed"
+	EventAgencyMemberRemoved          NotificationEvent = "agency_member_removed"
+	EventItemAcknowledged             NotificationEvent = "item_acknowledged"
+	EventItemAnswered                 NotificationEvent = "item_answered"
+	EventItemStatusChanged            NotificationEvent = "item_status_changed"
+	EventItemFiledForYou              NotificationEvent = "item_filed_for_you"
+	EventItemsOverdue                 NotificationEvent = "items_overdue"
+	EventRecordChangeApproved         NotificationEvent = "record_change_approved"
+	EventRecordChangeRefused          NotificationEvent = "record_change_refused"
+	EventCaseOpened                   NotificationEvent = "case_opened"
+	EventCaseClosed                   NotificationEvent = "case_closed"
+	EventTaskAssigned                 NotificationEvent = "task_assigned"
+	EventTaskOverdue                  NotificationEvent = "task_overdue"
+	EventAppointmentBooked            NotificationEvent = "appointment_booked"
+	EventAppointmentCancelled         NotificationEvent = "appointment_cancelled"
+	EventAppointmentCancelledByMember NotificationEvent = "appointment_cancelled_by_member"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
-	EventSurveyReached:             CategorySurvey,
-	EventSurveyReminder:            CategorySurvey,
-	EventSurveyNudge:               CategorySurvey,
-	EventResultsPublished:          CategoryResults,
-	EventContributionMatched:       CategoryContribution,
-	EventContributionOrphaned:      CategoryContribution,
-	EventContributionReportRefused: CategoryContribution,
-	EventMerchandiseRecorded:       CategoryMerchandise,
-	EventMessageRemoved:            CategoryChat,
-	EventIdentityCaseOpened:        CategorySecurity,
-	EventIdentityCaseClosed:        CategorySecurity,
-	EventEnrollmentKeyRotated:      CategoryMembership,
-	EventActorTransferred:          CategoryMembership,
-	EventConsentVersionPublished:   CategoryMembership,
-	EventNumberChanged:             CategoryMembership,
-	EventDeviceSignedOut:           CategorySecurity,
-	EventApprovalRequested:         CategoryApproval,
-	EventGroupJoinApproved:         CategoryMembership,
-	EventGroupJoinDeclined:         CategoryMembership,
-	EventGroupInvited:              CategoryMembership,
-	EventJoinRequested:             CategoryMembership,
-	EventThreadReply:               CategoryChat,
-	EventThreadRequested:           CategoryChat,
-	EventThreadDeclined:            CategoryChat,
-	EventRecordMessage:             CategoryChat,
-	EventRecordAccessEnded:         CategoryChat,
-	EventGroupMemberRemoved:        CategoryMembership,
-	EventAgencyMemberRemoved:       CategoryMembership,
-	EventItemAcknowledged:          CategoryItem,
-	EventItemAnswered:              CategoryItem,
-	EventItemStatusChanged:         CategoryItem,
-	EventItemFiledForYou:           CategoryItem,
-	EventItemsOverdue:              CategoryItem,
-	EventRecordChangeApproved:      CategoryMembership,
-	EventRecordChangeRefused:       CategoryMembership,
-	EventCaseOpened:                CategoryCase,
-	EventCaseClosed:                CategoryCase,
-	EventTaskAssigned:              CategoryTask,
-	EventTaskOverdue:               CategoryTask,
+	EventSurveyReached:                CategorySurvey,
+	EventSurveyReminder:               CategorySurvey,
+	EventSurveyNudge:                  CategorySurvey,
+	EventResultsPublished:             CategoryResults,
+	EventContributionMatched:          CategoryContribution,
+	EventContributionOrphaned:         CategoryContribution,
+	EventContributionReportRefused:    CategoryContribution,
+	EventMerchandiseRecorded:          CategoryMerchandise,
+	EventMessageRemoved:               CategoryChat,
+	EventIdentityCaseOpened:           CategorySecurity,
+	EventIdentityCaseClosed:           CategorySecurity,
+	EventEnrollmentKeyRotated:         CategoryMembership,
+	EventActorTransferred:             CategoryMembership,
+	EventConsentVersionPublished:      CategoryMembership,
+	EventNumberChanged:                CategoryMembership,
+	EventDeviceSignedOut:              CategorySecurity,
+	EventApprovalRequested:            CategoryApproval,
+	EventGroupJoinApproved:            CategoryMembership,
+	EventGroupJoinDeclined:            CategoryMembership,
+	EventGroupInvited:                 CategoryMembership,
+	EventJoinRequested:                CategoryMembership,
+	EventThreadReply:                  CategoryChat,
+	EventThreadRequested:              CategoryChat,
+	EventThreadDeclined:               CategoryChat,
+	EventRecordMessage:                CategoryChat,
+	EventRecordAccessEnded:            CategoryChat,
+	EventGroupMemberRemoved:           CategoryMembership,
+	EventAgencyMemberRemoved:          CategoryMembership,
+	EventItemAcknowledged:             CategoryItem,
+	EventItemAnswered:                 CategoryItem,
+	EventItemStatusChanged:            CategoryItem,
+	EventItemFiledForYou:              CategoryItem,
+	EventItemsOverdue:                 CategoryItem,
+	EventRecordChangeApproved:         CategoryMembership,
+	EventRecordChangeRefused:          CategoryMembership,
+	EventCaseOpened:                   CategoryCase,
+	EventCaseClosed:                   CategoryCase,
+	EventTaskAssigned:                 CategoryTask,
+	EventTaskOverdue:                  CategoryTask,
+	EventAppointmentBooked:            CategoryCase,
+	EventAppointmentCancelled:         CategoryCase,
+	EventAppointmentCancelledByMember: CategoryCase,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{

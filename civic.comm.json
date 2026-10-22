@@ -161,7 +161,10 @@
             "case_opened",
             "case_closed",
             "task_assigned",
-            "task_overdue"
+            "task_overdue",
+            "appointment_booked",
+            "appointment_cancelled",
+            "appointment_cancelled_by_member"
           ]
         },
         {
