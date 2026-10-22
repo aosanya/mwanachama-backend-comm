@@ -123,7 +123,8 @@
             "approval",
             "item",
             "case",
-            "task"
+            "task",
+            "post"
           ]
         },
         {
@@ -166,7 +167,9 @@
             "appointment_cancelled",
             "appointment_cancelled_by_member",
             "poll_opened",
-            "poll_result_published"
+            "poll_result_published",
+            "volunteer_picked",
+            "volunteer_call_filled"
           ]
         },
         {
@@ -189,7 +192,8 @@
             "record_change",
             "case",
             "task",
-            "poll"
+            "poll",
+            "post"
           ]
         }
       ]
@@ -212,7 +216,8 @@
             "approval",
             "item",
             "case",
-            "task"
+            "task",
+            "post"
           ]
         }
       ]

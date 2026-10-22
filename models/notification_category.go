@@ -33,6 +33,7 @@ const (
 	CategoryItem     NotificationCategory = "item"
 	CategoryCase     NotificationCategory = "case"
 	CategoryTask     NotificationCategory = "task"
+	CategoryPost     NotificationCategory = "post"
 )
 
 // notificationCategories is the whole vocabulary, in the order the object
@@ -40,7 +41,7 @@ const (
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
-	CategoryApproval, CategoryItem, CategoryCase, CategoryTask,
+	CategoryApproval, CategoryItem, CategoryCase, CategoryTask, CategoryPost,
 }
 
 // NotificationCategories returns the vocabulary. A copy, so a caller
@@ -128,6 +129,8 @@ const (
 	EventAppointmentCancelledByMember NotificationEvent = "appointment_cancelled_by_member"
 	EventPollOpened                   NotificationEvent = "poll_opened"
 	EventPollResultPublished          NotificationEvent = "poll_result_published"
+	EventVolunteerPicked              NotificationEvent = "volunteer_picked"
+	EventVolunteerCallFilled          NotificationEvent = "volunteer_call_filled"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -175,6 +178,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventAppointmentCancelledByMember: CategoryCase,
 	EventPollOpened:                   CategorySurvey,
 	EventPollResultPublished:          CategoryResults,
+	EventVolunteerPicked:              CategoryPost,
+	EventVolunteerCallFilled:          CategoryPost,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -230,6 +235,7 @@ const (
 	SubjectTask               NotificationSubjectKind = "task"
 	SubjectRecord             NotificationSubjectKind = "record"
 	SubjectPoll               NotificationSubjectKind = "poll"
+	SubjectPost               NotificationSubjectKind = "post"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -239,7 +245,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
-	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll,
+	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll, SubjectPost,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

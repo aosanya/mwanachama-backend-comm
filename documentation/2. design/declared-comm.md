@@ -328,6 +328,8 @@ means lives here rather than beside the constant.
 | `appointment_cancelled_by_member` | `case` | the applicant cancelled their appointment, told to staff (CM101); subject `case` |
 | `poll_opened` | `survey` | a poll was sent to a group the recipient belongs to (CM103); subject `poll` |
 | `poll_result_published` | `results` | a poll's result was published to a group the recipient belongs to (CM103); subject `poll` |
+| `volunteer_picked` | `post` | the poster of a volunteer call picked the recipient's offer (CM105); subject `post` |
+| `volunteer_call_filled` | `post` | a volunteer call the recipient offered on was filled without them (CM105); subject `post` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
@@ -453,6 +455,33 @@ no poll logic.
   choice and how many answered are read from the poll, not stored on the
   notification. Who is told is the raiser's: one notification per member of
   each group the poll was sent, or its result published, to.
+
+### Volunteer notices (CM105, 2026-10-22)
+
+Member app decision 351, mockup M26.8: when the poster of a volunteer call
+confirms their picks, each picked member is told they were picked and every
+other member who offered is told the call is filled. `mwanachama-backend-engage`
+owns the call, its offers and its picks (EN5) and returns the change to the
+host; `mwanachama-wakala-api` raises the notices (WK213). comm carries them and
+owns no call or pick logic.
+
+- **Declared by the civic spec, not the blueprint**, as CM56's, CM101's and
+  CM103's notices are: `civic.comm.json` widens `notification.event` with
+  `volunteer_picked` and `volunteer_call_filled`, `category` (on both the
+  notification and its preference) with `post`, and `subject_kind` with
+  `post`. The school example declares none of them.
+- **A category of their own, `post`.** None of the existing categories is the
+  opt-out unit for what an agency posts to its groups: `task` is staff work
+  assigned through the register, and `membership` is the member's standing.
+  `post` is named for engage's object rather than for volunteering, so the
+  other post notices (CM104: a new notice, event or call, an event moved or
+  cancelled) can join it rather than adding a second category. Both events are
+  mutable, like `task_assigned`; decision 351 says the member is told and says
+  nothing about muting.
+- **Subject kind `post`**, the call itself. M26.8 has each line open its post;
+  what, when and how many are read from engage, not stored on the
+  notification. Who is told is the raiser's: one `volunteer_picked` per picked
+  member and one `volunteer_call_filled` per other member who offered.
 
 ### A decided group join (CM33, 2026-10-20)
 
