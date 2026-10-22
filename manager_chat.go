@@ -73,6 +73,14 @@ func (m *CommManager) asLead(ctx context.Context, structureID, callerID string) 
 }
 
 func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, callerID string) ([]models.ChatThreadView, error) {
+	return m.threadViews(ctx, structureID, callerID, false)
+}
+
+func (m *CommManager) ListArchivedChatThreadsFor(ctx context.Context, structureID, callerID string) ([]models.ChatThreadView, error) {
+	return m.threadViews(ctx, structureID, callerID, true)
+}
+
+func (m *CommManager) threadViews(ctx context.Context, structureID, callerID string, archivedOnes bool) ([]models.ChatThreadView, error) {
 	if err := m.inStructure(ctx, structureID, callerID); err != nil {
 		return nil, err
 	}
@@ -98,7 +106,7 @@ func (m *CommManager) ListChatThreadsFor(ctx context.Context, structureID, calle
 		return nil, err
 	}
 	for _, t := range threads {
-		if archived[t.ID] || !t.ReadableBy(callerID, leads) {
+		if archived[t.ID] != archivedOnes || !t.ReadableBy(callerID, leads) {
 			continue
 		}
 		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}

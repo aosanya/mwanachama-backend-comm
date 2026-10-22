@@ -95,6 +95,7 @@ func TestTheChatToolsAreListedWithNoSessionFactInTheirSchemas(t *testing.T) {
 	want := map[string]bool{
 		"comm_chat_thread_list": true, "comm_chat_message_list": true, "comm_chat_message_post": true,
 		"comm_chat_thread_mark_read": true, "comm_chat_thread_create": true,
+		"comm_chat_thread_list_archived": true, "comm_chat_thread_archive": true, "comm_chat_thread_unarchive": true,
 	}
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("listed %d tools, want %d", len(listed.Tools), len(want))
@@ -171,4 +172,31 @@ func TestAnOutsiderIsFencedOutThroughTheTools(t *testing.T) {
 func mustJSON(v any) string {
 	raw, _ := json.Marshal(v)
 	return string(raw)
+}
+
+func TestAMemberArchivesAndBringsBackAThreadThroughTheTools(t *testing.T) {
+	who := "actor-a"
+	cs := connect(t, newManager(t), &who)
+	_, thread := callTool(t, cs, "comm_chat_thread_create", map[string]any{"structure_id": "s-1", "label": "Market day"})
+	threadID, _ := thread["id"].(string)
+	if threadID == "" {
+		t.Fatalf("start returned no id: %v", thread)
+	}
+
+	if res, _ := callTool(t, cs, "comm_chat_thread_archive", map[string]any{"structure_id": "s-1", "thread_id": threadID}); res.IsError {
+		t.Fatalf("archive: %+v", res.Content[0])
+	}
+	if _, threads := callTool(t, cs, "comm_chat_thread_list", map[string]any{"structure_id": "s-1"}); strings.Contains(mustJSON(threads), threadID) {
+		t.Fatalf("an archived thread is still listed: %s", mustJSON(threads))
+	}
+	if _, archived := callTool(t, cs, "comm_chat_thread_list_archived", map[string]any{"structure_id": "s-1"}); !strings.Contains(mustJSON(archived), threadID) {
+		t.Fatalf("the archived thread is not in the archived list: %s", mustJSON(archived))
+	}
+
+	if res, _ := callTool(t, cs, "comm_chat_thread_unarchive", map[string]any{"structure_id": "s-1", "thread_id": threadID}); res.IsError {
+		t.Fatalf("unarchive: %+v", res.Content[0])
+	}
+	if _, threads := callTool(t, cs, "comm_chat_thread_list", map[string]any{"structure_id": "s-1"}); !strings.Contains(mustJSON(threads), threadID) {
+		t.Fatalf("an unarchived thread is not back: %s", mustJSON(threads))
+	}
 }

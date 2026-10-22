@@ -24,10 +24,11 @@ members is still with the owner, and decline behaves as before.
 Unique on `(thread_id, reader_id)`. A reader with no archive row has archived
 nothing; unarchiving deletes the row rather than flagging it.
 
-## The two addresses
+## The three addresses
 
 | Method | Path | Action | Answers |
 | --- | --- | --- | --- |
+| GET | `/groups/{structure_id}/chat/threads/archived` | `comm.chat_thread.list_archived` | 200, the caller's archived threads |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.archive` | 200, the archive as stored |
 | DELETE | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.unarchive` | 204 |
 
@@ -36,7 +37,11 @@ Both take no body. Archiving again keeps the first archive and its
 since it is already where the caller asked it to be.
 
 `GET /groups/{structure_id}/chat/threads` leaves out every thread the caller
-archived. Nothing else reads the record: posting, reading a thread's posts,
+archived, and `GET /groups/{structure_id}/chat/threads/archived` lists
+exactly those, in the same `ChatThreadView` shape and behind the same
+structure fence as the room's list, with the reader `{"from": "caller"}`.
+One function, `threadViews`, serves both, so a thread is in exactly one of
+the two lists for its reader. Nothing else reads the record: posting, reading a thread's posts,
 marking it read and its unread count all carry on as before, so an archived
 thread that hears something stays archived.
 
@@ -50,13 +55,23 @@ thread that hears something stays archived.
   thread the caller may not read all answer the same `ErrChatNotFound`.
   `routes/chat_fence_security_test.go` covers both addresses.
 
-## Decided minimally, open to change
+## Room threads only
 
-- **There is no listing of archived threads.** Unarchiving needs only the
-  thread's id, which the client had when it archived. If the member app wants
-  an "Archived" view, that is one more read (a query flag on the thread list,
-  or its own address) and is not built.
-- **Archive is not offered as a chat MCP tool.** `routes.ChatActions` is
-  unchanged; adding the two actions there is a one-line change when an agent
-  needs it.
-- Who may call the two actions is the mount's. On wakala-api that is WK138.
+Archiving is for a room's threads (decision 205). All three addresses sit
+under `/groups/{structure_id}/chat/threads/`, and the thread is looked up in
+that structure's room: a direct-message thread, a subject thread or another
+room's thread has no row there and answers the same not-found.
+`TestArchivingIsDeclaredForRoomThreadsAlone` holds every archive operation
+to a room path and `TestOnlyARoomsOwnThreadCanBeArchivedThere` exercises the
+other-room case.
+
+## MCP tools
+
+`routes.ChatActions` carries all three, so `comm_chat_thread_list_archived`,
+`comm_chat_thread_archive` and `comm_chat_thread_unarchive` are listed beside
+the other chat tools, with no session fact in their schemas.
+
+## Open to change
+
+- Who may call the three actions is the mount's. On wakala-api that is WK138,
+  which now also needs `comm.chat_thread.list_archived`.

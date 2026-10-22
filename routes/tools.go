@@ -16,6 +16,9 @@ var ChatActions = []string{
 	"comm.chat_message.post",
 	"comm.chat_thread.mark_read",
 	"comm.chat_thread.create",
+	"comm.chat_thread.list_archived",
+	"comm.chat_thread.archive",
+	"comm.chat_thread.unarchive",
 }
 
 func BuildChatTools(m *mwanachamacomm.CommManager, mount Mount) ([]Tool, error) {

@@ -288,6 +288,33 @@
         }
       ]
     },
+    "list_archived_chat_threads": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/chat/threads/archived",
+      "call": "ListArchivedChatThreadsFor",
+      "action": "comm.chat_thread.list_archived",
+      "status": 200,
+      "title": "The threads you archived",
+      "description": "The threads of one structure's room the caller archived for themselves and may still read, oldest first, in the same shape as the room's list, so an archived thread can be found and brought back. Nobody else's archive is ever shown: the reader is the session's. A structure the caller does not belong to and one that does not exist answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "archive_chat_thread": {
       "method": "POST",
       "path": "/groups/{structure_id}/chat/threads/{thread_id}/archive",
