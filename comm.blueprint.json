@@ -1252,6 +1252,28 @@
           ]
         }
       ]
+    },
+    {
+      "role": "standing_message",
+      "description": "A message to a group that goes out on a schedule. The host sends it into the group's chat at each occurrence until its end, or until somebody stops it.",
+      "fields": [
+        {"name": "id", "type": "string", "description": "Storage key, opaque to callers.", "primary": true},
+        {"name": "structure_id", "type": "string", "description": "The group whose chat the message is sent into.", "required": true},
+        {"name": "thread_id", "type": "string", "description": "The room's thread each occurrence is posted to. Absent posts to the room itself."},
+        {"name": "author_id", "type": "string", "description": "Who set the message up. A session fact: the caller, never a body field.", "required": true},
+        {"name": "body", "type": "text", "description": "What is sent at each occurrence.", "required": true},
+        {"name": "rule", "type": "string", "description": "The recurrence, as an RFC 5545 RRULE value the shared recur package reads.", "required": true},
+        {"name": "zone", "type": "string", "description": "The IANA time zone the rule is read in, so a monthly message keeps its local time across daylight saving.", "required": true},
+        {"name": "starts_at", "type": "timestamp", "description": "The first instant the schedule may fall on.", "required": true},
+        {"name": "ends_at", "type": "timestamp", "description": "After this nothing is sent. Absent runs until stopped.", "nullable": true},
+        {"name": "last_sent_at", "type": "timestamp", "description": "The occurrence most recently sent. Moved forward before a post, under a compare-and-swap, so an occurrence goes out at most once however many hosts call.", "nullable": true},
+        {"name": "stopped_at", "type": "timestamp", "description": "When somebody stopped it. A stopped message sends nothing more. Absent while it runs.", "nullable": true},
+        {"name": "stopped_by", "type": "string", "description": "Who stopped it. A session fact."},
+        {"name": "created_at", "type": "timestamp", "description": "When it was set up.", "required": true}
+      ],
+      "indexes": [
+        {"name": "structure", "description": "Lists one group's standing messages.", "fields": ["structure_id"]}
+      ]
     }
   ]
 }

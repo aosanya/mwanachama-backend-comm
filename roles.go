@@ -21,6 +21,7 @@ const (
 	roleNotification           = "notification"
 	roleNotificationPreference = "notification_preference"
 	rolePushSubscription       = "push_subscription"
+	roleStandingMessage        = "standing_message"
 )
 
 var allRoles = []string{
@@ -44,4 +45,5 @@ var allRoles = []string{
 	roleNotification,
 	roleNotificationPreference,
 	rolePushSubscription,
+	roleStandingMessage,
 }

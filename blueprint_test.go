@@ -23,8 +23,8 @@ func testSpec(t *testing.T) *spec.Spec {
 
 func TestBlueprintDeclaresEveryRoleTheDomainSpecFills(t *testing.T) {
 	s := testSpec(t)
-	if len(s.Objects) != 20 {
-		t.Fatalf("declared %d objects, want comm's 20 tables", len(s.Objects))
+	if len(s.Objects) != 21 {
+		t.Fatalf("declared %d objects, want comm's 21 tables", len(s.Objects))
 	}
 	for _, role := range allRoles {
 		if _, ok := s.ByRole(role); !ok {
@@ -81,6 +81,7 @@ var carriers = map[string]any{
 	roleNotification:           models.Notification{},
 	roleNotificationPreference: models.NotificationPreference{},
 	rolePushSubscription:       models.PushSubscription{},
+	roleStandingMessage:        models.StandingMessage{},
 }
 
 func TestEveryDeclaredColumnIsCarried(t *testing.T) {
