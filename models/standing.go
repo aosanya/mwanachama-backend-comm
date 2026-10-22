@@ -17,7 +17,8 @@ type StandingMessage struct {
 	ThreadID    string     `json:"thread_id,omitempty"`
 	AuthorID    string     `json:"author_id"`
 	Body        string     `json:"body"`
-	Rule        string     `json:"rule"`
+	Rule        string     `json:"rule,omitempty"`
+	Dates       []string   `json:"dates,omitempty"`
 	Zone        string     `json:"zone"`
 	StartsAt    time.Time  `json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at,omitempty"`

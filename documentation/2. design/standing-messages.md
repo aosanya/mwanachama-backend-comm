@@ -6,13 +6,20 @@ A standing message is a message to a group that goes out on a schedule
 ## What is stored
 
 `standing_message` holds the group (`structure_id`), an optional thread, the
-author, the body, and the schedule as an RFC 5545 `rule` read by
+author, the body, and the schedule, read by
 `mwanachama-backend-shared/recur` in an IANA `zone` from `starts_at`, with an
-optional `ends_at`. `stopped_at`/`stopped_by` record a Stop;
+optional `ends_at`. The schedule is exactly one of an RFC 5545 `rule` or
+`dates`, a declared `json` list of `YYYY-MM-DD` dates (the same shape forms'
+schedule takes, e.g. school terms). Each date is sent at `starts_at`'s local
+time in the zone, and a date before `starts_at` or after `ends_at` is never
+sent. `stopped_at`/`stopped_by` record a Stop;
 `last_sent_at` records the occurrence most recently sent.
 
 A schedule is checked when the message is set up: an unknown zone, a rule
-`recur` cannot read, or an end before the start is `ErrStandingInvalid`.
+`recur` cannot read, a date that is not `YYYY-MM-DD` or not on the calendar,
+both a rule and dates or neither, or an end before the start is
+`ErrStandingInvalid` (400 on the create address, which takes `rule` or
+`dates` in the body).
 
 ## Sending
 
@@ -67,8 +74,6 @@ it:
 
 ## Not yet built
 
-- A schedule given as a list of dates rather than a rule (`recur` supports
-  both).
 - The host's tick (wakala-api WK203).
 
 ## Open questions

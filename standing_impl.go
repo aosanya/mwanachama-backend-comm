@@ -44,11 +44,21 @@ func scheduleOf(m models.StandingMessage) (recur.Schedule, error) {
 	if err != nil || m.Zone == "" {
 		return recur.Schedule{}, fmt.Errorf("%w: %q is not a time zone", models.ErrStandingInvalid, m.Zone)
 	}
-	rule, err := recur.ParseRule(m.Rule)
-	if err != nil {
-		return recur.Schedule{}, fmt.Errorf("%w: %v", models.ErrStandingInvalid, err)
+	sch := recur.Schedule{Start: m.StartsAt, Zone: zone}
+	if m.Rule != "" {
+		rule, err := recur.ParseRule(m.Rule)
+		if err != nil {
+			return recur.Schedule{}, fmt.Errorf("%w: %v", models.ErrStandingInvalid, err)
+		}
+		sch.Rule = &rule
 	}
-	sch := recur.Schedule{Start: m.StartsAt, Zone: zone, Rule: &rule}
+	for _, raw := range m.Dates {
+		d, err := recur.ParseDate(raw)
+		if err != nil {
+			return recur.Schedule{}, fmt.Errorf("%w: %v", models.ErrStandingInvalid, err)
+		}
+		sch.Dates = append(sch.Dates, d)
+	}
 	if m.EndsAt != nil {
 		sch.End = *m.EndsAt
 	}

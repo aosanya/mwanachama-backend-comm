@@ -121,3 +121,25 @@ func TestTheHostSendsAStandingMessageSetUpOverTheMux(t *testing.T) {
 		t.Fatalf("sent = %+v, want one post by actor-a into the thread", sent)
 	}
 }
+
+func TestAStandingMessageOnAListOfDatesIsSetUpOverTheMux(t *testing.T) {
+	do, _, thread := newStandingFixture(t)
+	body := standingBody(thread)
+	delete(body, "rule")
+	body["dates"] = []string{"2026-01-05", "2026-05-04"}
+
+	created := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", body)
+	if created.code != http.StatusCreated {
+		t.Fatalf("create = %d: %s", created.code, created.body)
+	}
+	var sm mwanachamacomm.StandingMessage
+	created.decode(t, &sm)
+	if len(sm.Dates) != 2 || sm.Dates[1] != "2026-05-04" || sm.Rule != "" {
+		t.Fatalf("dates = %v rule = %q, want the two dates and no rule", sm.Dates, sm.Rule)
+	}
+
+	body["rule"] = "FREQ=MONTHLY"
+	if both := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", body); both.code != http.StatusBadRequest {
+		t.Fatalf("rule and dates together = %d, want 400: %s", both.code, both.body)
+	}
+}

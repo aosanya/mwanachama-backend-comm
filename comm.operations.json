@@ -1275,8 +1275,12 @@
         {
           "from": "body",
           "as": "rule",
-          "required": true,
-          "description": "The recurrence rule of the schedule."
+          "description": "The recurrence rule of the schedule, an RFC 5545 RRULE. Give this or dates, exactly one."
+        },
+        {
+          "from": "body",
+          "as": "dates",
+          "description": "The schedule as a list of YYYY-MM-DD dates, each sent at the start's local time. Give this or rule, exactly one."
         },
         {
           "from": "body",

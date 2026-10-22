@@ -23,7 +23,7 @@ func instantArg(name, raw string) (time.Time, error) {
 	return t, nil
 }
 
-func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID, callerID, threadID, body, rule, zone, startsAt, endsAt string) (models.StandingMessage, error) {
+func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID, callerID, threadID, body, rule string, dates []string, zone, startsAt, endsAt string) (models.StandingMessage, error) {
 	if err := m.standingFence(ctx, structureID, threadID, callerID); err != nil {
 		return models.StandingMessage{}, err
 	}
@@ -33,7 +33,7 @@ func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID,
 	}
 	msg := models.StandingMessage{
 		StructureID: structureID, ThreadID: threadID, AuthorID: callerID,
-		Body: body, Rule: rule, Zone: zone, StartsAt: start,
+		Body: body, Rule: rule, Dates: dates, Zone: zone, StartsAt: start,
 	}
 	if endsAt != "" {
 		end, err := instantArg("ends_at", endsAt)
