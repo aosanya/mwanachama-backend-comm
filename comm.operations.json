@@ -120,7 +120,7 @@
       "action": "comm.chat_thread.decline",
       "status": 200,
       "title": "Decline a thread request",
-      "description": "Closes a thread somebody asked for, still with the leads, without opening it. From then on it is listed to nobody and every address answers it as one that was never minted, and the caller who asked for it is told through a notification naming the thread and the lead who declined. Declining a thread already declined answers with it unchanged and tells nobody again. A thread that is already the group's, or that nobody asked for, is refused as a conflict. Only a caller the mount says leads the structure may decline one; anybody else, a thread that was never minted and a thread of another structure all answer the same not-found.",
+      "description": "Closes a thread somebody asked for, still with the leads, without opening it. From then on it stays listed and readable to the leads and the caller who asked for it, and to nobody else; it is read-only, so a post to it is refused as a conflict, and a lead may still open it to the group, which makes it an ordinary open thread. The caller who asked for it is told through a notification naming the thread and the lead who declined. Declining a thread already declined answers with it unchanged and tells nobody again. A thread that is already the group's, or that nobody asked for, is refused as a conflict. Only a caller the mount says leads the structure may decline one; anybody else, a thread that was never minted and a thread of another structure all answer the same not-found.",
       "args": [
         {
           "from": "path",
@@ -1246,6 +1246,7 @@
     "ErrChatNotFound": 404,
     "ErrChatInvalid": 400,
     "ErrChatNotDeclinable": 409,
+    "ErrChatThreadDeclined": 409,
     "ErrSubjectNotFound": 404,
     "ErrSubjectInvalid": 400,
     "ErrDMNotFound": 404,

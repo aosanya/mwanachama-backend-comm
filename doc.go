@@ -57,6 +57,8 @@ var ErrChatInvalid = models.ErrChatInvalid
 
 var ErrChatNotDeclinable = models.ErrChatNotDeclinable
 
+var ErrChatThreadDeclined = models.ErrChatThreadDeclined
+
 type (
 	SubjectThread        = models.SubjectThread
 	SubjectThreadView    = models.SubjectThreadView

@@ -16,6 +16,8 @@ var ErrChatNotFound = errors.New("chat: not found")
 
 var ErrChatInvalid = errors.New("chat: invalid")
 
+var ErrChatThreadDeclined = errors.New("chat: a declined thread is read-only")
+
 var ErrChatNotDeclinable = errors.New("chat: only a thread somebody asked for, still with the leads, can be declined")
 
 type ChatThread struct {
@@ -45,8 +47,6 @@ func (t ChatThread) Declinable() bool {
 
 func (t ChatThread) ReadableBy(actorID string, leads bool) bool {
 	switch {
-	case t.Declined():
-		return false
 	case t.Audience != ChatAudienceLeads:
 		return true
 	case leads:

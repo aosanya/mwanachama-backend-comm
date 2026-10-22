@@ -383,13 +383,15 @@ the group (CM42) or decline it.
   `chat`, subject `chat_thread`, `author_actor_id` the lead who declined (the
   member app's M05.1 shows "from the Chair"), `structure_id` the room. A lead
   who declines a thread they asked for themselves is not told.
-- **A declined thread is closed for everybody.** It leaves every list, the
-  leads' included, and the posts, a post, the read marker and opening all
-  answer it exactly as a thread that was never minted
-  (`TestADeclinedThreadClosesUnopenedAndTellsTheAsker`). Nothing is deleted:
-  the row and its posts stay, so a later decision to show the leads what they
-  declined needs no data back. `ChatThread.ReadableBy` refuses a declined
-  thread before anything else, which is the one rule every read goes through.
+- **A declined thread stays readable, read-only, by its starter and the
+  leads** (CM49, member app decisions 152, 153, 203–205). It stays on their
+  lists with `declined_at` set and its posts stay readable to them; to anybody
+  else it answers exactly as a thread that was never minted, because
+  `ChatThread.ReadableBy` treats it as the leads' thread it still is. A post to
+  it is refused `ErrChatThreadDeclined`, a 409. A lead may still open it: the
+  open clears `declined_at` and `declined_by` and makes it an ordinary group
+  thread, though its tag path stays aside
+  (`TestADeclinedThreadStaysReadOnlyToItsAskerAndTheLeadsAndTellsTheAsker`).
 - **A declined topic is free again.** Declining moves the thread's tag path
   aside, suffixed with its own id, so its label's path is empty again: starting
   that label again mints one new thread at the label's own path,

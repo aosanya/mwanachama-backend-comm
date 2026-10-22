@@ -58,19 +58,16 @@ func (s *ChatStore) OpenThread(ctx context.Context, structureID, threadID string
 	if err != nil {
 		return models.ChatThread{}, err
 	}
-	if t.Declined() {
-		return models.ChatThread{}, models.ErrChatNotFound
-	}
 	if t.Audience == models.ChatAudienceGroup {
 		return t, nil
 	}
 	err = s.store.Query(ctx, roleChatThread).
 		Where("id = ? AND structure_id = ?", threadID, structureID).
-		Updates(map[string]any{"audience": string(models.ChatAudienceGroup)}).Error
+		Updates(map[string]any{"audience": string(models.ChatAudienceGroup), "declined_at": nil, "declined_by": ""}).Error
 	if err != nil {
 		return models.ChatThread{}, classify(err)
 	}
-	t.Audience = models.ChatAudienceGroup
+	t.Audience, t.DeclinedAt, t.DeclinedBy = models.ChatAudienceGroup, nil, ""
 	return t, nil
 }
 

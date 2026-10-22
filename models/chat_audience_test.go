@@ -28,11 +28,14 @@ func TestAThreadWithTheLeadsIsReadByTheLeadsAndWhoAskedForIt(t *testing.T) {
 	}
 }
 
-func TestADeclinedThreadIsReadableByNobodyAndDeclinedOnce(t *testing.T) {
+func TestADeclinedThreadIsReadableByItsAskerAndTheLeadsAndDeclinedOnce(t *testing.T) {
 	at := time.Unix(0, 0)
 	declined := ChatThread{Audience: ChatAudienceLeads, RequestedBy: "asker", DeclinedAt: &at}
-	if declined.ReadableBy("asker", false) || declined.ReadableBy("someone", true) {
-		t.Fatal("a declined thread is readable")
+	if !declined.ReadableBy("asker", false) || !declined.ReadableBy("someone", true) {
+		t.Fatal("a declined thread is hidden from its asker or the leads")
+	}
+	if declined.ReadableBy("someone", false) {
+		t.Fatal("a declined thread is readable by a member who neither asked nor leads")
 	}
 	cases := []struct {
 		name   string

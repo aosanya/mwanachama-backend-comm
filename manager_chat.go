@@ -159,6 +159,13 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 	if strings.TrimSpace(body) == "" {
 		return models.ChatMessage{}, fmt.Errorf("%w: body is required", models.ErrChatInvalid)
 	}
+	t, err := m.ChatStore.threadIn(ctx, structureID, threadID)
+	if err != nil {
+		return models.ChatMessage{}, err
+	}
+	if t.Declined() {
+		return models.ChatMessage{}, models.ErrChatThreadDeclined
+	}
 	return m.ChatStore.Post(ctx, models.ChatMessage{
 		StructureID: structureID, ThreadID: threadID, AuthorID: callerID, Body: body,
 	})

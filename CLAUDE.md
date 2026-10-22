@@ -100,7 +100,9 @@ what is true of **comm** is in
   the room's admins — the group's leaders and the agency's owners and agents
   — and naming all three is the host's `Leading` and `Leads`.
   `comm.chat_thread.decline` stamps `declined_at`, tells the starter
-  (`thread_declined`) and closes the thread for everybody, leads included.
+  (`thread_declined`) and leaves the thread readable, read-only (a post is
+  409 `ErrChatThreadDeclined`), by its starter and the leads alone; a lead's
+  open still makes it an ordinary group thread (CM49).
   See
   [routes.md](documentation/2.%20design/routes.md#a-thread-a-member-starts).
 - **A room's threads carry a read marker per reader (CM40).**

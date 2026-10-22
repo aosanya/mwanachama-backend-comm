@@ -137,7 +137,7 @@ func TestAMemberStartingNeverRevealsAThreadTheyCannotRead(t *testing.T) {
 	}
 }
 
-func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
+func TestADeclinedThreadStaysReadOnlyToItsAskerAndTheLeadsAndTellsTheAsker(t *testing.T) {
 	srv, m := roomWithLeadsAndAsker(t)
 	th := memberStartAs(t, srv, "s-1", "asker-b", "Water point")
 	call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/messages", "asker-b", map[string]string{"body": "the tap is dry"})
@@ -158,20 +158,32 @@ func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
 		t.Fatalf("the asker was told %+v, want one decline naming the thread and who declined it", told)
 	}
 
-	for _, who := range []string{"asker-b", "lead-a", "operator-o", "other-c"} {
-		if _, listed := listedIDs(t, srv, "s-1", who)[th.ID]; listed {
-			t.Fatalf("%s still lists a declined thread", who)
+	for _, who := range []string{"asker-b", "lead-a", "operator-o"} {
+		if listed, ok := listedIDs(t, srv, "s-1", who)[th.ID]; !ok || !listed.Declined() {
+			t.Fatalf("%s no longer lists the declined thread as declined", who)
+		}
+		posted := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/messages", who, map[string]string{"body": "hello"})
+		if posted.code != http.StatusConflict {
+			t.Fatalf("%s posting to a declined thread = %d, want 409: %s", who, posted.code, posted.body)
+		}
+		read := call(t, srv, http.MethodGet, "/groups/s-1/chat/threads/"+th.ID+"/messages", who, nil)
+		if read.code != http.StatusOK {
+			t.Fatalf("%s reading a declined thread = %d, want 200: %s", who, read.code, read.body)
 		}
 	}
-	for _, who := range []string{"asker-b", "lead-a"} {
-		for _, p := range append(chatPaths("s-1", th.ID)[1:], struct{ name, method, path string }{"opening", http.MethodPost, "/groups/s-1/chat/threads/" + th.ID + "/open"}) {
-			closed := call(t, srv, p.method, p.path, who, map[string]string{"body": "hello"})
-			invented := call(t, srv, p.method, replaceID(p.path, th.ID, "cthread-never"), who, map[string]string{"body": "hello"})
-			if closed.code != http.StatusNotFound || invented.code != closed.code || invented.message(t) != closed.message(t) {
-				t.Fatalf("%s on a declined thread as %s = %d %q, an invented one %d %q; want the same 404",
-					p.name, who, closed.code, closed.message(t), invented.code, invented.message(t))
-			}
+	if _, listed := listedIDs(t, srv, "s-1", "other-c")[th.ID]; listed {
+		t.Fatal("a member who neither asked nor leads lists a declined thread")
+	}
+	for _, p := range chatPaths("s-1", th.ID)[1:] {
+		closed := call(t, srv, p.method, p.path, "other-c", map[string]string{"body": "hello"})
+		invented := call(t, srv, p.method, replaceID(p.path, th.ID, "cthread-never"), "other-c", map[string]string{"body": "hello"})
+		if closed.code != http.StatusNotFound || invented.code != closed.code || invented.message(t) != closed.message(t) {
+			t.Fatalf("%s on a declined thread as other-c = %d %q, an invented one %d %q; want the same 404",
+				p.name, closed.code, closed.message(t), invented.code, invented.message(t))
 		}
+	}
+	if opened := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "asker-b", nil); opened.code != http.StatusNotFound {
+		t.Fatalf("the asker opening their declined thread = %d, want 404", opened.code)
 	}
 
 	again := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/decline", "lead-a", nil)
@@ -193,6 +205,19 @@ func TestADeclinedThreadClosesUnopenedAndTellsTheAsker(t *testing.T) {
 	}
 	if started := startAs(t, srv, "s-1", "lead-a", "Water point"); started.ID == th.ID || started.Declined() {
 		t.Fatalf("a lead starting a declined thread's label answered %+v, want a new thread", started)
+	}
+
+	reopened := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/open", "lead-a", nil)
+	var open models.ChatThread
+	reopened.decode(t, &open)
+	if reopened.code != http.StatusOK || open.Declined() || open.Audience != models.ChatAudienceGroup {
+		t.Fatalf("a lead opening a declined thread = %d %+v, want an ordinary open thread", reopened.code, open)
+	}
+	if listed, ok := listedIDs(t, srv, "s-1", "other-c")[th.ID]; !ok || listed.Declined() {
+		t.Fatal("a declined thread a lead opened is not an ordinary thread to the room")
+	}
+	if posted := call(t, srv, http.MethodPost, "/groups/s-1/chat/threads/"+th.ID+"/messages", "other-c", map[string]string{"body": "hello"}); posted.code != http.StatusCreated && posted.code != http.StatusOK {
+		t.Fatalf("posting to a declined thread a lead opened = %d: %s", posted.code, posted.body)
 	}
 }
 
