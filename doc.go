@@ -218,3 +218,11 @@ var (
 	ErrPushSubscriptionInvalid = models.ErrPushSubscriptionInvalid
 	ErrPushSubscriptionGone    = models.ErrPushSubscriptionGone
 )
+
+type StandingMessage = models.StandingMessage
+
+var (
+	ErrStandingInvalid  = models.ErrStandingInvalid
+	ErrStandingNotFound = models.ErrStandingNotFound
+	ErrStandingStopped  = models.ErrStandingStopped
+)

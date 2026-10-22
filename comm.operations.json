@@ -1241,6 +1241,160 @@
         }
       ]
     },
+    "create_standing_message": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/standing",
+      "call": "CreateStandingMessageFor",
+      "action": "comm.standing_message.create",
+      "status": 201,
+      "title": "Set up a standing message",
+      "description": "Sets up a message the host posts into a structure's room at each occurrence of its schedule until its end or until it is stopped. The author is the session's. A caller who does not belong to the structure, or cannot read the named thread, answers the same not-found. Who may set one up is the mount's authorizer's to decide on this action.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "author_id",
+          "description": "The author, from the session."
+        },
+        {
+          "from": "body",
+          "as": "thread_id",
+          "description": "The thread it posts into, which must belong to that structure's room. Absent posts into the room itself."
+        },
+        {
+          "from": "body",
+          "as": "body",
+          "required": true,
+          "description": "The message itself, as written."
+        },
+        {
+          "from": "body",
+          "as": "rule",
+          "required": true,
+          "description": "The recurrence rule of the schedule."
+        },
+        {
+          "from": "body",
+          "as": "zone",
+          "required": true,
+          "description": "The IANA time zone the schedule is read in."
+        },
+        {
+          "from": "body",
+          "as": "starts_at",
+          "required": true,
+          "description": "The first occurrence, RFC3339."
+        },
+        {
+          "from": "body",
+          "as": "ends_at",
+          "description": "When it stops on its own, RFC3339. Absent runs until stopped."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "get_standing_message": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/chat/standing/{standing_id}",
+      "call": "GetStandingMessageFor",
+      "action": "comm.standing_message.get",
+      "status": 200,
+      "title": "Read a standing message",
+      "description": "Reads one standing message of a structure's room the caller belongs to. An outsider, one never set up and one in a thread the caller cannot read all answer the same not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "standing_id",
+          "required": true,
+          "description": "The standing message."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The reader, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_standing_messages": {
+      "method": "GET",
+      "path": "/groups/{structure_id}/chat/standing",
+      "call": "ListStandingMessagesFor",
+      "action": "comm.standing_message.list",
+      "status": 200,
+      "title": "List standing messages",
+      "description": "Lists the standing messages of a structure's room the caller belongs to, stopped ones included, oldest first, leaving out any in a thread the caller cannot read.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The reader, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "stop_standing_message": {
+      "method": "POST",
+      "path": "/groups/{structure_id}/chat/standing/{standing_id}/stop",
+      "call": "StopStandingMessageFor",
+      "action": "comm.standing_message.stop",
+      "status": 200,
+      "title": "Stop a standing message",
+      "description": "Stops a standing message so the host posts it no more. The one who stops it is the session's. Stopping one already stopped is a conflict. Who may stop one is the mount's authorizer's to decide on this action.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "path",
+          "as": "standing_id",
+          "required": true,
+          "description": "The standing message."
+        },
+        {
+          "from": "caller",
+          "as": "stopped_by",
+          "description": "Who stops it, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "unsubscribe_push": {
       "method": "POST",
       "path": "/push-subscriptions/unsubscribe",
@@ -1297,6 +1451,9 @@
     "ErrNotificationMuted": 409,
     "ErrInvalidReference": 400,
     "ErrConflict": 409,
-    "ErrPushSubscriptionInvalid": 400
+    "ErrPushSubscriptionInvalid": 400,
+    "ErrStandingInvalid": 400,
+    "ErrStandingNotFound": 404,
+    "ErrStandingStopped": 409
   }
 }

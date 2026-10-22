@@ -35,12 +35,41 @@ author.
   `ErrStandingStopped`.
 - **The end is the schedule's.** `recur` drops occurrences after `ends_at`.
 
+## The operations
+
+Four addresses in `comm.operations.json`, each under the room's own path and
+each with an action of its own so the mount's authorizer decides who may use
+it:
+
+| Address | Action | Call |
+| --- | --- | --- |
+| `POST /groups/{structure_id}/chat/standing` | `comm.standing_message.create` | `CreateStandingMessageFor` |
+| `GET /groups/{structure_id}/chat/standing` | `comm.standing_message.list` | `ListStandingMessagesFor` |
+| `GET /groups/{structure_id}/chat/standing/{standing_id}` | `comm.standing_message.get` | `GetStandingMessageFor` |
+| `POST /groups/{structure_id}/chat/standing/{standing_id}/stop` | `comm.standing_message.stop` | `StopStandingMessageFor` |
+
+- **The author and the stopper are the session's**, bound `{"from": "caller"}`;
+  a body naming another is overwritten.
+- **The room's fence applies.** Every call asks `Belonging` first, and a
+  message aimed at a thread is fenced like the thread itself, so a `leads`
+  thread's standing message is out of sight to anybody who cannot read that
+  thread. An outsider, an invented id and another structure's id all answer
+  the same 404, and the list leaves out what the caller cannot read.
+- `starts_at` and `ends_at` are RFC3339 text on the wire; a bad one, a bad
+  zone or a bad rule is `ErrStandingInvalid` (400). A second stop is 409.
+- **The host's tick is `CommManager.SendDueStandingMessages(ctx, now)`**,
+  the store's call promoted onto the manager. Calling it on a timer is the
+  host's (wakala-api WK203).
+- **Who may set one up or stop one is deliberately not decided here.** comm
+  admits any member `Belonging` admits; the distinct `create` and `stop`
+  actions are where a mount's authorizer narrows that to leads, until the
+  owner answers the first question below.
+
 ## Not yet built
 
-- Declared operations (create, list, stop) and the manager wiring, with the
-  author and the stopper bound from the caller and the group fence applied.
 - A schedule given as a list of dates rather than a rule (`recur` supports
   both).
+- The host's tick (wakala-api WK203).
 
 ## Open questions
 

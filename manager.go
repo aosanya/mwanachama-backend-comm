@@ -21,7 +21,8 @@ type CommManager struct {
 	*AddressDirectoryStore
 	*PushStore
 
-	subjects *SubjectStore
+	subjects  *SubjectStore
+	standings *StandingStore
 
 	db        *gorm.DB
 	clock     Clock
@@ -67,10 +68,14 @@ func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.Act
 	if err != nil {
 		return nil, err
 	}
+	standings, err := NewStandingStore(db, s, clock)
+	if err != nil {
+		return nil, err
+	}
 	return &CommManager{
 		ChatStore: chat, DMStore: dm, ModerationStore: moderation,
 		AddressStore: addr, NotificationStore: notif, AddressDirectoryStore: dir,
-		subjects: subjects, db: db, clock: clock, spec: s,
+		subjects: subjects, standings: standings, db: db, clock: clock, spec: s,
 		PushStore: push,
 	}, nil
 }

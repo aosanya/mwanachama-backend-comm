@@ -40,6 +40,9 @@ var Sentinels = map[string]error{
 	"ErrInvalidReference":           mwanachamacomm.ErrInvalidReference,
 	"ErrConflict":                   mwanachamacomm.ErrConflict,
 	"ErrPushSubscriptionInvalid":    mwanachamacomm.ErrPushSubscriptionInvalid,
+	"ErrStandingInvalid":            mwanachamacomm.ErrStandingInvalid,
+	"ErrStandingNotFound":           mwanachamacomm.ErrStandingNotFound,
+	"ErrStandingStopped":            mwanachamacomm.ErrStandingStopped,
 }
 
 // AnonymousActions names what any caller may reach without presenting one.
