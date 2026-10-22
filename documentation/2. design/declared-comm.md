@@ -326,6 +326,8 @@ means lives here rather than beside the constant.
 | `appointment_booked` | `case` | the recipient booked a time with a service request (CM101); subject `case` |
 | `appointment_cancelled` | `case` | the agency cancelled the recipient's appointment, with its reason (CM101); subject `case` |
 | `appointment_cancelled_by_member` | `case` | the applicant cancelled their appointment, told to staff (CM101); subject `case` |
+| `poll_opened` | `survey` | a poll was sent to a group the recipient belongs to (CM103); subject `poll` |
+| `poll_result_published` | `results` | a poll's result was published to a group the recipient belongs to (CM103); subject `poll` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
@@ -424,6 +426,33 @@ owns no service or appointment logic.
   (`appointment_cancelled`); staff are told the member cancelled
   (`appointment_cancelled_by_member`), raised once per staff member to tell.
   Which staff that is belongs to the raiser.
+
+### Poll notices (CM103, 2026-10-22)
+
+Member app decisions 340 and 345, mockup M25: a poll opened for a member is
+told the way a new form is (decision 128), and a poll's result, once a holder
+of the poll power publishes it to the groups they pick, puts a line in each of
+those groups' members' Inbox. `mwanachama-backend-voting` owns polls and
+`mwanachama-wakala-api` raises the notices (WK208); comm carries them and owns
+no poll logic.
+
+- **Declared by the civic spec, not the blueprint**, as CM56's and CM101's
+  notices are: `civic.comm.json` widens `notification.event` with
+  `poll_opened` and `poll_result_published`, and `subject_kind` with `poll`.
+  The school example declares none of them.
+- **`poll_opened` is category `survey`**, the category a new form's
+  `survey_reached` raises in. That is what "told as a new form is" means here:
+  `survey` cannot be muted (`SetPreference` refuses the mute), so a poll sent
+  to a member reaches them whatever they muted, with no `Mutable` answer
+  needed from the host.
+- **`poll_result_published` is category `results`**, beside a form's
+  `results_published`, so muting `results` silences both. Decision 345 asks
+  for an Inbox line and says nothing about muting it, so it follows the form's
+  report rather than being made unmutable.
+- **Subject kind `poll`.** Every line opens the poll; the count for each
+  choice and how many answered are read from the poll, not stored on the
+  notification. Who is told is the raiser's: one notification per member of
+  each group the poll was sent, or its result published, to.
 
 ### A decided group join (CM33, 2026-10-20)
 

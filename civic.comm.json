@@ -164,7 +164,9 @@
             "task_overdue",
             "appointment_booked",
             "appointment_cancelled",
-            "appointment_cancelled_by_member"
+            "appointment_cancelled_by_member",
+            "poll_opened",
+            "poll_result_published"
           ]
         },
         {
@@ -186,7 +188,8 @@
             "item_digest",
             "record_change",
             "case",
-            "task"
+            "task",
+            "poll"
           ]
         }
       ]

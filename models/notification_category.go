@@ -126,6 +126,8 @@ const (
 	EventAppointmentBooked            NotificationEvent = "appointment_booked"
 	EventAppointmentCancelled         NotificationEvent = "appointment_cancelled"
 	EventAppointmentCancelledByMember NotificationEvent = "appointment_cancelled_by_member"
+	EventPollOpened                   NotificationEvent = "poll_opened"
+	EventPollResultPublished          NotificationEvent = "poll_result_published"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -171,6 +173,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventAppointmentBooked:            CategoryCase,
 	EventAppointmentCancelled:         CategoryCase,
 	EventAppointmentCancelledByMember: CategoryCase,
+	EventPollOpened:                   CategorySurvey,
+	EventPollResultPublished:          CategoryResults,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -225,6 +229,7 @@ const (
 	SubjectCase               NotificationSubjectKind = "case"
 	SubjectTask               NotificationSubjectKind = "task"
 	SubjectRecord             NotificationSubjectKind = "record"
+	SubjectPoll               NotificationSubjectKind = "poll"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -234,7 +239,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
-	SubjectCase, SubjectTask, SubjectRecord,
+	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
