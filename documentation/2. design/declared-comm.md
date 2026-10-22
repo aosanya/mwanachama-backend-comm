@@ -319,6 +319,10 @@ means lives here rather than beside the constant.
 | `items_overdue` | `item` | the daily digest of overdue items, to each of the agency's owners (CM54); subject `item_digest`, capped one per actor per subject |
 | `record_change_approved` | `membership` | a correction the recipient proposed to their own register record was approved (CM55); the clerk as author; subject `record_change` |
 | `record_change_refused` | `membership` | a correction the recipient proposed to their own register record was refused (CM55); the clerk as author; subject `record_change`, whose refusal carries the reason |
+| `case_opened` | `case` | a case the recipient asked for was opened (CM56); subject `case` |
+| `case_closed` | `case` | the same case was done or cancelled (CM56); subject `case` |
+| `task_assigned` | `task` | a task was assigned to the recipient, or to a role they hold (CM56); subject `task` |
+| `task_overdue` | `task` | the due date of a task assigned to the recipient, or to a role they hold, passed (CM56); subject `task` |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it
@@ -363,6 +367,35 @@ told either way. `mwanachama-wakala-api` raises both (WK164) through
   `record_change` with the change request's id in the module that holds the
   register (catalog CAT53), and the client reads the refusal's reason from
   there. The clerk who decided is the author.
+
+### Case and task notices (CM56, 2026-10-22)
+
+Member app decisions 277 and 279: the asker hears about their case in the
+Inbox when it opens and when it is done or cancelled, and the assignee of a
+task, or every holder of the role it is assigned to, is told in the studio
+when it is assigned and when its due date passes. `mwanachama-wakala-api`
+raises all four (WK182) through `NotificationRepository.Raise`; comm carries
+them and owns no case or task logic.
+
+- **Declared by the civic spec, not the blueprint.** None of the four is an
+  act of comm's own, so `civic.comm.json` widens `notification.category`,
+  `notification_preference.category`, `notification.event` and
+  `notification.subject_kind` with them, and the Go constants sit beside the
+  rest of the CM26 vocabulary. The school example declares none of them.
+- **A category each, `case` and `task`**, following CM54's `item`: none of
+  the existing categories is the right opt-out unit, and a resident's own
+  cases and a staff member's assigned work are muted for different reasons.
+  Neither is exempt from muting and no event in them is unmutable.
+- **Closed is one event.** Done and cancelled are both `case_closed`; the
+  client reads which from the case itself, as it reads a refusal's reason
+  from a `record_change`.
+- **A role's holders are the raiser's fan-out.** comm stores one notification
+  per actor, so wakala-api raises `task_assigned` or `task_overdue` once to
+  each holder of the role. Subject kind `case` or `task`, the subject id the
+  row's own id in whichever module holds it.
+- **No once-a-day cap on `task_overdue`.** Unlike `items_overdue` it names the
+  task rather than a day, and no decision asks for a cap, so a host that
+  raises it twice for the same task tells its recipients twice.
 
 ### A decided group join (CM33, 2026-10-20)
 

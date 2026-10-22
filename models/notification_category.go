@@ -31,6 +31,8 @@ const (
 	// named Accountable for it (mwanachama-backend-api-kazi's K6).
 	CategoryApproval NotificationCategory = "approval"
 	CategoryItem     NotificationCategory = "item"
+	CategoryCase     NotificationCategory = "case"
+	CategoryTask     NotificationCategory = "task"
 )
 
 // notificationCategories is the whole vocabulary, in the order the object
@@ -38,7 +40,7 @@ const (
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
-	CategoryApproval, CategoryItem,
+	CategoryApproval, CategoryItem, CategoryCase, CategoryTask,
 }
 
 // NotificationCategories returns the vocabulary. A copy, so a caller
@@ -115,6 +117,10 @@ const (
 	EventItemsOverdue              NotificationEvent = "items_overdue"
 	EventRecordChangeApproved      NotificationEvent = "record_change_approved"
 	EventRecordChangeRefused       NotificationEvent = "record_change_refused"
+	EventCaseOpened                NotificationEvent = "case_opened"
+	EventCaseClosed                NotificationEvent = "case_closed"
+	EventTaskAssigned              NotificationEvent = "task_assigned"
+	EventTaskOverdue               NotificationEvent = "task_overdue"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -151,6 +157,10 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventItemsOverdue:              CategoryItem,
 	EventRecordChangeApproved:      CategoryMembership,
 	EventRecordChangeRefused:       CategoryMembership,
+	EventCaseOpened:                CategoryCase,
+	EventCaseClosed:                CategoryCase,
+	EventTaskAssigned:              CategoryTask,
+	EventTaskOverdue:               CategoryTask,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -201,6 +211,8 @@ const (
 	SubjectItem               NotificationSubjectKind = "item"
 	SubjectItemDigest         NotificationSubjectKind = "item_digest"
 	SubjectRecordChange       NotificationSubjectKind = "record_change"
+	SubjectCase               NotificationSubjectKind = "case"
+	SubjectTask               NotificationSubjectKind = "task"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -210,6 +222,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
+	SubjectCase, SubjectTask,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
