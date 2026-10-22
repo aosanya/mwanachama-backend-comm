@@ -127,8 +127,8 @@ func TestEveryExampleFitsTheTypes(t *testing.T) {
 
 var commsOwnVocabulary = map[string][]string{
 	roleNotification + ".category":           {"chat"},
-	roleNotification + ".event":              {"message_removed", "thread_reply", "thread_requested", "thread_declined"},
-	roleNotification + ".subject_kind":       {"message", "subject_thread", "chat_thread"},
+	roleNotification + ".event":              {"message_removed", "thread_reply", "thread_requested", "thread_declined", "record_message", "record_access_ended"},
+	roleNotification + ".subject_kind":       {"message", "subject_thread", "chat_thread", "record"},
 	roleNotificationPreference + ".category": {"chat"},
 }
 

@@ -142,7 +142,7 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 		if err != nil {
 			return err
 		}
-		raised, err = raiseReplies(ctx, notices, t.ID, recipients)
+		raised, err = raiseReplies(ctx, notices, t, recipients)
 		return err
 	})
 	if err != nil {
@@ -205,13 +205,22 @@ func (m *CommManager) answerersToTell(ctx context.Context, t models.SubjectThrea
 	return out, nil
 }
 
-func raiseReplies(ctx context.Context, notices *NotificationStore, threadID string, recipients []string) ([]models.Notification, error) {
+func replyEvent(t models.SubjectThread) models.NotificationEvent {
+	if t.SubjectKind == string(models.SubjectRecord) && t.Audience == models.AudiencePrivate {
+		return models.EventRecordMessage
+	}
+	return models.EventThreadReply
+}
+
+func raiseReplies(ctx context.Context, notices *NotificationStore, t models.SubjectThread, recipients []string) ([]models.Notification, error) {
+	threadID := t.ID
+	event := replyEvent(t)
 	raised := make([]models.Notification, 0, len(recipients))
 	for _, actorID := range recipients {
 		n, err := notices.Raise(ctx, models.Notification{
 			ActorID:     actorID,
 			Category:    models.CategoryChat,
-			Event:       models.EventThreadReply,
+			Event:       event,
 			SubjectKind: models.SubjectSubjectThread,
 			SubjectID:   threadID,
 		})

@@ -108,6 +108,8 @@ const (
 	EventThreadReply               NotificationEvent = "thread_reply"
 	EventThreadRequested           NotificationEvent = "thread_requested"
 	EventThreadDeclined            NotificationEvent = "thread_declined"
+	EventRecordMessage             NotificationEvent = "record_message"
+	EventRecordAccessEnded         NotificationEvent = "record_access_ended"
 	EventGroupMemberRemoved        NotificationEvent = "group_member_removed"
 	EventAgencyMemberRemoved       NotificationEvent = "agency_member_removed"
 	EventItemAcknowledged          NotificationEvent = "item_acknowledged"
@@ -148,6 +150,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventThreadReply:               CategoryChat,
 	EventThreadRequested:           CategoryChat,
 	EventThreadDeclined:            CategoryChat,
+	EventRecordMessage:             CategoryChat,
+	EventRecordAccessEnded:         CategoryChat,
 	EventGroupMemberRemoved:        CategoryMembership,
 	EventAgencyMemberRemoved:       CategoryMembership,
 	EventItemAcknowledged:          CategoryItem,
@@ -166,6 +170,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 var notificationEventUnmutable = map[NotificationEvent]bool{
 	EventGroupMemberRemoved:  true,
 	EventAgencyMemberRemoved: true,
+	EventRecordAccessEnded:   true,
 }
 
 func NotificationEventUnmutable(e NotificationEvent) bool { return notificationEventUnmutable[e] }
@@ -213,6 +218,7 @@ const (
 	SubjectRecordChange       NotificationSubjectKind = "record_change"
 	SubjectCase               NotificationSubjectKind = "case"
 	SubjectTask               NotificationSubjectKind = "task"
+	SubjectRecord             NotificationSubjectKind = "record"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -222,7 +228,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroup, SubjectSubjectThread, SubjectChatThread,
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
-	SubjectCase, SubjectTask,
+	SubjectCase, SubjectTask, SubjectRecord,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

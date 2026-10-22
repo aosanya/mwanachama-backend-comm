@@ -1088,12 +1088,14 @@
         {
           "name": "event",
           "type": "enum",
-          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the events it raises itself \u2014 a removal receipt from its own moderation, a reply on a subject thread, a thread asked for and a thread request declined; every other event belongs to whichever module raises it, and is declared by the domain.",
+          "description": "The specific act this row is the by-product of. The title and body are rendered from this and the subject, never stored as text, so an event with no renderer shows a reader nothing. The module declares only the events it raises itself \u2014 a removal receipt from its own moderation, a reply on a subject thread, a message on a record's private thread, a record's access ending, a thread asked for and a thread request declined; every other event belongs to whichever module raises it, and is declared by the domain.",
           "values": [
             "message_removed",
             "thread_reply",
             "thread_requested",
-            "thread_declined"
+            "thread_declined",
+            "record_message",
+            "record_access_ended"
           ]
         },
         {
@@ -1103,7 +1105,8 @@
           "values": [
             "message",
             "subject_thread",
-            "chat_thread"
+            "chat_thread",
+            "record"
           ]
         },
         {

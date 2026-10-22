@@ -169,3 +169,34 @@ comm mount, are `mwanachama-wakala-api`'s (WK110).
   "read up to here" per thread.
 - **The host's resolver.** Which subject kinds exist, who a form reached and
   who answers for it are `mwanachama-wakala-api`'s to wire (its WK101).
+
+## A private thread on a record (CM100)
+
+Member app decision 298: an outsider reads their record and messages the
+agency in a private thread on it. That thread is a subject thread whose
+`subject_kind` is `record` and whose `subject_id` is the record's id in the
+module that owns it. comm learns nothing new about records; the host does
+the work it already does for every subject:
+
+- **Standing.** The host's `Standing` answers *audience* for the record's
+  outsider and *answerer* for the agency's staff, and *none* for everybody
+  else. The outsider opens the `private` thread, so it is theirs and the
+  staff's alone; a stranger gets the same 404 as an invented thread.
+- **Answerers.** The host names the staff through `UseAnswerers`, so the
+  outsider's message reaches each of them.
+
+Two events are comm's own, declared in the blueprint and held to the Go
+constants in both directions:
+
+| Event | Raised when | Subject |
+|---|---|---|
+| `record_message` | a message is posted on a `private` thread whose `subject_kind` is `record`; it takes the place of `thread_reply` and reaches the same people (the other side, never the poster) | `subject_thread`, the thread's id |
+| `record_access_ended` | the host calls `CommManager.EndRecordAccess(ctx, recordID, actorID)` when the record closes or staff end the outsider's access (decision 299) | `record`, the record's id |
+
+Both fall under the `chat` category. `record_access_ended` cannot be muted:
+an outsider who loses access is always told, the same reason a removal from
+a group is unmutable.
+
+The `record` subject kind is the one value the host must spell for this
+behaviour; any other kind keeps raising `thread_reply`. A `group` thread on a
+record is not part of decision 298 and also keeps `thread_reply`.
