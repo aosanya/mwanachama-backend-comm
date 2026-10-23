@@ -12,6 +12,7 @@ import (
 func newStandingFixture(t *testing.T) (func(method, path, caller string, body any) reply, *mwanachamacomm.CommManager, string) {
 	srv, m := newCommServer(t)
 	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"actor-a", "actor-b"}, "s-2": {"actor-c"}}))
+	m.UseLeading(leadingOf(map[string][]string{"s-1": {"actor-a"}}))
 	thread := seedChatThread(t, m, "s-1", "general")
 	return func(method, path, caller string, body any) reply {
 		return call(t, srv, method, path, caller, body)
@@ -52,13 +53,13 @@ func TestAStandingMessageIsSetUpReadListedAndStoppedOverTheMux(t *testing.T) {
 		t.Fatalf("list = %d with %d, want one: %s", listed.code, len(all), listed.body)
 	}
 
-	stopped := do(http.MethodPost, "/groups/s-1/chat/standing/"+sm.ID+"/stop", "actor-b", map[string]any{"stopped_by": "actor-z"})
+	stopped := do(http.MethodPost, "/groups/s-1/chat/standing/"+sm.ID+"/stop", "actor-a", map[string]any{"stopped_by": "actor-z"})
 	if stopped.code != http.StatusOK {
 		t.Fatalf("stop = %d: %s", stopped.code, stopped.body)
 	}
 	stopped.decode(t, &sm)
-	if sm.StoppedBy != "actor-b" || !sm.Stopped() {
-		t.Fatalf("stopped by %q, want the session's actor-b", sm.StoppedBy)
+	if sm.StoppedBy != "actor-a" || !sm.Stopped() {
+		t.Fatalf("stopped by %q, want the session's actor-a", sm.StoppedBy)
 	}
 	if again := do(http.MethodPost, "/groups/s-1/chat/standing/"+sm.ID+"/stop", "actor-a", nil); again.code != http.StatusConflict {
 		t.Fatalf("second stop = %d, want 409", again.code)
@@ -141,5 +142,27 @@ func TestAStandingMessageOnAListOfDatesIsSetUpOverTheMux(t *testing.T) {
 	body["rule"] = "FREQ=MONTHLY"
 	if both := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", body); both.code != http.StatusBadRequest {
 		t.Fatalf("rule and dates together = %d, want 400: %s", both.code, both.body)
+	}
+}
+
+func TestOnlyTheRoomsLeadsSetUpOrStopAStandingMessage(t *testing.T) {
+	do, _, thread := newStandingFixture(t)
+	if got := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-b", standingBody(thread)); got.code != http.StatusNotFound {
+		t.Fatalf("create by a member who does not lead = %d, want 404: %s", got.code, got.body)
+	}
+	created := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", standingBody(thread))
+	if created.code != http.StatusCreated {
+		t.Fatalf("create by a lead = %d: %s", created.code, created.body)
+	}
+	var sm mwanachamacomm.StandingMessage
+	created.decode(t, &sm)
+	if got := do(http.MethodPost, "/groups/s-1/chat/standing/"+sm.ID+"/stop", "actor-b", nil); got.code != http.StatusNotFound {
+		t.Fatalf("stop by a member who does not lead = %d, want 404: %s", got.code, got.body)
+	}
+	if got := do(http.MethodGet, "/groups/s-1/chat/standing/"+sm.ID, "actor-b", nil); got.code != http.StatusOK {
+		t.Fatalf("a member still reads it = %d: %s", got.code, got.body)
+	}
+	if got := do(http.MethodPost, "/groups/s-1/chat/standing/"+sm.ID+"/stop", "actor-a", nil); got.code != http.StatusOK {
+		t.Fatalf("stop by a lead = %d: %s", got.code, got.body)
 	}
 }

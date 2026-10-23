@@ -2,6 +2,7 @@ package mwanachamacomm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -16,6 +17,8 @@ import (
 )
 
 type StandingStore struct {
+	db    *gorm.DB
+	spec  *spec.Spec
 	store *store
 	chat  *ChatStore
 	clock Clock
@@ -36,7 +39,7 @@ func NewStandingStore(db *gorm.DB, s *spec.Spec, clock Clock) (*StandingStore, e
 	if err != nil {
 		return nil, err
 	}
-	return &StandingStore{store: st, chat: chat, clock: clock}, nil
+	return &StandingStore{db: db, spec: s, store: st, chat: chat, clock: clock}, nil
 }
 
 func scheduleOf(m models.StandingMessage) (recur.Schedule, error) {
@@ -126,16 +129,18 @@ func (s *StandingStore) SendDueStandingMessages(ctx context.Context, now time.Ti
 		return nil, err
 	}
 	var sent []models.ChatMessage
+	var failed []error
 	for _, m := range running {
 		msg, ok, err := s.sendDue(ctx, m, now)
 		if err != nil {
-			return sent, err
+			failed = append(failed, fmt.Errorf("standing message %s: %w", m.ID, err))
+			continue
 		}
 		if ok {
 			sent = append(sent, msg)
 		}
 	}
-	return sent, nil
+	return sent, errors.Join(failed...)
 }
 
 func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, now time.Time) (models.ChatMessage, bool, error) {
@@ -152,7 +157,38 @@ func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, n
 		return models.ChatMessage{}, false, nil
 	}
 	occurrence := due[len(due)-1]
-	claim := s.store.Query(ctx, roleStandingMessage).Where("id = ? AND stopped_at IS NULL", m.ID)
+	var posted models.ChatMessage
+	var claimed bool
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		claimed, err = claimOccurrence(ctx, tx, s.spec, m, occurrence)
+		if err != nil || !claimed {
+			return err
+		}
+		chat, err := NewChatStore(tx, s.spec, s.chat.clock)
+		if err != nil {
+			return err
+		}
+		posted, err = chat.Post(ctx, models.ChatMessage{
+			StructureID: m.StructureID,
+			ThreadID:    m.ThreadID,
+			AuthorID:    m.AuthorID,
+			Body:        m.Body,
+		})
+		return err
+	})
+	if err != nil {
+		return models.ChatMessage{}, false, err
+	}
+	return posted, claimed, nil
+}
+
+func claimOccurrence(ctx context.Context, tx *gorm.DB, s *spec.Spec, m models.StandingMessage, occurrence time.Time) (bool, error) {
+	st, err := newStore(tx, s, map[string]any{roleStandingMessage: models.StandingMessage{}})
+	if err != nil {
+		return false, err
+	}
+	claim := st.Query(ctx, roleStandingMessage).Where("id = ? AND stopped_at IS NULL", m.ID)
 	if m.LastSentAt == nil {
 		claim = claim.Where("last_sent_at IS NULL")
 	} else {
@@ -160,19 +196,7 @@ func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, n
 	}
 	res := claim.Updates(map[string]any{"last_sent_at": stamp(occurrence)})
 	if res.Error != nil {
-		return models.ChatMessage{}, false, classify(res.Error)
+		return false, classify(res.Error)
 	}
-	if res.RowsAffected == 0 {
-		return models.ChatMessage{}, false, nil
-	}
-	posted, err := s.chat.Post(ctx, models.ChatMessage{
-		StructureID: m.StructureID,
-		ThreadID:    m.ThreadID,
-		AuthorID:    m.AuthorID,
-		Body:        m.Body,
-	})
-	if err != nil {
-		return models.ChatMessage{}, false, err
-	}
-	return posted, true, nil
+	return res.RowsAffected > 0, nil
 }

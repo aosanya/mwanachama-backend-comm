@@ -24,6 +24,9 @@ func instantArg(name, raw string) (time.Time, error) {
 }
 
 func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID, callerID, threadID, body, rule string, dates []string, zone, startsAt, endsAt string) (models.StandingMessage, error) {
+	if err := m.asLead(ctx, structureID, callerID); err != nil {
+		return models.StandingMessage{}, err
+	}
 	if err := m.standingFence(ctx, structureID, threadID, callerID); err != nil {
 		return models.StandingMessage{}, err
 	}
@@ -78,6 +81,9 @@ func (m *CommManager) ListStandingMessagesFor(ctx context.Context, structureID, 
 }
 
 func (m *CommManager) StopStandingMessageFor(ctx context.Context, structureID, id, callerID string) (models.StandingMessage, error) {
+	if err := m.asLead(ctx, structureID, callerID); err != nil {
+		return models.StandingMessage{}, err
+	}
 	if _, err := m.GetStandingMessageFor(ctx, structureID, id, callerID); err != nil {
 		return models.StandingMessage{}, err
 	}

@@ -1248,7 +1248,7 @@
       "action": "comm.standing_message.create",
       "status": 201,
       "title": "Set up a standing message",
-      "description": "Sets up a message the host posts into a structure's room at each occurrence of its schedule until its end or until it is stopped. The author is the session's. A caller who does not belong to the structure, or cannot read the named thread, answers the same not-found. Who may set one up is the mount's authorizer's to decide on this action.",
+      "description": "Sets up a message the host posts into a structure's room at each occurrence of its schedule until its end or until it is stopped. The author is the session's. Only the room's leads may set one up. A caller who does not belong to the structure, does not lead it, or cannot read the named thread, answers the same not-found.",
       "args": [
         {
           "from": "path",
@@ -1373,7 +1373,7 @@
       "action": "comm.standing_message.stop",
       "status": 200,
       "title": "Stop a standing message",
-      "description": "Stops a standing message so the host posts it no more. The one who stops it is the session's. Stopping one already stopped is a conflict. Who may stop one is the mount's authorizer's to decide on this action.",
+      "description": "Stops a standing message so the host posts it no more. The one who stops it is the session's. Stopping one already stopped is a conflict. Only the room's leads may stop one; anybody else answers the same not-found.",
       "args": [
         {
           "from": "path",

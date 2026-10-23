@@ -31,13 +31,20 @@ For each running message it asks the schedule for the occurrences after
 latest of them into the group's chat as an ordinary chat message by the
 author.
 
-- **At most once.** `last_sent_at` is moved forward under a compare-and-swap
-  on its previous value before the post, so two hosts calling at once send an
-  occurrence once. A post that fails after the claim is not retried: the
-  occurrence is lost rather than sent twice.
+- **Exactly once (CM102).** The claim and the post are one transaction:
+  `last_sent_at` is moved forward under a compare-and-swap on its previous
+  value, then the message is posted, and both commit together. Two hosts
+  calling at once still send an occurrence once, because the loser's
+  compare-and-swap matches no row. A post that fails rolls the claim back, so
+  the occurrence stays due and the next tick sends it. Before CM102 the claim
+  committed on its own before the post, and a failed post lost the
+  occurrence.
+- **One failing message does not end the run (CM102).** Every running
+  message is tried; the ones that fail are returned as one joined error, each
+  naming its standing message id, beside the messages that were sent. Before
+  CM102 the first failure returned and the rest waited for the next tick.
 - **A host that was down sends one message, not a backlog.** Only the latest
-  missed occurrence goes out. This is provisional; see the open question
-  below.
+  missed occurrence goes out (decision 365).
 - **A stopped message sends nothing more**, and stopping twice answers
   `ErrStandingStopped`.
 - **The end is the schedule's.** `recur` drops occurrences after `ends_at`.
@@ -57,6 +64,13 @@ it:
 
 - **The author and the stopper are the session's**, bound `{"from": "caller"}`;
   a body naming another is overwritten.
+- **Only the room's leads set one up or stop one (CM102, decisions 364,
+  367).** `CreateStandingMessageFor` and `StopStandingMessageFor` ask
+  `Leading` after `Belonging`, the same `asLead` gate a decline uses, and a
+  member who does not lead is answered 404 exactly as an outsider. Reading
+  and listing stay open to every member the fence admits. Who the leads are
+  is the host's `Leading`: the group's leaders plus the agency's owners and
+  agents.
 - **The room's fence applies.** Every call asks `Belonging` first, and a
   message aimed at a thread is fenced like the thread itself, so a `leads`
   thread's standing message is out of sight to anybody who cannot read that
@@ -67,10 +81,6 @@ it:
 - **The host's tick is `CommManager.SendDueStandingMessages(ctx, now)`**,
   the store's call promoted onto the manager. Calling it on a timer is the
   host's (wakala-api WK203).
-- **Who may set one up or stop one is deliberately not decided here.** comm
-  admits any member `Belonging` admits; the distinct `create` and `stop`
-  actions are where a mount's authorizer narrows that to leads, until the
-  owner answers the first question below.
 
 ## Not yet built
 
@@ -78,7 +88,6 @@ it:
 
 ## Open questions
 
-- Who may set up and who may Stop a standing message: any member the
-  `Belonging` fence admits, or only the room's leads?
-- After downtime, should every missed occurrence be sent, only the latest,
-  or none?
+None. Who may set one up or stop one was settled as the room's leads, and
+after downtime only the latest occurrence is sent (owner, 2026-10-23,
+decisions 364, 365, 367).
