@@ -24,15 +24,16 @@ type CommManager struct {
 	subjects  *SubjectStore
 	standings *StandingStore
 
-	db        *gorm.DB
-	clock     Clock
-	spec      *spec.Spec
-	belonging Belonging
-	leading   Leading
-	leadsOf   Leads
-	standing  Standing
-	answerers Answerers
-	push      *pushDelivery
+	db         *gorm.DB
+	clock      Clock
+	spec       *spec.Spec
+	belonging  Belonging
+	leading    Leading
+	leadsOf    Leads
+	standing   Standing
+	answerers  Answerers
+	recipients Recipients
+	push       *pushDelivery
 }
 
 func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter, actorsTable string) (*CommManager, error) {

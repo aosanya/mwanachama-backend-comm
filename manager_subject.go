@@ -142,6 +142,10 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 		if err != nil {
 			return err
 		}
+		recipients, err = m.recipientsFor(ctx, replyEvent(t), RaiseRoom{ThreadID: t.ID, SubjectKind: t.SubjectKind, SubjectID: t.SubjectID}, recipients)
+		if err != nil {
+			return err
+		}
 		raised, err = raiseReplies(ctx, notices, t, recipients)
 		return err
 	})

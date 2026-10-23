@@ -67,7 +67,11 @@ func (m *CommManager) DeclineChatThreadFor(ctx context.Context, structureID, thr
 		if err != nil || !declined || t.RequestedBy == callerID {
 			return nil, err
 		}
-		return raiseEach(ctx, notices, []string{t.RequestedBy}, models.Notification{
+		told, err := m.recipientsFor(ctx, models.EventThreadDeclined, RaiseRoom{StructureID: structureID, ThreadID: t.ID}, []string{t.RequestedBy})
+		if err != nil {
+			return nil, err
+		}
+		return raiseEach(ctx, notices, told, models.Notification{
 			AuthorActorID: callerID,
 			Category:      models.CategoryChat,
 			Event:         models.EventThreadDeclined,

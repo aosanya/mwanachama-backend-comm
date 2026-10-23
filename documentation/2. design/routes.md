@@ -510,6 +510,33 @@ lost quietly:
   so the path stays what the gateway serves.
 - the 204 operations declare a return even though they render no body.
 
+## Who is told of comm's own raises (CM106)
+
+**As built CM106, 2026-10-23.** Two of comm's raises let the host decide who
+is told: `thread_declined` from `DeclineChatThreadFor`, and the reply raised
+by `PostSubjectMessageFor` (`thread_reply`, or `record_message` on a record's
+private thread). `UseRecipients` gives the manager a `Recipients` function,
+shaped like `UseLeads`: it receives the event, a `RaiseRoom` naming where the
+raise happens (`StructureID` and `ThreadID` for a decline; `ThreadID`,
+`SubjectKind` and `SubjectID` for a reply) and comm's default recipients, and
+returns who is told. The defaults are what comm tells today: the thread's
+requester on a decline, and the audience authors, the owner or the
+`Answerers` on a reply. The hook receives a copy, so changing the slice it was
+given changes nothing.
+
+- **No hook keeps today's recipients exactly.** The defaults pass through
+  untouched, unfiltered and in order.
+- **What the hook returns is the list.** Empty names and repeats are dropped;
+  nothing else is checked, because the hook is the host's rule (member app
+  decisions 186, 187, wakala-api WK146) and comm has no fact to check it
+  against. Returning nothing tells nobody.
+- **A hook error refuses the act, the same way a failing `Answerers` or
+  `Leads` does.** It is asked inside the act's transaction, so a failure rolls
+  back the decline or the post and answers 500. Telling the wrong people, or
+  nobody, while reporting success would be the worse surprise.
+
+Pinned in `routes/recipients_test.go`, over a real mux with a real caller.
+
 ## Tests
 
 `routes/` has 67 tests across thirteen files, every one through a real
