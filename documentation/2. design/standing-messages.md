@@ -76,8 +76,14 @@ it:
   thread's standing message is out of sight to anybody who cannot read that
   thread. An outsider, an invented id and another structure's id all answer
   the same 404, and the list leaves out what the caller cannot read.
-- `starts_at` and `ends_at` are RFC3339 text on the wire; a bad one, a bad
-  zone or a bad rule is `ErrStandingInvalid` (400). A second stop is 409.
+- **The schedule body is `recur.Wire`** (CM102, decision 367): `start`,
+  `end`, `zone`, and `rule` or `dates`, read through
+  `recur.Wire.Schedule()` rather than a copy of comm's own, so every module
+  that takes a schedule accepts the same shape. `start` and `end` are
+  RFC3339 text on the wire, and a standing message answers with the same two
+  names. The stored columns keep their names, `starts_at` and `ends_at`. A
+  bad instant, a bad zone, a bad rule or a list of dates with no `end` is
+  `ErrStandingInvalid` (400). A second stop is 409.
 - **The host's tick is `CommManager.SendDueStandingMessages(ctx, now)`**,
   the store's call promoted onto the manager. Calling it on a timer is the
   host's (wakala-api WK203).

@@ -20,8 +20,8 @@ type StandingMessage struct {
 	Rule        string     `json:"rule,omitempty"`
 	Dates       []string   `json:"dates,omitempty"`
 	Zone        string     `json:"zone"`
-	StartsAt    time.Time  `json:"starts_at"`
-	EndsAt      *time.Time `json:"ends_at,omitempty"`
+	StartsAt    time.Time  `json:"start"`
+	EndsAt      *time.Time `json:"end,omitempty"`
 	LastSentAt  *time.Time `json:"last_sent_at,omitempty"`
 	StoppedAt   *time.Time `json:"stopped_at,omitempty"`
 	StoppedBy   string     `json:"stopped_by,omitempty"`

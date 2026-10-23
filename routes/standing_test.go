@@ -25,7 +25,7 @@ func standingBody(thread string) map[string]any {
 		"body":      "Bring your questions to the monthly meeting.",
 		"rule":      "FREQ=MONTHLY",
 		"zone":      "Africa/Nairobi",
-		"starts_at": "2026-01-05T06:00:00Z",
+		"start":     "2026-01-05T06:00:00Z",
 		"author_id": "actor-z",
 	}
 }
@@ -102,7 +102,7 @@ func TestAStandingMessageWithABadScheduleIsRefused(t *testing.T) {
 		t.Fatalf("bad zone = %d, want 400: %s", got.code, got.body)
 	}
 	body = standingBody(thread)
-	body["starts_at"] = "monday"
+	body["start"] = "monday"
 	if got := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", body); got.code != http.StatusBadRequest {
 		t.Fatalf("bad start = %d, want 400: %s", got.code, got.body)
 	}
@@ -128,6 +128,7 @@ func TestAStandingMessageOnAListOfDatesIsSetUpOverTheMux(t *testing.T) {
 	body := standingBody(thread)
 	delete(body, "rule")
 	body["dates"] = []string{"2026-01-05", "2026-05-04"}
+	body["end"] = "2026-12-31T00:00:00Z"
 
 	created := do(http.MethodPost, "/groups/s-1/chat/standing", "actor-a", body)
 	if created.code != http.StatusCreated {

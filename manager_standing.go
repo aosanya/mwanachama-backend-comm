@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-shared/recur"
 )
 
 func (m *CommManager) standingFence(ctx context.Context, structureID, threadID, callerID string) error {
@@ -15,35 +16,24 @@ func (m *CommManager) standingFence(ctx context.Context, structureID, threadID, 
 	return m.inThread(ctx, structureID, threadID, callerID)
 }
 
-func instantArg(name, raw string) (time.Time, error) {
-	t, err := time.Parse(time.RFC3339, raw)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("%w: %s %q is not an RFC3339 instant", models.ErrStandingInvalid, name, raw)
-	}
-	return t, nil
-}
-
-func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID, callerID, threadID, body, rule string, dates []string, zone, startsAt, endsAt string) (models.StandingMessage, error) {
+func (m *CommManager) CreateStandingMessageFor(ctx context.Context, structureID, callerID, threadID, body, rule string, dates []string, zone, start, end string) (models.StandingMessage, error) {
 	if err := m.asLead(ctx, structureID, callerID); err != nil {
 		return models.StandingMessage{}, err
 	}
 	if err := m.standingFence(ctx, structureID, threadID, callerID); err != nil {
 		return models.StandingMessage{}, err
 	}
-	start, err := instantArg("starts_at", startsAt)
+	wire := recur.Wire{Start: start, End: end, Zone: zone, Rule: rule, Dates: dates}
+	sch, err := wire.Schedule()
 	if err != nil {
-		return models.StandingMessage{}, err
+		return models.StandingMessage{}, fmt.Errorf("%w: %v", models.ErrStandingInvalid, err)
 	}
 	msg := models.StandingMessage{
 		StructureID: structureID, ThreadID: threadID, AuthorID: callerID,
-		Body: body, Rule: rule, Dates: dates, Zone: zone, StartsAt: start,
+		Body: body, Rule: rule, Dates: dates, Zone: zone, StartsAt: sch.Start,
 	}
-	if endsAt != "" {
-		end, err := instantArg("ends_at", endsAt)
-		if err != nil {
-			return models.StandingMessage{}, err
-		}
-		msg.EndsAt = &end
+	if !sch.End.IsZero() {
+		msg.EndsAt = &sch.End
 	}
 	return m.standings.CreateStanding(ctx, msg)
 }
