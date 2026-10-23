@@ -74,3 +74,20 @@ func decodedLength(s string) (int, error) {
 	b, err := DecodePushKey(s)
 	return len(b), err
 }
+
+type PushDeliveryState string
+
+const (
+	PushDeliverySent   PushDeliveryState = "sent"
+	PushDeliveryFailed PushDeliveryState = "failed"
+	PushDeliveryGone   PushDeliveryState = "gone"
+)
+
+type PushDelivery struct {
+	ID             string            `json:"id"`
+	NotificationID string            `json:"notification_id"`
+	ActorID        string            `json:"actor_id"`
+	SubscriptionID string            `json:"subscription_id"`
+	State          PushDeliveryState `json:"state"`
+	At             time.Time         `json:"at"`
+}

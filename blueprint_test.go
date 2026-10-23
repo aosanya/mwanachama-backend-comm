@@ -23,8 +23,8 @@ func testSpec(t *testing.T) *spec.Spec {
 
 func TestBlueprintDeclaresEveryRoleTheDomainSpecFills(t *testing.T) {
 	s := testSpec(t)
-	if len(s.Objects) != 21 {
-		t.Fatalf("declared %d objects, want comm's 21 tables", len(s.Objects))
+	if len(s.Objects) != 22 {
+		t.Fatalf("declared %d objects, want comm's 22 tables", len(s.Objects))
 	}
 	for _, role := range allRoles {
 		if _, ok := s.ByRole(role); !ok {
@@ -81,6 +81,7 @@ var carriers = map[string]any{
 	roleNotification:           models.Notification{},
 	roleNotificationPreference: models.NotificationPreference{},
 	rolePushSubscription:       models.PushSubscription{},
+	rolePushDelivery:           models.PushDelivery{},
 	roleStandingMessage:        models.StandingMessage{},
 }
 
@@ -131,6 +132,7 @@ var commsOwnVocabulary = map[string][]string{
 	roleNotification + ".event":              {"message_removed", "thread_reply", "thread_requested", "thread_declined", "record_message", "record_access_ended"},
 	roleNotification + ".subject_kind":       {"message", "subject_thread", "chat_thread", "record"},
 	roleNotificationPreference + ".category": {"chat"},
+	rolePushDelivery + ".state":              {"sent", "failed", "gone"},
 }
 
 func TestVocabularyMatchesTheBlueprint(t *testing.T) {

@@ -39,3 +39,7 @@ func (m *CommManager) SubscribePushFor(ctx context.Context, callerID, deviceID, 
 func (m *CommManager) UnsubscribePushFor(ctx context.Context, callerID, endpoint string) error {
 	return m.PushStore.UnsubscribePush(ctx, callerID, endpoint)
 }
+
+func (m *CommManager) PushDeliveriesOf(ctx context.Context, notificationID string) ([]models.PushDelivery, error) {
+	return m.PushStore.ListPushDeliveries(ctx, notificationID)
+}

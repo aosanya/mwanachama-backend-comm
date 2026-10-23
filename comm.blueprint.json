@@ -1254,6 +1254,22 @@
       ]
     },
     {
+      "role": "push_delivery",
+      "description": "One attempt to wake one subscription about one notification, and what the push service answered. Kept after the subscription is dropped, so the record of whom a notification reached outlives the browsers it reached.",
+      "fields": [
+        {"name": "id", "type": "string", "description": "Storage key, opaque to callers.", "primary": true},
+        {"name": "notification_id", "type": "string", "description": "The notification this attempt carried.", "required": true},
+        {"name": "actor_id", "type": "string", "description": "Whom the notification was raised for, the subscription's owner at the time of the attempt.", "required": true},
+        {"name": "subscription_id", "type": "string", "description": "The subscription the attempt was sent to. It may since have been dropped; the attempt is kept regardless.", "required": true},
+        {"name": "state", "type": "enum", "description": "What the push service answered: sent when it accepted the push, gone when it reported the subscription no longer exists, failed for any other refusal or error.", "required": true, "values": ["sent", "failed", "gone"]},
+        {"name": "at", "type": "timestamp", "description": "When the push service answered."}
+      ],
+      "indexes": [
+        {"name": "notification", "description": "Finds every attempt one notification made, which is the record of whom it reached.", "fields": ["notification_id"]},
+        {"name": "actor", "description": "Finds every attempt made for one actor.", "fields": ["actor_id"]}
+      ]
+    },
+    {
       "role": "standing_message",
       "description": "A message to a group that goes out on a schedule. The host sends it into the group's chat at each occurrence until its end, or until somebody stops it.",
       "fields": [

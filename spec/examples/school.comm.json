@@ -176,6 +176,12 @@
       "description": "One browser a parent or teacher asked to be alerted on when an announcement reaches them."
     },
     {
+      "role": "push_delivery",
+      "name": "alert_delivery",
+      "table": "alert_deliveries",
+      "description": "One attempt to alert a parent's or teacher's browser about an announcement, and what came of it."
+    },
+    {
       "role": "standing_message",
       "name": "recurring_announcement",
       "table": "recurring_announcements",

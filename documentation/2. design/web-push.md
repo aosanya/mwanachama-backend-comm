@@ -192,3 +192,39 @@ the push services may reach has not configured Web Push.
 
 Tests make a throwaway pair per run with `crypto/ecdh`; no key material is
 committed.
+
+## What reached whom (CM62)
+
+A raised notification is a row that says somebody was told; it never said the
+telling reached them. An archetype that promises in public "we told everyone
+who answered" needs the second fact, so every push attempt is now recorded.
+
+- **`push_delivery` is one row per attempt**: the notification, its recipient,
+  the subscription it was sent to, the push service's answer as a state and
+  the time of the answer. `sent` is an accepted push, `gone` is a 404 or 410
+  (the subscription is then dropped, as before), `failed` is any other
+  refusal or error.
+- **The row outlives the subscription.** Dropping a gone subscription does
+  not touch its attempts, so the record of whom a notification reached is
+  kept after the browsers it reached are not.
+- **It is written by the delivery itself**, after each `Send`, in the same
+  background goroutine. A record that fails to write is reported through the
+  `UseWebPush` failure callback and never stops the next subscription's send.
+- **No attempt is no row.** A notification raised for somebody holding no
+  subscription, or raised with no sender wired, has no attempts; the
+  notification row alone says it was raised and the absence of attempts says
+  nothing was pushed.
+- **`sent` means the push service accepted it**, which is as far as Web Push
+  can see. Whether the browser showed it, or the person read it, is not known
+  here; the notification's own `read_at` is the reader's half.
+
+Read through `CommManager.PushDeliveriesOf(ctx, notificationID)`, oldest
+first. It is a Go read only, with **no declared address yet**, on purpose:
+two questions are the owner's and are not guessed.
+
+1. **Who may read a notification's delivery record**: only its recipient,
+   the holders of some power on the structure that raised it, or an operator?
+   The answer decides the action and whether the caller is bound.
+2. **How long attempts are retained**: forever, as the public claim
+   suggests, or for a declared period after the notification. Nothing deletes
+   a row today.

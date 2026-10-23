@@ -229,6 +229,12 @@
       "description": "One member's browser that asked to be woken when they are told something."
     },
     {
+      "role": "push_delivery",
+      "name": "push_delivery",
+      "table": "push_deliveries",
+      "description": "One attempt to wake a member's browser about something they were told, and what came of it."
+    },
+    {
       "role": "standing_message",
       "name": "standing_message",
       "table": "standing_messages",

@@ -83,14 +83,30 @@ func (d *pushDelivery) deliver(ctx context.Context, n models.Notification) {
 	}
 	for _, sub := range subs {
 		err := d.sender.Send(ctx, sub, payload)
+		state := models.PushDeliverySent
 		switch {
 		case errors.Is(err, models.ErrPushSubscriptionGone):
+			state = models.PushDeliveryGone
 			if err := d.subscriptions.DropPushSubscription(ctx, sub.ID); err != nil {
 				d.failed(err)
 			}
 		case err != nil:
+			state = models.PushDeliveryFailed
 			d.failed(err)
 		}
+		d.record(ctx, n, sub, state)
+	}
+}
+
+func (d *pushDelivery) record(ctx context.Context, n models.Notification, sub models.PushSubscription, state models.PushDeliveryState) {
+	_, err := d.subscriptions.RecordPushDelivery(ctx, models.PushDelivery{
+		NotificationID: n.ID,
+		ActorID:        n.ActorID,
+		SubscriptionID: sub.ID,
+		State:          state,
+	})
+	if err != nil {
+		d.failed(err)
 	}
 }
 

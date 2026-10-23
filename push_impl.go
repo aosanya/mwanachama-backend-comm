@@ -28,6 +28,7 @@ func NewPushStore(db *gorm.DB, s *spec.Spec, clock Clock) (*PushStore, error) {
 	}
 	st, err := newStore(db, s, map[string]any{
 		rolePushSubscription: models.PushSubscription{},
+		rolePushDelivery:     models.PushDelivery{},
 	})
 	if err != nil {
 		return nil, err
@@ -87,4 +88,31 @@ func (s *PushStore) ListPushSubscriptions(ctx context.Context, actorID string) (
 
 func (s *PushStore) DropPushSubscription(ctx context.Context, id string) error {
 	return classify(deleteWhere(ctx, s.store, rolePushSubscription, "id = ?", id))
+}
+
+func (s *PushStore) RecordPushDelivery(ctx context.Context, d models.PushDelivery) (models.PushDelivery, error) {
+	d.ID = newID()
+	d.At = s.clock()
+	if err := Check(s.store.Spec(), rolePushDelivery, d); err != nil {
+		return models.PushDelivery{}, err
+	}
+	row, err := encode(s.store.Object(rolePushDelivery), d)
+	if err != nil {
+		return models.PushDelivery{}, err
+	}
+	if err := s.store.Query(ctx, rolePushDelivery).Create(row).Error; err != nil {
+		return models.PushDelivery{}, classify(err)
+	}
+	return d, nil
+}
+
+func (s *PushStore) ListPushDeliveries(ctx context.Context, notificationID string) ([]models.PushDelivery, error) {
+	q := s.store.Query(ctx, rolePushDelivery).
+		Where("notification_id = ?", notificationID).
+		Order("at, id")
+	out, err := specstore.List[models.PushDelivery](s.store, q, rolePushDelivery)
+	if err != nil {
+		return nil, classify(err)
+	}
+	return out, nil
 }
