@@ -42,3 +42,24 @@ controls nothing.
    or a host function.
 2. Declare `consultation` in `civic.comm.json` with the events that pair with
    it, and turn the pin above into a raise-and-mute test through a real mux.
+
+## The same wish from seven more templates
+
+Checked 2026-10-24 (run c922ce). Seven more templates list the same wish in
+their comm module's `unenforceable`, and each is blocked by CM26 the same way
+CM60 is:
+
+| Row | Template | Category asked for |
+| --- | --- | --- |
+| CM66 | ava | a procurement stage (award publication) |
+| CM69 | international-advisory-services | a deadline, due date first-class |
+| CM76 | law-firm | cite-check |
+| CM80 | party-mobilization | a mobilization instruction (cascade) |
+| CM90 | software-venture | cohort milestones |
+| CM93 | tour-guide-collective | booking confirmed (category or event) |
+| CM95 | wakala | launch ready, launch failed, new agency in your sector |
+
+None was added to its template. A template's `notification_categories` list
+names the categories a module raises, not a widened enum, and a category
+listed there could be muted but never raised. Each wish stays in
+`unenforceable` until CM26 lands, as decision 283 says.
