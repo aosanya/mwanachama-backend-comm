@@ -1292,5 +1292,13 @@
         {"name": "structure", "description": "Lists one group's standing messages.", "fields": ["structure_id"]}
       ]
     }
+  ],
+  "settings": [
+    {
+      "name": "notification_rules",
+      "type": "json",
+      "description": "Who is told of each event the host rules on, as a list of rules: event, the audiences told in order, the audiences told only when none of those resolves, and whether a recipient may mute it. Audiences are names the host resolves; this module never learns who they are. An empty list rules on nothing, so every event keeps the host's own defaults.",
+      "default": []
+    }
   ]
 }
