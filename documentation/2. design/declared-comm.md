@@ -410,7 +410,7 @@ Member app decisions 322 and 325, mockup M24.6: a service request is a case
 (decision 276), and the Inbox carries a line when an appointment is booked,
 when the agency cancels it with its reason, when the request is done with the
 agency's reply, and when it is cancelled; staff are told when the member
-cancels. `mwanachama-wakala-api` raises them (WK199); comm carries them and
+cancels. `mwanachama-wakala-api` raises them (WK198, which absorbed WK199); comm carries them and
 owns no service or appointment logic.
 
 - **Declared by the civic spec, not the blueprint**, exactly as CM56's case
