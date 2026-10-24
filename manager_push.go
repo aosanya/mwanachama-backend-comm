@@ -2,6 +2,7 @@ package mwanachamacomm
 
 import (
 	"context"
+	"time"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -42,4 +43,10 @@ func (m *CommManager) UnsubscribePushFor(ctx context.Context, callerID, endpoint
 
 func (m *CommManager) PushDeliveriesOf(ctx context.Context, notificationID string) ([]models.PushDelivery, error) {
 	return m.PushStore.ListPushDeliveries(ctx, notificationID)
+}
+
+const PushDeliveryRetention = 90 * 24 * time.Hour
+
+func (m *CommManager) PrunePushDeliveries(ctx context.Context) (int64, error) {
+	return m.PushStore.PrunePushDeliveries(ctx, m.PushStore.clock().Add(-PushDeliveryRetention))
 }

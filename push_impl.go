@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -115,4 +116,12 @@ func (s *PushStore) ListPushDeliveries(ctx context.Context, notificationID strin
 		return nil, classify(err)
 	}
 	return out, nil
+}
+
+func (s *PushStore) PrunePushDeliveries(ctx context.Context, before time.Time) (int64, error) {
+	res := s.store.Query(ctx, rolePushDelivery).Exec("delete from "+s.store.Table(rolePushDelivery)+" where at < ?", stamp(before))
+	if res.Error != nil {
+		return 0, classify(res.Error)
+	}
+	return res.RowsAffected, nil
 }

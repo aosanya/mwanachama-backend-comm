@@ -219,12 +219,19 @@ who answered" needs the second fact, so every push attempt is now recorded.
   here; the notification's own `read_at` is the reader's half.
 
 Read through `CommManager.PushDeliveriesOf(ctx, notificationID)`, oldest
-first. It is a Go read only, with **no declared address yet**, on purpose:
-two questions are the owner's and are not guessed.
+first, and declared as `GET /notifications/{notification_id}/deliveries`,
+action `comm.push_delivery.list`. Owner decision 429 (2026-10-24) settled the
+two questions this section used to leave open:
 
-1. **Who may read a notification's delivery record**: only its recipient,
-   the holders of some power on the structure that raised it, or an operator?
-   The answer decides the action and whether the caller is bound.
-2. **How long attempts are retained**: forever, as the public claim
-   suggests, or for a declared period after the notification. Nothing deletes
-   a row today.
+1. **Who may read it**: the agency's owners and agents only, everybody else
+   answered as not found (decision 125). comm does not know who an owner is,
+   so the operation binds no caller and carries its own action; the host's
+   authorizer grants that action to owners and agents and answers anybody
+   else 404. An unknown notification answers an empty list.
+2. **How long rows are kept**: 90 days, then pruned.
+   `CommManager.PrunePushDeliveries(ctx)` deletes every attempt whose `at` is
+   older than `PushDeliveryRetention` (90 days) before the store's clock and
+   answers how many went; `PushStore.PrunePushDeliveries(ctx, before)` is the
+   same with the cutoff named. comm prunes nothing on its own: no other comm
+   record has a retention period to copy a habit from, so the host calls it
+   from its own housekeeping.

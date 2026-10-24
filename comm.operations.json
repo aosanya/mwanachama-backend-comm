@@ -573,7 +573,7 @@
       "action": "comm.dm_thread.read",
       "status": 200,
       "title": "One conversation",
-      "description": "One conversation the caller is on the roster of. A conversation that exists but the caller is not on, and one that was never minted, answer identically \u2014 the status code must not become an enumeration oracle.",
+      "description": "One conversation the caller is on the roster of. A conversation that exists but the caller is not on, and one that was never minted, answer identically — the status code must not become an enumeration oracle.",
       "args": [
         {
           "from": "path",
@@ -714,7 +714,7 @@
       "action": "comm.dm_participant.kick",
       "status": 204,
       "title": "Remove somebody",
-      "description": "Admin-only, and a self-kick is refused \u2014 leaving is the act for that, and it carries the last-admin rule a kick would bypass.",
+      "description": "Admin-only, and a self-kick is refused — leaving is the act for that, and it carries the last-admin rule a kick would bypass.",
       "args": [
         {
           "from": "path",
@@ -1050,7 +1050,7 @@
       "action": "comm.address.retire",
       "status": 204,
       "title": "Retire an address",
-      "description": "Stops one of the caller's own addresses accepting new conversations. Conversations already open under it keep working \u2014 retiring must never sever one the other party is in the middle of.",
+      "description": "Stops one of the caller's own addresses accepting new conversations. Conversations already open under it keep working — retiring must never sever one the other party is in the middle of.",
       "args": [
         {
           "from": "caller",
@@ -1418,6 +1418,28 @@
           "as": "endpoint",
           "required": true,
           "description": "The push service URL to stop sending to."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_push_deliveries": {
+      "method": "GET",
+      "path": "/notifications/{notification_id}/deliveries",
+      "call": "PushDeliveriesOf",
+      "action": "comm.push_delivery.list",
+      "status": 200,
+      "title": "Whom a notification reached",
+      "description": "Every push attempt one notification made, oldest first: the recipient, the subscription it was sent to, what the push service answered (sent, failed or gone) and when. It is the record of whom the notification reached, kept after the subscriptions are dropped and pruned once older than the retention period. Who may read it is the mount's to decide; an unknown notification answers an empty list.",
+      "args": [
+        {
+          "from": "path",
+          "as": "notification_id",
+          "required": true,
+          "description": "The notification whose delivery record this is."
         }
       ],
       "returns": [
