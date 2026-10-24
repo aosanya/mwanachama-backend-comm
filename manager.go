@@ -33,6 +33,7 @@ type CommManager struct {
 	standing   Standing
 	answerers  Answerers
 	recipients Recipients
+	audience   Audience
 	push       *pushDelivery
 }
 
