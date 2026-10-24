@@ -462,7 +462,7 @@ Member app decision 351, mockup M26.8: when the poster of a volunteer call
 confirms their picks, each picked member is told they were picked and every
 other member who offered is told the call is filled. `mwanachama-backend-engage`
 owns the call, its offers and its picks (EN5) and returns the change to the
-host; `mwanachama-wakala-api` raises the notices (WK213). comm carries them and
+host; `mwanachama-wakala-api` raises the notices (WK212). comm carries them and
 owns no call or pick logic.
 
 - **Declared by the civic spec, not the blueprint**, as CM56's, CM101's and
