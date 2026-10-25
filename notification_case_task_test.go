@@ -46,8 +46,8 @@ func TestEachCaseOrTaskEventPairsWithItsOwnCategory(t *testing.T) {
 		if !ok || c != n.Category {
 			t.Errorf("%s pairs with %q (%v), want %q", n.Event, c, ok, n.Category)
 		}
-		if models.NotificationEventUnmutable(n.Event) {
-			t.Errorf("%s is unmutable", n.Event)
+		if want := n.Event == models.EventCaseClosed; models.NotificationEventUnmutable(n.Event) != want {
+			t.Errorf("%s unmutable = %v, want %v", n.Event, !want, want)
 		}
 	}
 }

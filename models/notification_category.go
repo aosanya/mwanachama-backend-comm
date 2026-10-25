@@ -183,9 +183,13 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
-	EventGroupMemberRemoved:  true,
-	EventAgencyMemberRemoved: true,
-	EventRecordAccessEnded:   true,
+	EventGroupMemberRemoved:   true,
+	EventAgencyMemberRemoved:  true,
+	EventRecordAccessEnded:    true,
+	EventVolunteerPicked:      true,
+	EventRecordChangeApproved: true,
+	EventRecordChangeRefused:  true,
+	EventCaseClosed:           true,
 }
 
 func NotificationEventUnmutable(e NotificationEvent) bool { return notificationEventUnmutable[e] }

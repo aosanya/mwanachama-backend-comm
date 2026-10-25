@@ -604,7 +604,7 @@ raises both (its WK158); comm only carries them.
 - **The remover is the author**, `author_actor_id`, the way
   `thread_declined` names the lead who declined. Who removed is the raiser's
   to supply; comm stores it as given.
-- **They cannot be muted.** `models.NotificationEventUnmutable` names exactly
+- **They cannot be muted.** `models.NotificationEventUnmutable` names
   these two, and `Raise` skips the mute read for them before asking the
   host's `Mutable`, so no host answer and no member preference can hold one
   back. This is the one event-level exemption since CM45 removed CM37's, and
@@ -641,3 +641,21 @@ A host cannot make a `survey` or `security` event mutable through this: no
 muted preference for those categories can exist, so there is nothing for a
 mutable answer to honour. Which events an agency may mute is the host's
 notification-rules data, per mount; comm only honours the answer.
+
+### Your own request or pick is never muted (CM109, 2026-10-25)
+
+Member app decision 479: a notice about something the member themselves
+asked for or offered reaches them whatever they muted. Four events join
+`record_access_ended`, `group_member_removed` and `agency_member_removed` in
+`models.NotificationEventUnmutable`:
+
+- `volunteer_picked` — the poster picked the member's offer.
+- `record_change_approved` and `record_change_refused` — the two outcomes
+  of a correction the member proposed to their own register record.
+- `case_closed` — the member's request was done or cancelled.
+
+Muting stays per category (decision 120), so muting `post` still silences
+`volunteer_call_filled` and CM104's post notices, which share that category,
+while `volunteer_picked` gets through. `poll_result_published` stays
+mutable under `results`. `notification_unmutable_test.go` pins all of it
+through `Raise` against a member who has muted every category.
