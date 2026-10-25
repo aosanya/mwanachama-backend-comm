@@ -1116,6 +1116,11 @@
           "required": true
         },
         {
+          "name": "names",
+          "type": "json",
+          "description": "The display names the raiser gives at raise, as an object from a name the raiser chooses to the text shown, for the things the notice mentions beside its subject's id: a group's name, a person's screen name, a title. Stored as given and returned on read, so a notice keeps the names it was raised with when the things it names are renamed later. Absent on a notice raised without them, and on every notice raised before the column existed."
+        },
+        {
           "name": "structure_id",
           "type": "string",
           "description": "The structure this was raised within, where the event has one. A nudge is capped per structure, so a nudge carrying none cannot be capped by an index over that scope and is refused before it is written."

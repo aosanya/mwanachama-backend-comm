@@ -1077,7 +1077,7 @@
       "action": "comm.notification.list",
       "status": 200,
       "title": "My notifications",
-      "description": "The caller's own notifications, newest first. There is no stored title or body: a client renders both from the event and the subject it names.",
+      "description": "The caller's own notifications, newest first. There is no stored title or body: a client renders both from the event and the subject it names, and from the display names the raiser gave beside the subject's id, as they were when it was raised.",
       "args": [
         {
           "from": "caller",

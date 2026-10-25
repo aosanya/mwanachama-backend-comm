@@ -659,3 +659,26 @@ Muting stays per category (decision 120), so muting `post` still silences
 while `volunteer_picked` gets through. `poll_result_published` stays
 mutable under `results`. `notification_unmutable_test.go` pins all of it
 through `Raise` against a member who has muted every category.
+
+## A notice carries the names it shows (CM108)
+
+Member app decision 477 (owner, 2026-10-25). A notification still stores no
+title or body, but it now stores the display names the client renders one
+with: `notification.names`, a `json` object from a key the raiser chooses
+(`group`, `author`, `title`…) to the text shown. The raiser supplies it at
+`Raise`, as `Notification.Names`; the inbox read returns it beside
+`SubjectID`.
+
+- **Snapshot, never a lookup.** The names are written once, with the row, and
+  nothing rewrites them. A group renamed or a form retitled after the raise
+  leaves every notice already raised reading as it did, which is the
+  decision's point: a notice says what was true when it was sent.
+- **Additive.** The column is new and optional. A notice raised without names,
+  and every row raised before the column existed, reads back with none, and
+  the client falls back to what it did before.
+- **The keys are the raiser's.** This module names no domain, so it declares
+  no key set and checks none; which keys an event carries is agreed between
+  its raiser and the client that renders it.
+- `TestANoticeCarriesTheNamesItWasRaisedWith` pins it: two raises on one
+  subject with different names each read back their own, and a raise with
+  none reads back empty.

@@ -63,6 +63,8 @@ type Notification struct {
 	SubjectKind NotificationSubjectKind
 	SubjectID   string
 
+	Names map[string]string
+
 	StructureID string
 
 	CreatedAt time.Time
