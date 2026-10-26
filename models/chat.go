@@ -8,6 +8,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -63,6 +64,16 @@ type ChatMessage struct {
 	AuthorID    string    `json:"author_id"`
 	Body        string    `json:"body"`
 	CreatedAt   time.Time `json:"created_at"`
+
+	AttachmentKind string `json:"attachment_kind,omitempty"`
+	AttachmentID   string `json:"attachment_id,omitempty"`
+}
+
+func (m ChatMessage) AttachmentIsWhole() error {
+	if (m.AttachmentKind == "") != (m.AttachmentID == "") {
+		return fmt.Errorf("%w: attachment_kind and attachment_id are set together or not at all", ErrChatInvalid)
+	}
+	return nil
 }
 
 type ChatReadMarker struct {

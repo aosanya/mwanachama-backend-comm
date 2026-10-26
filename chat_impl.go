@@ -194,6 +194,12 @@ func (s *ChatStore) Post(ctx context.Context, m models.ChatMessage) (models.Chat
 	if m.ID == "" {
 		m.ID = mintID(prefixChatMessage)
 	}
+	if err := Check(s.store.Spec(), roleChatMessage, m); err != nil {
+		return models.ChatMessage{}, err
+	}
+	if err := m.AttachmentIsWhole(); err != nil {
+		return models.ChatMessage{}, err
+	}
 	if err := s.store.Insert(ctx, roleChatMessage, m); err != nil {
 		return models.ChatMessage{}, classify(err)
 	}

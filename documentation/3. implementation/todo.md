@@ -145,3 +145,4 @@ bug in another repo is *not* closed by that, and stays its own row.
 per-instance mount loop consumes) and the routes should be built with
 catalog's `Mount{Authorize, Caller}`, so every declared action arrives
 gated rather than merely behind `requireCaller`.
+| CM108 | P2 | ✅ | 🧩 **A chat message carries one attachment reference** (HS114): optional opaque `attachment_kind` and `attachment_id` on a message, accepted on `comm.chat_message.post`, returned on read and list, set together or not at all. See message-attachments.md. |

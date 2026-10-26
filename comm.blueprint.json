@@ -112,6 +112,18 @@
           "description": "The post itself, as written. Never edited and never deleted \u2014 a withheld post is a removal row beside it, not a change here."
         },
         {
+          "name": "attachment_kind",
+          "type": "string",
+          "description": "What kind of thing the post carries a reference to, in the host's own vocabulary. Opaque here, and empty for a post that carries none. Set together with attachment_id or not at all.",
+          "matches": "subject_kind"
+        },
+        {
+          "name": "attachment_id",
+          "type": "string",
+          "description": "The id of the thing the post carries a reference to, as the host knows it. Opaque here, and empty for a post that carries none. Set together with attachment_kind or not at all.",
+          "matches": "attachment_id"
+        },
+        {
           "name": "created_at",
           "type": "timestamp",
           "description": "When it was posted. Second half of both listing indexes, because a room is always read in time order."

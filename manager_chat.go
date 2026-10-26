@@ -160,12 +160,15 @@ func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, thre
 	return m.ChatStore.ListMessagesAfter(ctx, after)
 }
 
-func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threadID, callerID, body string) (models.ChatMessage, error) {
+func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threadID, callerID, body, attachmentKind, attachmentID string) (models.ChatMessage, error) {
 	if err := m.inThread(ctx, structureID, threadID, callerID); err != nil {
 		return models.ChatMessage{}, err
 	}
 	if strings.TrimSpace(body) == "" {
 		return models.ChatMessage{}, fmt.Errorf("%w: body is required", models.ErrChatInvalid)
+	}
+	if err := (models.ChatMessage{AttachmentKind: attachmentKind, AttachmentID: attachmentID}).AttachmentIsWhole(); err != nil {
+		return models.ChatMessage{}, err
 	}
 	t, err := m.ChatStore.threadIn(ctx, structureID, threadID)
 	if err != nil {
@@ -176,5 +179,6 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 	}
 	return m.ChatStore.Post(ctx, models.ChatMessage{
 		StructureID: structureID, ThreadID: threadID, AuthorID: callerID, Body: body,
+		AttachmentKind: attachmentKind, AttachmentID: attachmentID,
 	})
 }

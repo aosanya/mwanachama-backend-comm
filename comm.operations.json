@@ -215,6 +215,16 @@
           "as": "body",
           "required": true,
           "description": "The post itself, as written."
+        },
+        {
+          "from": "body",
+          "as": "attachment_kind",
+          "description": "What kind of thing the post refers to, in the host's vocabulary. Optional, and only with attachment_id."
+        },
+        {
+          "from": "body",
+          "as": "attachment_id",
+          "description": "The id of the thing the post refers to. Optional, and only with attachment_kind."
         }
       ],
       "returns": [
