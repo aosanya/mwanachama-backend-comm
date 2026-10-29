@@ -50,16 +50,24 @@ func (s *ChatStore) readMarker(ctx context.Context, threadID, readerID string) (
 	return out, nil
 }
 
+const UnreadCap = 100
+
 func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID string) (map[string]int, error) {
 	query := `
-	SELECT m.thread_id, count(*)
-	  FROM ` + s.store.Table(roleChatMessage) + ` m
-	  LEFT JOIN ` + s.store.Table(roleChatReadMarker) + ` r
-	    ON r.thread_id = m.thread_id AND r.reader_id = ?
-	 WHERE m.structure_id = ? AND m.thread_id <> '' AND m.author_id <> ?
-	   AND (r.read_at IS NULL OR m.created_at > r.read_at)
-	 GROUP BY m.thread_id`
-	rows, err := s.store.Query(ctx, roleChatMessage).Raw(query, readerID, structureID, readerID).Rows()
+	SELECT t.id, (
+	  SELECT count(*) FROM (
+	    SELECT 1
+	      FROM ` + s.store.Table(roleChatMessage) + ` m
+	      LEFT JOIN ` + s.store.Table(roleChatReadMarker) + ` r
+	        ON r.thread_id = m.thread_id AND r.reader_id = ?
+	     WHERE m.thread_id = t.id AND m.author_id <> ?
+	       AND (r.read_at IS NULL OR m.created_at > r.read_at)
+	     LIMIT ?
+	  ) counted
+	)
+	  FROM ` + s.store.Table(roleChatThread) + ` t
+	 WHERE t.structure_id = ?`
+	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, readerID, readerID, UnreadCap, structureID).Rows()
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -73,18 +81,21 @@ func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID stri
 		if err := rows.Scan(&threadID, &n); err != nil {
 			return nil, err
 		}
-		counts[threadID] = n
+		if n > 0 {
+			counts[threadID] = n
+		}
 	}
 	return counts, rows.Err()
 }
 
 func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[string]time.Time, error) {
 	query := `
-	SELECT thread_id, max(created_at)
-	  FROM ` + s.store.Table(roleChatMessage) + `
-	 WHERE structure_id = ? AND thread_id <> ''
-	 GROUP BY thread_id`
-	rows, err := s.store.Query(ctx, roleChatMessage).Raw(query, structureID).Rows()
+	SELECT t.id, (
+	  SELECT max(m.created_at) FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id
+	)
+	  FROM ` + s.store.Table(roleChatThread) + ` t
+	 WHERE t.structure_id = ?`
+	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, structureID).Rows()
 	if err != nil {
 		return nil, classify(err)
 	}

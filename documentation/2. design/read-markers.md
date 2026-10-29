@@ -70,6 +70,21 @@ is the marker as stored.
   mark cannot make read posts unread again
   (`TestAReadPointMovesToTheNamedPostAndNeverBackwards`, mutation-checked by
   replacing the comparison with a plain overwrite).
+- **The count stops at 100 (HS302, the member app's decision 97).**
+  `UnreadCap` is 100: a thread with a hundred or more unread posts answers
+  `unread: 100`, and a client that prints "99+" for anything above 99 needs
+  no other signal. `UnreadCounts` asks, for each thread of the room, for at
+  most `UnreadCap` posts by somebody else after the reader's point, walking
+  the existing `thread_created` index (`thread_id`, `created_at`) and
+  stopping at the cap, so opening the list costs the same in a thread of ten
+  posts or ten thousand. `LatestPosts` reads the newest post of each thread
+  from the same index, one step per thread, rather than grouping every post
+  of the room. No table or index was added. The reader's own posts after the
+  point are walked past without being counted, so a reader who has posted
+  thousands of times since last marking pays for those; marking the thread
+  read ends it
+  (`TestTheUnreadCountStopsAtTheCap`, `TestOwnPostsDoNotSpendTheCap`,
+  `TestARoomListShowsAHundredForARoomWithMoreUnreadThanThat`).
 - **The structure fence holds.** Marking goes through `inThread`, the same
   check reading and posting use: a caller who does not belong, an invented
   structure, an invented thread and a thread of another structure all answer

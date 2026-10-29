@@ -152,3 +152,16 @@ func TestAPostOfAnotherThreadAnswersAsAnInventedOne(t *testing.T) {
 		t.Fatalf("a refused mark moved a read point: %v", got)
 	}
 }
+
+func TestARoomListShowsAHundredForARoomWithMoreUnreadThanThat(t *testing.T) {
+	f := newRoomFixture(t)
+	for i := 0; i < 130; i++ {
+		f.post(f.threadID, "actor-b", "post")
+	}
+	f.post(f.other, "actor-b", "elsewhere")
+
+	got := f.unread("actor-a")
+	if got[f.threadID] != mwanachamacomm.UnreadCap || got[f.other] != 1 {
+		t.Fatalf("actor-a's unread = %v, want %d on general and 1 on events", got, mwanachamacomm.UnreadCap)
+	}
+}
