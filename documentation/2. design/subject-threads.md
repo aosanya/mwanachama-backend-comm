@@ -23,7 +23,7 @@ Two roles, declared in `comm.blueprint.json`:
   The host's standing resolver is what refuses a kind it does not know.
 - **A private thread is one actor's.** It is keyed by subject and
   `owner_id`; a group thread has an empty `owner_id`, so a subject has at
-  most one. The unique index `subject_audience_owner` is what makes opening
+  most one. The unique index `subject_owner` is what makes opening
   idempotent, including under a race.
 - **`regarding_id` is a finer reference inside the subject**, opaque and
   optional. The member app's group chat on a form (MF30) is one thread per

@@ -36,12 +36,16 @@ func TestBlueprintDeclaresEveryRoleTheDomainSpecFills(t *testing.T) {
 func TestEveryDeclaredNameFitsPostgres(t *testing.T) {
 	s := testSpec(t)
 	for _, o := range s.Objects {
-		if n := s.TableFor(o); len(n) > spec.MaxIdentifier {
-			t.Errorf("table %q is %d bytes, over the %d Postgres truncates at", n, len(n), spec.MaxIdentifier)
+		for _, n := range []string{s.TableFor(o), s.TestTableFor(o)} {
+			if len(n) > spec.MaxIdentifier {
+				t.Errorf("table %q is %d bytes, over the %d Postgres truncates at", n, len(n), spec.MaxIdentifier)
+			}
 		}
 		for _, idx := range o.Indexes {
-			if n := s.IndexFor(o, idx); len(n) > spec.MaxIdentifier {
-				t.Errorf("index %q is %d bytes, over the %d Postgres truncates at", n, len(n), spec.MaxIdentifier)
+			for _, n := range []string{s.IndexFor(o, idx), s.TestIndexFor(o, idx)} {
+				if len(n) > spec.MaxIdentifier {
+					t.Errorf("index %q is %d bytes, over the %d Postgres truncates at", n, len(n), spec.MaxIdentifier)
+				}
 			}
 		}
 	}

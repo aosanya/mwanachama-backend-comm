@@ -307,7 +307,7 @@
       ],
       "indexes": [
         {
-          "name": "subject_audience_owner",
+          "name": "subject_owner",
           "description": "Resolves a subject to its group thread, or to one actor's private thread on it. Unique, so opening twice returns the same thread.",
           "fields": [
             "subject_kind",
