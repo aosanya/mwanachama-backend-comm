@@ -124,7 +124,8 @@
             "item",
             "case",
             "task",
-            "post"
+            "post",
+            "market"
           ]
         },
         {
@@ -169,7 +170,11 @@
             "poll_opened",
             "poll_result_published",
             "volunteer_picked",
-            "volunteer_call_filled"
+            "volunteer_call_filled",
+            "supplier_approved",
+            "ask_waiting",
+            "ask_answered",
+            "revision_asked"
           ]
         },
         {
@@ -193,7 +198,10 @@
             "case",
             "task",
             "poll",
-            "post"
+            "post",
+            "poster",
+            "ask",
+            "group_order"
           ]
         }
       ]
@@ -217,7 +225,8 @@
             "item",
             "case",
             "task",
-            "post"
+            "post",
+            "market"
           ]
         }
       ]

@@ -34,6 +34,7 @@ const (
 	CategoryCase     NotificationCategory = "case"
 	CategoryTask     NotificationCategory = "task"
 	CategoryPost     NotificationCategory = "post"
+	CategoryMarket   NotificationCategory = "market"
 )
 
 // notificationCategories is the whole vocabulary, in the order the object
@@ -42,6 +43,7 @@ var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
 	CategoryApproval, CategoryItem, CategoryCase, CategoryTask, CategoryPost,
+	CategoryMarket,
 }
 
 // NotificationCategories returns the vocabulary. A copy, so a caller
@@ -131,6 +133,10 @@ const (
 	EventPollResultPublished          NotificationEvent = "poll_result_published"
 	EventVolunteerPicked              NotificationEvent = "volunteer_picked"
 	EventVolunteerCallFilled          NotificationEvent = "volunteer_call_filled"
+	EventSupplierApproved             NotificationEvent = "supplier_approved"
+	EventAskWaiting                   NotificationEvent = "ask_waiting"
+	EventAskAnswered                  NotificationEvent = "ask_answered"
+	EventRevisionAsked                NotificationEvent = "revision_asked"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -180,6 +186,10 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventPollResultPublished:          CategoryResults,
 	EventVolunteerPicked:              CategoryPost,
 	EventVolunteerCallFilled:          CategoryPost,
+	EventSupplierApproved:             CategoryMarket,
+	EventAskWaiting:                   CategoryMarket,
+	EventAskAnswered:                  CategoryMarket,
+	EventRevisionAsked:                CategoryMarket,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -240,6 +250,9 @@ const (
 	SubjectRecord             NotificationSubjectKind = "record"
 	SubjectPoll               NotificationSubjectKind = "poll"
 	SubjectPost               NotificationSubjectKind = "post"
+	SubjectPoster             NotificationSubjectKind = "poster"
+	SubjectAsk                NotificationSubjectKind = "ask"
+	SubjectGroupOrder         NotificationSubjectKind = "group_order"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -250,6 +263,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
 	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll, SubjectPost,
+	SubjectPoster, SubjectAsk, SubjectGroupOrder,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
