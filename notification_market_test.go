@@ -13,6 +13,10 @@ func marketNotices() []models.Notification {
 		{ActorID: "supplier-1", Category: models.CategoryMarket, Event: models.EventAskWaiting, SubjectKind: models.SubjectAsk, SubjectID: "ask-1"},
 		{ActorID: "buyer-1", Category: models.CategoryMarket, Event: models.EventAskAnswered, SubjectKind: models.SubjectAsk, SubjectID: "ask-1"},
 		{ActorID: "farmer-1", Category: models.CategoryMarket, Event: models.EventRevisionAsked, SubjectKind: models.SubjectGroupOrder, SubjectID: "go-1"},
+		{ActorID: "buyer-1", Category: models.CategoryMarket, Event: models.EventNoticePosted, SubjectKind: models.SubjectNotice, SubjectID: "notice-1"},
+		{ActorID: "farmer-1", Category: models.CategoryMarket, Event: models.EventQuoteSent, SubjectKind: models.SubjectQuote, SubjectID: "quote-1"},
+		{ActorID: "farmer-1", Category: models.CategoryMarket, Event: models.EventDraftWaiting, SubjectKind: models.SubjectDraft, SubjectID: "draft-1"},
+		{ActorID: "buyer-1", Category: models.CategoryMarket, Event: models.EventCounterSent, SubjectKind: models.SubjectQuote, SubjectID: "quote-1"},
 	}
 }
 

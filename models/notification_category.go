@@ -137,6 +137,10 @@ const (
 	EventAskWaiting                   NotificationEvent = "ask_waiting"
 	EventAskAnswered                  NotificationEvent = "ask_answered"
 	EventRevisionAsked                NotificationEvent = "revision_asked"
+	EventNoticePosted                 NotificationEvent = "notice_posted"
+	EventQuoteSent                    NotificationEvent = "quote_sent"
+	EventDraftWaiting                 NotificationEvent = "draft_waiting"
+	EventCounterSent                  NotificationEvent = "counter_sent"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -190,6 +194,10 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventAskWaiting:                   CategoryMarket,
 	EventAskAnswered:                  CategoryMarket,
 	EventRevisionAsked:                CategoryMarket,
+	EventNoticePosted:                 CategoryMarket,
+	EventQuoteSent:                    CategoryMarket,
+	EventDraftWaiting:                 CategoryMarket,
+	EventCounterSent:                  CategoryMarket,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -253,6 +261,9 @@ const (
 	SubjectPoster             NotificationSubjectKind = "poster"
 	SubjectAsk                NotificationSubjectKind = "ask"
 	SubjectGroupOrder         NotificationSubjectKind = "group_order"
+	SubjectNotice             NotificationSubjectKind = "notice"
+	SubjectQuote              NotificationSubjectKind = "quote"
+	SubjectDraft              NotificationSubjectKind = "draft"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -263,7 +274,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
 	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll, SubjectPost,
-	SubjectPoster, SubjectAsk, SubjectGroupOrder,
+	SubjectPoster, SubjectAsk, SubjectGroupOrder, SubjectNotice, SubjectQuote, SubjectDraft,
 }
 
 // NotificationSubjectKinds returns the whole vocabulary of subject kinds, for

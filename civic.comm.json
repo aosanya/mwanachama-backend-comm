@@ -174,7 +174,11 @@
             "supplier_approved",
             "ask_waiting",
             "ask_answered",
-            "revision_asked"
+            "revision_asked",
+            "notice_posted",
+            "quote_sent",
+            "draft_waiting",
+            "counter_sent"
           ]
         },
         {
@@ -201,7 +205,10 @@
             "post",
             "poster",
             "ask",
-            "group_order"
+            "group_order",
+            "notice",
+            "quote",
+            "draft"
           ]
         }
       ]
