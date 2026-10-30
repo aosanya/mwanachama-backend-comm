@@ -83,7 +83,7 @@ func (s *ModerationStore) CreateRemoval(ctx context.Context, rem models.Removal,
 	if rem.ID == "" {
 		rem.ID = mintID(prefixRemoval)
 	}
-	row, err := encode(s.store.Object(roleRemoval), rem)
+	row, err := s.store.Row(roleRemoval, rem)
 	if err != nil {
 		return models.Removal{}, err
 	}
@@ -196,7 +196,7 @@ func (s *ModerationStore) DecideDispute(ctx context.Context, id string, outcome 
 			return models.ErrReviewerIsRemover
 		}
 
-		if err := tx.Table(s.store.Table(roleDispute)).Where("id = ?", id).
+		if err := inTx(tx, s.store, roleDispute).Where("id = ?", id).
 			Updates(map[string]any{
 				"state": string(outcome), "decided_by": decidedBy, "decided_at": stamp(now),
 			}).Error; err != nil {
@@ -222,7 +222,7 @@ func (s *ModerationStore) DecideDispute(ctx context.Context, id string, outcome 
 
 func takeIn(tx *gorm.DB, st *store, role string, o spec.Object, out any, notFound error, where string, args ...any) error {
 	var rows []map[string]any
-	if err := tx.Table(st.Table(role)).Where(where, args...).Limit(1).Find(&rows).Error; err != nil {
+	if err := inTx(tx, st, role).Where(where, args...).Limit(1).Find(&rows).Error; err != nil {
 		return err
 	}
 	if len(rows) == 0 {

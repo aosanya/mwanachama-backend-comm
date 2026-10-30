@@ -135,10 +135,11 @@ func (s *DMStore) ReEnable(ctx context.Context, threadID, actorID, by string) (m
 
 func (s *DMStore) claimEmptiedThread(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
 	table := s.store.Table(roleDMParticipant)
+	scope, scopeArgs := runClause(s.store, "other")
 	res := s.store.Query(ctx, roleDMParticipant).
 		Where("thread_id = ? AND actor_id = ? AND state = ?", threadID, actorID, string(models.DMStateLeft)).
-		Where("NOT EXISTS (SELECT 1 FROM "+table+" other WHERE other.thread_id = ? AND other.state = ?)",
-			threadID, string(models.DMStateActive)).
+		Where("NOT EXISTS (SELECT 1 FROM "+table+" other WHERE other.thread_id = ? AND other.state = ?"+scope+")",
+			append([]any{threadID, string(models.DMStateActive)}, scopeArgs...)...).
 		Updates(map[string]any{"state": string(models.DMStateActive), "updated_at": stamp(s.clock())})
 	if res.Error != nil {
 		return models.DMParticipant{}, classify(res.Error)
@@ -170,7 +171,7 @@ func (s *DMStore) setState(ctx context.Context, threadID, actorID string, state 
 }
 
 func (s *DMStore) upsertParticipant(ctx context.Context, threadID, actorID string) (models.DMParticipant, error) {
-	row, err := encode(s.store.Object(roleDMParticipant), models.DMParticipant{
+	row, err := s.store.Row(roleDMParticipant, models.DMParticipant{
 		ThreadID: threadID, ActorID: actorID, State: models.DMStateInvited, UpdatedAt: s.clock(),
 	})
 	if err != nil {
@@ -178,7 +179,7 @@ func (s *DMStore) upsertParticipant(ctx context.Context, threadID, actorID strin
 	}
 	err = s.store.Query(ctx, roleDMParticipant).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "thread_id"}, {Name: "actor_id"}},
+			Columns:   conflictOn(s.store, "thread_id", "actor_id"),
 			DoUpdates: clause.AssignmentColumns([]string{"state", "updated_at"}),
 		}).Create(row).Error
 	if err != nil {

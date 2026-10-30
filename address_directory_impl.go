@@ -49,6 +49,7 @@ func (s *AddressDirectoryStore) Search(ctx context.Context, q models.AddressDire
 		collate = ` COLLATE "C"`
 	}
 
+	scope, scopeArgs := runClause(s.store, "a")
 	query := `
 SELECT a.public_address, a.actor_id, m.display_name, a.listed_at, a.disabled_at, a.hours
   FROM ` + s.store.Table(roleAddress) + ` a
@@ -56,18 +57,18 @@ SELECT a.public_address, a.actor_id, m.display_name, a.listed_at, a.disabled_at,
  WHERE a.listed_at IS NOT NULL AND a.public_address <> ''
    AND a.retired_at IS NULL AND (a.expires_at IS NULL OR a.expires_at > ?)
    AND (? = '' OR a.actor_id <> ?)
-   AND (? = '' OR LOWER(m.display_name) LIKE ? OR (? <> '' AND a.public_address LIKE ?))
+   AND (? = '' OR LOWER(m.display_name) LIKE ? OR (? <> '' AND a.public_address LIKE ?))` + scope + `
  ORDER BY a.listed_at DESC, a.public_address` + collate + `
  LIMIT ? OFFSET ?`
 
 	nameFrag := strings.ToLower(q.Search)
 	addrFrag := q.AddressSearch()
-	rows, err := s.store.Query(ctx, roleAddress).Raw(query,
+	args := append([]any{
 		stamp(now),
 		q.ExcludeActorID, q.ExcludeActorID,
-		q.Search, "%"+nameFrag+"%", addrFrag, "%"+addrFrag+"%",
-		q.Limit, q.Offset,
-	).Rows()
+		q.Search, "%" + nameFrag + "%", addrFrag, "%" + addrFrag + "%",
+	}, scopeArgs...)
+	rows, err := s.store.Query(ctx, roleAddress).Raw(query, append(args, q.Limit, q.Offset)...).Rows()
 	if err != nil {
 		return nil, classify(err)
 	}

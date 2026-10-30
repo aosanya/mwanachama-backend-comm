@@ -22,14 +22,14 @@ func (s *ChatStore) MarkRead(ctx context.Context, structureID, threadID, readerI
 	if err := Check(s.store.Spec(), roleChatReadMarker, marker); err != nil {
 		return models.ChatReadMarker{}, err
 	}
-	row, err := encode(s.store.Object(roleChatReadMarker), marker)
+	row, err := s.store.Row(roleChatReadMarker, marker)
 	if err != nil {
 		return models.ChatReadMarker{}, err
 	}
 	table := s.store.Table(roleChatReadMarker)
 	err = s.store.Query(ctx, roleChatReadMarker).
 		Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "thread_id"}, {Name: "reader_id"}},
+			Columns: conflictOn(s.store, "thread_id", "reader_id"),
 			DoUpdates: clause.Assignments(map[string]any{
 				"read_at":   gorm.Expr("CASE WHEN excluded.read_at > " + table + ".read_at THEN excluded.read_at ELSE " + table + ".read_at END"),
 				"marked_at": gorm.Expr("excluded.marked_at"),
@@ -53,21 +53,30 @@ func (s *ChatStore) readMarker(ctx context.Context, threadID, readerID string) (
 const UnreadCap = 100
 
 func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID string) (map[string]int, error) {
+	markerScope, markerArgs := runClause(s.store, "r")
+	messageScope, messageArgs := runClause(s.store, "m")
+	threadScope, threadArgs := runClause(s.store, "t")
 	query := `
 	SELECT t.id, (
 	  SELECT count(*) FROM (
 	    SELECT 1
 	      FROM ` + s.store.Table(roleChatMessage) + ` m
 	      LEFT JOIN ` + s.store.Table(roleChatReadMarker) + ` r
-	        ON r.thread_id = m.thread_id AND r.reader_id = ?
-	     WHERE m.thread_id = t.id AND m.author_id <> ?
+	        ON r.thread_id = m.thread_id AND r.reader_id = ?` + markerScope + `
+	     WHERE m.thread_id = t.id AND m.author_id <> ?` + messageScope + `
 	       AND (r.read_at IS NULL OR m.created_at > r.read_at)
 	     LIMIT ?
 	  ) counted
 	)
 	  FROM ` + s.store.Table(roleChatThread) + ` t
-	 WHERE t.structure_id = ?`
-	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, readerID, readerID, UnreadCap, structureID).Rows()
+	 WHERE t.structure_id = ?` + threadScope
+	args := []any{readerID}
+	args = append(args, markerArgs...)
+	args = append(args, readerID)
+	args = append(args, messageArgs...)
+	args = append(args, UnreadCap, structureID)
+	args = append(args, threadArgs...)
+	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, args...).Rows()
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -89,13 +98,17 @@ func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID stri
 }
 
 func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[string]time.Time, error) {
+	messageScope, messageArgs := runClause(s.store, "m")
+	threadScope, threadArgs := runClause(s.store, "t")
 	query := `
 	SELECT t.id, (
-	  SELECT max(m.created_at) FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id
+	  SELECT max(m.created_at) FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id` + messageScope + `
 	)
 	  FROM ` + s.store.Table(roleChatThread) + ` t
-	 WHERE t.structure_id = ?`
-	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, structureID).Rows()
+	 WHERE t.structure_id = ?` + threadScope
+	args := append(messageArgs, structureID)
+	args = append(args, threadArgs...)
+	rows, err := s.store.Query(ctx, roleChatThread).Raw(query, args...).Rows()
 	if err != nil {
 		return nil, classify(err)
 	}

@@ -123,11 +123,11 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 		raised []models.Notification
 	)
 	err = m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		subjects, err := NewSubjectStore(tx, m.spec, m.subjects.clock)
+		subjects, err := m.subjectsOn(tx)
 		if err != nil {
 			return err
 		}
-		notices, err := NewNotificationStore(tx, m.spec, m.subjects.clock)
+		notices, err := m.noticesOn(tx)
 		if err != nil {
 			return err
 		}

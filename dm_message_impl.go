@@ -67,13 +67,13 @@ func (s *DMStore) PublishDeviceKey(ctx context.Context, k models.DMDeviceKey) (m
 	}
 	k.RetiredAt = nil
 
-	row, err := encode(s.store.Object(roleDMDeviceKey), k)
+	row, err := s.store.Row(roleDMDeviceKey, k)
 	if err != nil {
 		return models.DMDeviceKey{}, err
 	}
 	err = s.store.Query(ctx, roleDMDeviceKey).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "actor_id"}, {Name: "key_id"}},
+			Columns:   conflictOn(s.store, "actor_id", "key_id"),
 			DoUpdates: clause.AssignmentColumns([]string{"public_key", "published_by", "device_id", "retired_at"}),
 		}).Create(row).Error
 	if err != nil {
@@ -132,13 +132,13 @@ func (s *DMStore) SetReaction(ctx context.Context, r models.DMReaction) error {
 	if r.CreatedAt.IsZero() {
 		r.CreatedAt = s.clock()
 	}
-	row, err := encode(s.store.Object(roleDMReaction), r)
+	row, err := s.store.Row(roleDMReaction, r)
 	if err != nil {
 		return err
 	}
 	return classify(s.store.Query(ctx, roleDMReaction).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "message_id"}, {Name: "actor_id"}},
+			Columns:   conflictOn(s.store, "message_id", "actor_id"),
 			DoUpdates: clause.AssignmentColumns([]string{"emoji", "created_at"}),
 		}).Create(row).Error)
 }
@@ -149,13 +149,12 @@ func (s *DMStore) ClearReaction(ctx context.Context, messageID, actorID string) 
 }
 
 func (s *DMStore) ListReactions(ctx context.Context, threadID string) ([]models.DMReaction, error) {
-	reactions, messages := s.store.Table(roleDMReaction), s.store.Table(roleDMMessage)
+	messages := s.store.Table(roleDMMessage)
+	scope, scopeArgs := runClause(s.store, "m")
 	q := s.store.Query(ctx, roleDMReaction).
-		Table(reactions+" AS r").
-		Select("r.*").
-		Joins("JOIN "+messages+" AS m ON m.id = r.message_id").
-		Where("m.thread_id = ?", threadID).
-		Order("r.message_id, r.actor_id")
+		Where("message_id IN (SELECT m.id FROM "+messages+" m WHERE m.thread_id = ?"+scope+")",
+			append([]any{threadID}, scopeArgs...)...).
+		Order("message_id, actor_id")
 
 	out, err := specstore.List[models.DMReaction](s.store, q, roleDMReaction)
 	if err != nil {

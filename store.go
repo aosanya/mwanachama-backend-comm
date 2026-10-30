@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
 	"github.com/aosanya/mwanachama-backend-shared/specstore"
@@ -12,8 +13,39 @@ import (
 
 func stamp(at time.Time) string { return at.UTC().Format(specstore.TimeLayout) }
 
+func runClause(st *store, alias string) (string, []any) {
+	if st.RunID() == "" {
+		return "", nil
+	}
+	column := spec.RunIDColumn
+	if alias != "" {
+		column = alias + "." + spec.RunIDColumn
+	}
+	return " AND " + column + " = ?", []any{st.RunID()}
+}
+
+func conflictOn(st *store, columns ...string) []clause.Column {
+	out := make([]clause.Column, 0, len(columns)+1)
+	if st.RunID() != "" {
+		out = append(out, clause.Column{Name: spec.RunIDColumn})
+	}
+	for _, c := range columns {
+		out = append(out, clause.Column{Name: c})
+	}
+	return out
+}
+
+func inTx(tx *gorm.DB, st *store, role string) *gorm.DB {
+	q := tx.Table(st.Table(role))
+	if st.RunID() != "" {
+		q = q.Where(spec.RunIDColumn+" = ?", st.RunID())
+	}
+	return q
+}
+
 func deleteWhere(ctx context.Context, st *store, role, where string, args ...any) error {
-	return st.Query(ctx, role).Exec("delete from "+st.Table(role)+" where "+where, args...).Error
+	scope, scopeArgs := runClause(st, "")
+	return st.Query(ctx, role).Exec("delete from "+st.Table(role)+" where "+where+scope, append(args, scopeArgs...)...).Error
 }
 
 type store = specstore.Store

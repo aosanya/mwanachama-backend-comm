@@ -146,7 +146,7 @@ func (s *AddressStore) Block(ctx context.Context, b models.AddressBlock) error {
 	if b.CreatedAt.IsZero() {
 		b.CreatedAt = s.clock()
 	}
-	row, err := encode(s.store.Object(roleAddressBlock), b)
+	row, err := s.store.Row(roleAddressBlock, b)
 	if err != nil {
 		return err
 	}

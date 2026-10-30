@@ -170,13 +170,13 @@ func (s *NotificationStore) SetPreference(ctx context.Context, actorID string, c
 	if err := p.Validate(); err != nil {
 		return models.NotificationPreference{}, err
 	}
-	row, err := encode(s.store.Object(roleNotificationPreference), p)
+	row, err := s.store.Row(roleNotificationPreference, p)
 	if err != nil {
 		return models.NotificationPreference{}, err
 	}
 	err = s.store.Query(ctx, roleNotificationPreference).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "actor_id"}, {Name: "category"}},
+			Columns:   conflictOn(s.store, "actor_id", "category"),
 			DoUpdates: clause.AssignmentColumns([]string{"muted", "changed_at"}),
 		}).Create(row).Error
 	if err != nil {

@@ -8,6 +8,9 @@ import (
 )
 
 func (m *CommManager) UseWebPush(sender PushSender, onFailure func(error)) {
+	if m.runID != "" {
+		return
+	}
 	if sender == nil {
 		m.push = nil
 		m.NotificationStore.onRaised = nil

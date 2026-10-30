@@ -161,11 +161,15 @@ func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, n
 	var claimed bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
-		claimed, err = claimOccurrence(ctx, tx, s.spec, m, occurrence)
+		claimed, err = claimOccurrence(ctx, tx, s.spec, s.store.RunID(), m, occurrence)
 		if err != nil || !claimed {
 			return err
 		}
 		chat, err := NewChatStore(tx, s.spec, s.chat.clock)
+		if err != nil {
+			return err
+		}
+		chat, err = chat.inRun(s.store.RunID())
 		if err != nil {
 			return err
 		}
@@ -183,10 +187,16 @@ func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, n
 	return posted, claimed, nil
 }
 
-func claimOccurrence(ctx context.Context, tx *gorm.DB, s *spec.Spec, m models.StandingMessage, occurrence time.Time) (bool, error) {
-	st, err := newStore(tx, s, map[string]any{roleStandingMessage: models.StandingMessage{}})
+func claimOccurrence(ctx context.Context, tx *gorm.DB, s *spec.Spec, runID string, m models.StandingMessage, occurrence time.Time) (bool, error) {
+	plain, err := newStore(tx, s, map[string]any{roleStandingMessage: models.StandingMessage{}})
 	if err != nil {
 		return false, err
+	}
+	st := plain
+	if runID != "" {
+		if st, err = plain.ForRun(runID); err != nil {
+			return false, err
+		}
 	}
 	claim := st.Query(ctx, roleStandingMessage).Where("id = ? AND stopped_at IS NULL", m.ID)
 	if m.LastSentAt == nil {

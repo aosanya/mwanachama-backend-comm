@@ -45,8 +45,7 @@ func (s *DMStore) CreateThread(ctx context.Context, t models.DMThread, initial [
 		t.ID = mintID(prefixDMThread)
 	}
 
-	threads, participants := s.store.Object(roleDMThread), s.store.Object(roleDMParticipant)
-	threadRow, err := encode(threads, t)
+	threadRow, err := s.store.Row(roleDMThread, t)
 	if err != nil {
 		return models.DMThread{}, err
 	}
@@ -56,7 +55,7 @@ func (s *DMStore) CreateThread(ctx context.Context, t models.DMThread, initial [
 			return err
 		}
 		add := func(actorID string, state models.DMParticipantState, admin bool) error {
-			row, err := encode(participants, models.DMParticipant{
+			row, err := s.store.Row(roleDMParticipant, models.DMParticipant{
 				ThreadID: t.ID, ActorID: actorID, State: state, IsAdmin: admin, UpdatedAt: s.clock(),
 			})
 			if err != nil {
@@ -95,14 +94,12 @@ func (s *DMStore) GetThread(ctx context.Context, id string) (models.DMThread, er
 }
 
 func (s *DMStore) ListThreadsFor(ctx context.Context, actorID string) ([]models.DMThread, error) {
-	threads, participants := s.store.Table(roleDMThread), s.store.Table(roleDMParticipant)
+	participants := s.store.Table(roleDMParticipant)
+	scope, scopeArgs := runClause(s.store, "p")
 	q := s.store.Query(ctx, roleDMThread).
-		Table(threads+" AS t").
-		Select("t.*").
-		Joins("JOIN "+participants+" AS p ON p.thread_id = t.id").
-		Where("p.actor_id = ? AND p.state IN ?", actorID,
-			[]string{string(models.DMStateActive), string(models.DMStateInvited)}).
-		Order("t.created_at, t.id")
+		Where("id IN (SELECT p.thread_id FROM "+participants+" p WHERE p.actor_id = ? AND p.state IN ?"+scope+")",
+			append([]any{actorID, []string{string(models.DMStateActive), string(models.DMStateInvited)}}, scopeArgs...)...).
+		Order("created_at, id")
 
 	out, err := specstore.List[models.DMThread](s.store, q, roleDMThread)
 	if err != nil {

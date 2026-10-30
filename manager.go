@@ -35,6 +35,7 @@ type CommManager struct {
 	recipients Recipients
 	audience   Audience
 	push       *pushDelivery
+	runID      string
 }
 
 func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter, actorsTable string) (*CommManager, error) {

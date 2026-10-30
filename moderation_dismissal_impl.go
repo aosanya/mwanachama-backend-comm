@@ -16,12 +16,12 @@ func (s *ModerationStore) DismissReports(ctx context.Context, d models.Dismissal
 	if d.ID == "" {
 		d.ID = mintID(prefixDismissal)
 	}
-	row, err := encode(s.store.Object(roleDismissal), d)
+	row, err := s.store.Row(roleDismissal, d)
 	if err != nil {
 		return models.Dismissal{}, err
 	}
 	err = s.store.Query(ctx, roleDismissal).Session(&gorm.Session{}).Transaction(func(tx *gorm.DB) error {
-		q := tx.Table(s.store.Table(roleRemoval))
+		q := inTx(tx, s.store, roleRemoval)
 		if tx.Dialector.Name() == "postgres" {
 			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
 		}

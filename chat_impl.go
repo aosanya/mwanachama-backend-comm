@@ -250,11 +250,22 @@ func chatActivitySQL(threads, messages string) string {
 }
 
 func (s *ChatStore) Activity(ctx context.Context, q models.ChatActivityQuery) (models.ChatActivityPage, error) {
+	scope, scopeArgs := runClause(s.store, "")
+	conditions := []string{}
+	var perTable []any
+	if q.StructureID != "" {
+		conditions = append(conditions, "structure_id = ?")
+		perTable = append(perTable, q.StructureID)
+	}
+	if scope != "" {
+		conditions = append(conditions, spec.RunIDColumn+" = ?")
+		perTable = append(perTable, scopeArgs...)
+	}
 	where := ""
 	var args []any
-	if q.StructureID != "" {
-		args = append(args, q.StructureID, q.StructureID)
-		where = "WHERE structure_id = ?"
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+		args = append(append(args, perTable...), perTable...)
 	}
 	query := strings.ReplaceAll(
 		chatActivitySQL(s.store.Table(roleChatThread), s.store.Table(roleChatMessage)),

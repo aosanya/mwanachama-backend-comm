@@ -123,11 +123,11 @@ func (m *CommManager) leadsToTell(ctx context.Context, structureID, requesterID 
 func (m *CommManager) inChatTransaction(ctx context.Context, work func(chat *ChatStore, notices *NotificationStore) ([]models.Notification, error)) ([]models.Notification, error) {
 	var raised []models.Notification
 	err := m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		chat, err := NewChatStore(tx, m.spec, m.ChatStore.clock)
+		chat, err := m.chatOn(tx)
 		if err != nil {
 			return err
 		}
-		notices, err := NewNotificationStore(tx, m.spec, m.ChatStore.clock)
+		notices, err := m.noticesOn(tx)
 		if err != nil {
 			return err
 		}

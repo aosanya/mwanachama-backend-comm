@@ -47,13 +47,13 @@ func (s *PushStore) SubscribePush(ctx context.Context, sub models.PushSubscripti
 	if err := sub.Validate(); err != nil {
 		return models.PushSubscription{}, err
 	}
-	row, err := encode(s.store.Object(rolePushSubscription), sub)
+	row, err := s.store.Row(rolePushSubscription, sub)
 	if err != nil {
 		return models.PushSubscription{}, err
 	}
 	err = s.store.Query(ctx, rolePushSubscription).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "endpoint"}},
+			Columns:   conflictOn(s.store, "endpoint"),
 			DoUpdates: clause.AssignmentColumns([]string{"actor_id", "device_id", "public_key", "auth_secret", "created_at"}),
 		}).Create(row).Error
 	if err != nil {
@@ -97,7 +97,7 @@ func (s *PushStore) RecordPushDelivery(ctx context.Context, d models.PushDeliver
 	if err := Check(s.store.Spec(), rolePushDelivery, d); err != nil {
 		return models.PushDelivery{}, err
 	}
-	row, err := encode(s.store.Object(rolePushDelivery), d)
+	row, err := s.store.Row(rolePushDelivery, d)
 	if err != nil {
 		return models.PushDelivery{}, err
 	}
@@ -119,7 +119,8 @@ func (s *PushStore) ListPushDeliveries(ctx context.Context, notificationID strin
 }
 
 func (s *PushStore) PrunePushDeliveries(ctx context.Context, before time.Time) (int64, error) {
-	res := s.store.Query(ctx, rolePushDelivery).Exec("delete from "+s.store.Table(rolePushDelivery)+" where at < ?", stamp(before))
+	scope, scopeArgs := runClause(s.store, "")
+	res := s.store.Query(ctx, rolePushDelivery).Exec("delete from "+s.store.Table(rolePushDelivery)+" where at < ?"+scope, append([]any{stamp(before)}, scopeArgs...)...)
 	if res.Error != nil {
 		return 0, classify(res.Error)
 	}

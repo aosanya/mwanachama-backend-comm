@@ -19,13 +19,13 @@ func (s *ChatStore) Archive(ctx context.Context, structureID, threadID, readerID
 	if err := Check(s.store.Spec(), roleChatArchive, archive); err != nil {
 		return models.ChatArchive{}, err
 	}
-	row, err := encode(s.store.Object(roleChatArchive), archive)
+	row, err := s.store.Row(roleChatArchive, archive)
 	if err != nil {
 		return models.ChatArchive{}, err
 	}
 	err = s.store.Query(ctx, roleChatArchive).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "thread_id"}, {Name: "reader_id"}},
+			Columns:   conflictOn(s.store, "thread_id", "reader_id"),
 			DoNothing: true,
 		}).Create(row).Error
 	if err != nil {
