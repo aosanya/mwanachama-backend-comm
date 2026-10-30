@@ -1159,6 +1159,76 @@
         }
       ]
     },
+    "acknowledge_notification": {
+      "method": "POST",
+      "path": "/notifications/{notification_id}/acknowledge",
+      "call": "AcknowledgeNotification",
+      "action": "comm.notification.acknowledge",
+      "status": 200,
+      "title": "Acknowledge a notification",
+      "description": "Confirms the caller has acted on one of their own notifications, and answers the acknowledgement. Acknowledging again answers the first one unchanged. It does not mark the notification read. A notification that is somebody else's, or that does not exist, is a not-found.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The recipient, from the session."
+        },
+        {
+          "from": "path",
+          "as": "notification_id",
+          "required": true,
+          "description": "Which notification."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
+    "list_notification_receipts": {
+      "method": "GET",
+      "path": "/notification-receipts",
+      "call": "NotificationReceipts",
+      "action": "comm.notification.receipts",
+      "status": 200,
+      "title": "Who a notification reached and who acted on it",
+      "description": "Every recipient one subject was raised for, each with when the notification was raised, when they read it and when they acknowledged it, oldest id first. A recipient with no acknowledgement has not acted; a recipient who muted the category was never raised for and is not listed. Pass the id of the last receipt as after to read the next page. Who may read it is the mount's to decide.",
+      "args": [
+        {
+          "from": "query",
+          "as": "subject_kind",
+          "required": true,
+          "description": "What kind of thing the notifications were about, in the host's own vocabulary."
+        },
+        {
+          "from": "query",
+          "as": "subject_id",
+          "required": true,
+          "description": "Which thing of that kind."
+        },
+        {
+          "from": "query",
+          "as": "event",
+          "description": "Only the notifications raised for this event."
+        },
+        {
+          "from": "query",
+          "as": "after",
+          "description": "The notification id of the last receipt already read."
+        },
+        {
+          "from": "query",
+          "as": "limit",
+          "description": "How many to return."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "list_notification_preferences": {
       "method": "GET",
       "path": "/notification-preferences",

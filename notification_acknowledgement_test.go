@@ -26,7 +26,7 @@ func raiseInstruction(t *testing.T, s *mwanachamacomm.NotificationStore, subject
 	return out
 }
 
-func TestAcknowledgingANotificationRecordsTheRecipientAndReadsIt(t *testing.T) {
+func TestAcknowledgingANotificationRecordsTheRecipientAndLeavesItUnread(t *testing.T) {
 	s := newNotificationStore(t)
 	ctx := context.Background()
 	raised := raiseInstruction(t, s, "instruction-1", "ward-1")
@@ -39,8 +39,8 @@ func TestAcknowledgingANotificationRecordsTheRecipientAndReadsIt(t *testing.T) {
 		t.Fatalf("acknowledgement = %+v", ack)
 	}
 	unread, err := s.UnreadCount(ctx, "ward-1")
-	if err != nil || unread != 0 {
-		t.Fatalf("unread after acknowledging = %d, err %v, want 0", unread, err)
+	if err != nil || unread != 1 {
+		t.Fatalf("unread after acknowledging = %d, err %v, want 1: the read mark is the recipient's own assertion", unread, err)
 	}
 }
 
@@ -112,8 +112,8 @@ func TestReceiptsSayWhichRecipientsAcknowledgedAndWhichWentQuiet(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("receipts = %+v, want the three recipients of instruction-1 and no other subject's", got)
 	}
-	if r := byActor["ward-1"]; r.AcknowledgedAt == nil || r.ReadAt == nil || r.NotificationID != raised["ward-1"].ID {
-		t.Fatalf("ward-1 = %+v, want acknowledged and read", r)
+	if r := byActor["ward-1"]; r.AcknowledgedAt == nil || r.ReadAt != nil || r.NotificationID != raised["ward-1"].ID {
+		t.Fatalf("ward-1 = %+v, want acknowledged and not read", r)
 	}
 	if r := byActor["ward-2"]; r.AcknowledgedAt != nil || r.ReadAt == nil {
 		t.Fatalf("ward-2 = %+v, want read and not acknowledged", r)
@@ -134,7 +134,7 @@ func TestReceiptsCanBeNarrowedToOneEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.NotificationReceipts(ctx, models.SubjectItem, "instruction-1", string(models.EventItemAnswered), "", 0)
+	got, err := s.NotificationReceipts(ctx, models.SubjectItem, "instruction-1", models.EventItemAnswered, "", 0)
 	if err != nil || len(got) != 1 || got[0].Event != models.EventItemAnswered {
 		t.Fatalf("receipts for one event = %+v, err %v", got, err)
 	}

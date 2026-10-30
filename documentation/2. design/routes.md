@@ -54,6 +54,8 @@ consumer is the gateway, and it is CM28.
 | GET | `/notifications` | `comm.notification.list` |
 | GET | `/notifications/unread` | `comm.notification.unread` |
 | POST | `/notifications/read` | `comm.notification.mark_read` |
+| POST | `/notifications/{notification_id}/acknowledge` | `comm.notification.acknowledge` |
+| GET | `/notification-receipts` | `comm.notification.receipts` |
 | GET | `/notification-preferences` | `comm.notification_preference.list` |
 | PUT | `/notification-preferences/{category}` | `comm.notification_preference.set` |
 | POST | `/push-subscriptions` | `comm.push_subscription.subscribe` |
