@@ -141,6 +141,7 @@ const (
 	EventQuoteSent                    NotificationEvent = "quote_sent"
 	EventDraftWaiting                 NotificationEvent = "draft_waiting"
 	EventCounterSent                  NotificationEvent = "counter_sent"
+	EventAskClosed                    NotificationEvent = "ask_closed"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -198,6 +199,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventQuoteSent:                    CategoryMarket,
 	EventDraftWaiting:                 CategoryMarket,
 	EventCounterSent:                  CategoryMarket,
+	EventAskClosed:                    CategoryMarket,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{

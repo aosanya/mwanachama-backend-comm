@@ -178,7 +178,8 @@
             "notice_posted",
             "quote_sent",
             "draft_waiting",
-            "counter_sent"
+            "counter_sent",
+            "ask_closed"
           ]
         },
         {
