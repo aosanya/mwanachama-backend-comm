@@ -240,6 +240,12 @@
       ]
     },
     {
+      "role": "notification_acknowledgement",
+      "name": "notification_acknowledgement",
+      "table": "notification_acknowledgements",
+      "description": "One member confirming they have acted on something they were told about."
+    },
+    {
       "role": "push_subscription",
       "name": "push_subscription",
       "table": "push_subscriptions",

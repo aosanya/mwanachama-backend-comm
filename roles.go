@@ -20,6 +20,7 @@ const (
 	roleAddressBlock           = "address_block"
 	roleNotification           = "notification"
 	roleNotificationPreference = "notification_preference"
+	roleNotificationAck        = "notification_acknowledgement"
 	rolePushSubscription       = "push_subscription"
 	rolePushDelivery           = "push_delivery"
 	roleStandingMessage        = "standing_message"
@@ -45,6 +46,7 @@ var allRoles = []string{
 	roleAddressBlock,
 	roleNotification,
 	roleNotificationPreference,
+	roleNotificationAck,
 	rolePushSubscription,
 	rolePushDelivery,
 	roleStandingMessage,

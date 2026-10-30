@@ -161,10 +161,12 @@ var (
 // is the persistence boundary over both rows. Aliases of their models.
 // counterparts.
 type (
-	Notification           = models.Notification
-	NotificationPreference = models.NotificationPreference
-	NotificationCategory   = models.NotificationCategory
-	NotificationRepository = models.NotificationRepository
+	Notification                = models.Notification
+	NotificationPreference      = models.NotificationPreference
+	NotificationAcknowledgement = models.NotificationAcknowledgement
+	NotificationReceipt         = models.NotificationReceipt
+	NotificationCategory        = models.NotificationCategory
+	NotificationRepository      = models.NotificationRepository
 )
 
 // The notification vocabulary values and limits a caller outside this

@@ -170,6 +170,12 @@
       ]
     },
     {
+      "role": "notification_acknowledgement",
+      "name": "announcement_acknowledgement",
+      "table": "announcement_acknowledgements",
+      "description": "One parent or teacher confirming they have acted on an announcement that reached them."
+    },
+    {
       "role": "push_subscription",
       "name": "browser_alert",
       "table": "browser_alerts",

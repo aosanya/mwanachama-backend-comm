@@ -46,6 +46,7 @@ func NewNotificationStore(db *gorm.DB, s *spec.Spec, clock Clock) (*Notification
 	st, err := newStore(db, s, map[string]any{
 		roleNotification:           models.Notification{},
 		roleNotificationPreference: models.NotificationPreference{},
+		roleNotificationAck:        models.NotificationAcknowledgement{},
 	})
 	if err != nil {
 		return nil, err

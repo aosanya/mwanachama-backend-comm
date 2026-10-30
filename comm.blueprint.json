@@ -1208,6 +1208,55 @@
       ]
     },
     {
+      "role": "notification_acknowledgement",
+      "description": "One recipient confirming they have acted on one notification they were told about. A notification is raised for exactly one recipient, so this row is the per-recipient answer to who has acknowledged. It is the recipient's own assertion, made once, and it never touches the notification's read mark.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "description": "Storage key, opaque to callers.",
+          "primary": true
+        },
+        {
+          "name": "notification_id",
+          "type": "string",
+          "description": "The notification acknowledged. One acknowledgement per notification.",
+          "required": true,
+          "immutable": true
+        },
+        {
+          "name": "actor_id",
+          "type": "string",
+          "description": "Who acknowledged it: the notification's own recipient, from the session and never a body field.",
+          "required": true,
+          "immutable": true
+        },
+        {
+          "name": "acknowledged_at",
+          "type": "timestamp",
+          "description": "When the recipient acknowledged it, from the server's clock.",
+          "required": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "notification",
+          "description": "One acknowledgement per notification, and the lookup that joins a list of notifications to who acknowledged them.",
+          "fields": [
+            "notification_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "actor",
+          "description": "Finds everything one recipient has acknowledged.",
+          "fields": [
+            "actor_id"
+          ]
+        }
+      ]
+    },
+    {
       "role": "push_subscription",
       "description": "One browser's standing request to be woken when its owner is told something. When a notification is raised for an actor, every subscription that actor holds is sent a Web Push; one the push service reports gone is dropped.",
       "fields": [
