@@ -98,6 +98,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -131,6 +132,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -164,6 +166,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -175,6 +178,7 @@
         {
           "from": "query",
           "as": "after",
+          "refers": "comm.chat_message",
           "description": "Optional. A post's id in this thread: only posts after it are returned. Omitted, every post is."
         }
       ],
@@ -202,6 +206,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -245,6 +250,7 @@
         {
           "from": "path",
           "as": "message_id",
+          "refers": "comm.chat_message",
           "required": true,
           "description": "The message."
         },
@@ -278,6 +284,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -289,6 +296,7 @@
         {
           "from": "body",
           "as": "message_id",
+          "refers": "comm.chat_message",
           "description": "The last post the reader has seen, which must be in this thread. Absent marks everything posted until now as read."
         }
       ],
@@ -343,6 +351,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -376,6 +385,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "required": true,
           "description": "The thread, which must belong to that structure's room."
         },
@@ -475,6 +485,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.subject_thread",
           "required": true,
           "description": "The thread."
         },
@@ -502,6 +513,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.subject_thread",
           "required": true,
           "description": "The thread."
         },
@@ -529,6 +541,7 @@
         {
           "from": "path",
           "as": "thread_id",
+          "refers": "comm.subject_thread",
           "required": true,
           "description": "The thread."
         },
@@ -1022,6 +1035,7 @@
         {
           "from": "path",
           "as": "message_id",
+          "refers": "comm.chat_message",
           "required": true,
           "description": "The post."
         }
@@ -1144,6 +1158,7 @@
         {
           "from": "body",
           "as": "ids",
+          "refers": "comm.notification",
           "required": true,
           "description": "Which notifications."
         },
@@ -1176,6 +1191,7 @@
         {
           "from": "path",
           "as": "notification_id",
+          "refers": "comm.notification",
           "required": true,
           "description": "Which notification."
         }
@@ -1215,6 +1231,7 @@
         {
           "from": "query",
           "as": "after",
+          "refers": "comm.notification",
           "description": "The notification id of the last receipt already read."
         },
         {
@@ -1344,6 +1361,7 @@
         {
           "from": "body",
           "as": "thread_id",
+          "refers": "comm.chat_thread",
           "description": "The thread it posts into, which must belong to that structure's room. Absent posts into the room itself."
         },
         {
@@ -1404,6 +1422,7 @@
         {
           "from": "path",
           "as": "standing_id",
+          "refers": "comm.standing_message",
           "required": true,
           "description": "The standing message."
         },
@@ -1464,6 +1483,7 @@
         {
           "from": "path",
           "as": "standing_id",
+          "refers": "comm.standing_message",
           "required": true,
           "description": "The standing message."
         },
@@ -1518,6 +1538,7 @@
         {
           "from": "path",
           "as": "notification_id",
+          "refers": "comm.notification",
           "required": true,
           "description": "The notification whose delivery record this is."
         }
