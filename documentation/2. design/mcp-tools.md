@@ -24,3 +24,7 @@ table uses, and keeps only the actions in `routes.ChatActions`:
 
 `mcp/mcp_test.go` drives them through a real MCP client over the go-sdk's
 in-memory transport.
+
+## The call's `_meta` (S58)
+
+A tool call hands the handler both its arguments and the call's MCP `_meta`, through `Tool.Handle`. A `conversation_id` in `_meta` therefore reaches the mount's `Caller` on the context, readable with `dispatch.ConversationOf`, the same as the `X-Conversation-Id` header does on REST. A malformed id is refused before the manager is reached. `mcp/tool_conversation_meta_test.go` holds both the carried and the absent case.
