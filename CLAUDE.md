@@ -140,6 +140,17 @@ what is true of **comm** is in
   or `https:` contacts, every one checked and the first one sent, with no
   built-in fallback. See
   [web-push.md](documentation/2.%20design/web-push.md).
+- **A notification can be acknowledged by its recipient (CM16).**
+  `notification_acknowledgement` holds one row per notification;
+  `comm.notification.acknowledge` writes it for the caller and
+  `comm.notification.receipts` lists every recipient a subject was raised
+  for with their read and acknowledged times. Acknowledging never sets
+  `read_at`. See
+  [notification-acknowledgement.md](documentation/2.%20design/notification-acknowledgement.md).
+- **`CommManager.Identity()` is the `identity.Owner` (S56) and operations
+  carry `refers` marks (S57).** An accessor, because the manager already
+  promotes `AddressStore.Resolve`. See
+  [stable-identity.md](documentation/2.%20design/stable-identity.md).
 - **Every route test crosses a real mux with a real caller.** Both bugs this
   file records below escaped because the fixtures called handlers in Go.
 
