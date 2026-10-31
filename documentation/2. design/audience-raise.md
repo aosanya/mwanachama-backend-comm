@@ -46,5 +46,5 @@ a nil error; a caller that must prove every raiser was answered reads
 No address is declared. Exposing `RaiseToAudience` on
 `comm.operations.json` needs a gating action, and who may raise to a
 record's whole set — the item's answerer, a lead, any holder of the
-board's power — is a product decision, not comm's. Until it is made the
+board's permission — is a product decision, not comm's. Until it is made the
 host calls the manager method directly.

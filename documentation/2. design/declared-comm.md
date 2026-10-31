@@ -433,7 +433,7 @@ owns no service or appointment logic.
 
 Member app decisions 340 and 345, mockup M25: a poll opened for a member is
 told the way a new form is (decision 128), and a poll's result, once a holder
-of the poll power publishes it to the groups they pick, puts a line in each of
+of the poll permission publishes it to the groups they pick, puts a line in each of
 those groups' members' Inbox. `mwanachama-backend-voting` owns polls and
 `mwanachama-wakala-api` raises the notices (WK208); comm carries them and owns
 no poll logic.
