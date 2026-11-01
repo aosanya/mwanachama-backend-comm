@@ -1,6 +1,6 @@
 # MCP tools for chat (HS25)
 
-`routes.ChatTools(m, mount)` builds five MCP tools from `comm.operations.json`
+`routes.ChatTools(m, mount)` builds eleven MCP tools from `comm.operations.json`
 through `mwanachama-backend-shared/dispatch.Tools`, the same engine the REST
 table uses, and keeps only the actions in `routes.ChatActions`:
 
@@ -11,8 +11,22 @@ table uses, and keeps only the actions in `routes.ChatActions`:
 | `comm_chat_message_post` | `comm.chat_message.post` |
 | `comm_chat_thread_mark_read` | `comm.chat_thread.mark_read` |
 | `comm_chat_thread_create` | `comm.chat_thread.create` |
+| `comm_chat_thread_list_archived` | `comm.chat_thread.list_archived` |
+| `comm_chat_thread_archive` | `comm.chat_thread.archive` |
+| `comm_chat_thread_unarchive` | `comm.chat_thread.unarchive` |
+| `comm_notification_list` | `comm.notification.list` |
+| `comm_notification_unread` | `comm.notification.unread` |
+| `comm_notification_mark_read` | `comm.notification.mark_read` |
 
 `mcp.RegisterChatTools(server, m, mount)` adds them to a go-sdk server.
+
+The three notification tools are what the member app's Inbox and tab-bar badge
+call (HS535). They answer the caller's own notifications only, the recipient
+being bound from the session. `comm_notification_list` answers `items`,
+`comm_notification_unread` answers `unread`, and `comm_notification_mark_read`
+takes `ids` and answers `marked`. `routes/notification_tools_test.go` holds the
+names and arguments; the wakala-api test `comm_notification_tools_test.go`
+holds them against the real `/mcp`.
 
 - The caller is `{"from": "caller"}` on every one, so it is bound from the
   mount's `Caller` and never appears in a tool's input schema.
