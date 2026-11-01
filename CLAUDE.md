@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Nineteen roles, 143 fields.
+- **`comm.blueprint.json` is the object set.** Twenty-three roles, 175 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -64,9 +64,9 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Thirty-eight addresses, each
-  with a gating action, and one sentinel-to-status map. `routes/` is seventy
-  lines of adapter over `dispatch.Table`. Paths are relative — the mount
+- **`comm.operations.json` is the route table.** Fifty addresses, each
+  with a gating action, and one sentinel-to-status map. `routes/` is a few
+  dozen lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.
 - **`AnonymousActions` is empty.** Nothing in comm answers without a caller,
   and the list names what is public rather than what is protected, so an

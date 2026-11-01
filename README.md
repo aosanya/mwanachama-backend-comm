@@ -1,31 +1,20 @@
 # mwanachama-backend-comm
 
-Chapter chat, direct/group messaging and message moderation for
-[mwanachama-backend-api-gateway](../mwanachama-backend-api-gateway) — extracted
-from that repo's `internal/domain/{chat,directmessage,moderation}` and
-`internal/store/{postgres,memory}`.
+Chat, direct and group messaging, message moderation, addresses and notifications for whatever mounts it, extracted from the retired `mwanachama-backend-api-gateway`'s `internal/domain/{chat,directmessage,moderation}`.
 
-No gRPC, no sub-service shape — imported directly by the gateway, the same
-pattern [mwanachama-backend-taskmanager](../mwanachama-backend-taskmanager)
-uses. Storage is GORM (`gormstore/`), backed by Postgres in production and
-sqlite in this module's own tests — the same shape
-[mwanachama-backend-actor](../mwanachama-backend-actor) uses, which this
-module moved onto 2026-09-04 (see CLAUDE.md).
+A Go library, imported directly by the host (`mwanachama-wakala-api`); there is no service to run and no gRPC. Its objects are declared in [`comm.blueprint.json`](comm.blueprint.json) and its route table in [`comm.operations.json`](comm.operations.json); storage goes through `mwanachama-backend-shared/specstore` on Postgres in production and sqlite in this module's own tests. There are no row structs and no hand-written handlers.
 
-Gateway-side tables carry a `comm_` prefix (`comm_chat_thread`,
-`comm_dm_thread`, `comm_message_report`, ...) — see the gateway's
-`internal/store/postgres/migrations/000065_extract_comm_tables.up.sql` for the
-rename that took them there. `gormstore.Migrate` is this module's own schema
-source against those same table names (`gormstore.DefaultTableNames()`) —
-there is no separate `schema.sql` fixture.
+```go
+s, _ := mwanachamacomm.SpecFor("app")
+_ = mwanachamacomm.Provision(db, s)
+cm, _ := mwanachamacomm.NewCommManager(db, s, clock, actWriter, actorsTable)
+```
 
-`models/` holds the domain types and repository interfaces
-(`ChatRepository`/`DMRepository`/`ModerationRepository`); `routes/` holds
-this module's own HTTP surface for the subset of the gateway's chat/dm/
-moderation routes that carry no gateway-only policy (see `routes/doc.go`).
+`SpecFor(instance)` returns the default civic domain ([`civic.comm.json`](civic.comm.json)) for a host's instance; `spec/examples/school.comm.json` fills the same roles with a school's nouns. `routes/` builds the REST routes and MCP tools from the operations file through `mwanachama-backend-shared/dispatch`. `models/` holds the domain types and the rules a declaration cannot state.
 
-See [documentation/](documentation/) for design and task board, and
-[CLAUDE.md](CLAUDE.md) for the two decisions a reader is most likely to
-question: why moderation's act-log write doesn't import the gateway's custody
-package, and why this module's HTTP surface (`routes/`) covers only 19 of
-the gateway's 37 chat/dm/moderation routes.
+```sh
+make test      # sqlite, no database needed
+make test-pg   # needs POSTGRES_URL
+```
+
+See [documentation/](documentation/) for design and the task board, and [CLAUDE.md](CLAUDE.md) for the invariants.
