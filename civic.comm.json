@@ -179,7 +179,8 @@
             "quote_sent",
             "draft_waiting",
             "counter_sent",
-            "ask_closed"
+            "ask_closed",
+            "group_order_called_off"
           ]
         },
         {
