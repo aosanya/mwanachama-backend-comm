@@ -8,7 +8,7 @@ Chapter chat, direct/group messaging (unified as one `DMThread` model — a
 group is a `DMThread` with more than one recipient, not a separate concept),
 message moderation, addresses and notifications. Module path
 `github.com/aosanya/mwanachama-backend-comm`. Originally ported from
-[mwanachama-backend-api-gateway](../mwanachama-backend-api-gateway)'s
+mwanachama-backend-api-gateway's
 `internal/domain/{chat,directmessage,moderation,address,notification}`.
 
 **comm is a declared domain — 2026-09-30/2026-10-01 (CM18–CM21).** The
