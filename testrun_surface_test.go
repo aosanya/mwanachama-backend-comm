@@ -266,3 +266,49 @@ func TestOneRunUnsubscribingLeavesTheOtherRunsAndTheLiveSubscriptionInPlace(t *t
 		t.Fatalf("the live manager holds %d subscriptions after run-1 unsubscribed, %v; want 1", len(got), err)
 	}
 }
+
+func TestTheAddressDirectoryInARunListsOnlyThatRunsListings(t *testing.T) {
+	db, s := newTestDB(t)
+	createTestActors(t, db)
+	insertTestActor(t, db, "live-actor", "Live Actor")
+	insertTestActor(t, db, "first-actor", "First Actor")
+	insertTestActor(t, db, "second-actor", "Second Actor")
+	live, err := mwanachamacomm.NewCommManager(db, s, monotonicClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), nopActWriter{}, testActorsTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := live.ForRun("run-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := live.ForRun("run-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	listedAt := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	listings := []struct {
+		manager *mwanachamacomm.CommManager
+		actor   string
+		address string
+	}{
+		{live, "live-actor", "MKU4827YUT3391"},
+		{first, "first-actor", "ERL2393NOP1234"},
+		{second, "second-actor", "QWE5678ASD4321"},
+	}
+	for _, l := range listings {
+		if _, err := l.manager.AddressStore.Publish(ctx, models.Address{ActorID: l.actor, Hash: hashOf(l.actor), AddressIndex: 0}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := l.manager.AddressStore.UpdateSettings(ctx, l.actor, 0, models.AddressSettings{PublicAddress: l.address, ListedAt: &listedAt}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, l := range listings {
+		got, err := l.manager.AddressDirectoryStore.Search(ctx, models.AddressDirectoryQuery{})
+		if err != nil || len(got) != 1 || got[0].ActorID != l.actor {
+			t.Fatalf("%s's directory lists %+v, %v; want only %s", l.actor, got, err, l.actor)
+		}
+	}
+}
