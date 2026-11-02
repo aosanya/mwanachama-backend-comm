@@ -5,8 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aosanya/mwanachama-backend-shared/dispatch"
@@ -29,6 +32,31 @@ type reachFixture struct {
 
 func roomsOfPeople(rooms map[string][]string) mwanachamacomm.RoomsOf {
 	return func(_ context.Context, actorID string) ([]string, error) { return rooms[actorID], nil }
+}
+
+func countedRoomsOf(calls *atomic.Int32, rooms map[string][]string) mwanachamacomm.RoomsOf {
+	return func(_ context.Context, actorID string) ([]string, error) {
+		calls.Add(1)
+		return rooms[actorID], nil
+	}
+}
+
+type recordingGate struct {
+	mu   sync.Mutex
+	seen []string
+}
+
+func (g *recordingGate) refuse(_ context.Context, action string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.seen = append(g.seen, action)
+	return dispatch.ErrForbidden
+}
+
+func (g *recordingGate) actions() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return slices.Clone(g.seen)
 }
 
 func twoRooms(t *testing.T) reachFixture {
@@ -254,6 +282,24 @@ func TestAReachNeedsItsOwnAction(t *testing.T) {
 	}
 	if got := call(t, with, http.MethodGet, "/groups/s-1/chat/threads", "lead-a", nil); got.code != http.StatusForbidden {
 		t.Fatalf("the reach action also opened the room's own list: %d", got.code)
+	}
+}
+
+func TestTheReachRouteAsksTheGateForItsActionAndAsksTheHostNothingWhenItRefuses(t *testing.T) {
+	f := twoRooms(t)
+	var asked atomic.Int32
+	f.m.UseRoomsOf(countedRoomsOf(&asked, map[string][]string{"lead-a": {"s-1"}}))
+	gate := &recordingGate{}
+	srv := newServer(t, f.m, routes.Mount{Caller: fromCtx(callerKey), Device: fromCtx(deviceKey), Authorize: gate.refuse})
+	got := call(t, srv, http.MethodGet, "/people/lead-a/chat/reach", "manager-m", nil)
+	if got.code != http.StatusForbidden || got.message(t) != dispatch.ErrForbidden.Error() {
+		t.Fatalf("a refusing gate = %d %s, want the 403 refusal", got.code, got.body)
+	}
+	if want := []string{personReachAction}; !slices.Equal(gate.actions(), want) {
+		t.Fatalf("the gate was asked %v, want exactly %v", gate.actions(), want)
+	}
+	if asked.Load() != 0 {
+		t.Fatalf("the rooms-of seam was asked %d times behind a refusing gate, want none", asked.Load())
 	}
 }
 

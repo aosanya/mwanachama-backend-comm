@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +15,8 @@ import (
 	gosdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/aosanya/mwanachama-backend-shared/dispatch"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	commmcp "github.com/aosanya/mwanachama-backend-comm/mcp"
@@ -54,10 +59,15 @@ func newManager(t *testing.T) *mwanachamacomm.CommManager {
 
 func connect(t *testing.T, m *mwanachamacomm.CommManager, who *string) *gosdkmcp.ClientSession {
 	t.Helper()
+	return connectMounted(t, m, routes.Mount{Caller: func(context.Context) string { return *who }})
+}
+
+func connectMounted(t *testing.T, m *mwanachamacomm.CommManager, mount routes.Mount) *gosdkmcp.ClientSession {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 	server := gosdkmcp.NewServer(&gosdkmcp.Implementation{Name: "comm", Version: "0.0.0"}, nil)
-	commmcp.RegisterChatTools(server, m, routes.Mount{Caller: func(context.Context) string { return *who }})
+	commmcp.RegisterChatTools(server, m, mount)
 	st, ct := gosdkmcp.NewInMemoryTransports()
 	if _, err := server.Connect(ctx, st, nil); err != nil {
 		t.Fatalf("server connect: %v", err)
@@ -200,5 +210,40 @@ func TestAMemberArchivesAndBringsBackAThreadThroughTheTools(t *testing.T) {
 	}
 	if _, threads := callTool(t, cs, "comm_chat_thread_list", map[string]any{"structure_id": "s-1"}); !strings.Contains(mustJSON(threads), threadID) {
 		t.Fatalf("an unarchived thread is not back: %s", mustJSON(threads))
+	}
+}
+
+func TestThePersonReachToolAsksTheGateForItsActionAndAsksTheHostNothingWhenItRefuses(t *testing.T) {
+	m := newManager(t)
+	var asked atomic.Int32
+	m.UseRoomsOf(func(context.Context, string) ([]string, error) {
+		asked.Add(1)
+		return []string{"s-1"}, nil
+	})
+	var mu sync.Mutex
+	var seen []string
+	cs := connectMounted(t, m, routes.Mount{
+		Caller: func(context.Context) string { return "actor-a" },
+		Authorize: func(_ context.Context, action string) error {
+			mu.Lock()
+			defer mu.Unlock()
+			seen = append(seen, action)
+			return dispatch.ErrForbidden
+		},
+	})
+	res, _ := callTool(t, cs, "comm_person_reach_list", map[string]any{"actor_id": "actor-b"})
+	if !res.IsError {
+		t.Fatalf("a refusing gate still answered the reach: %+v", res.Content)
+	}
+	if text := res.Content[0].(*gosdkmcp.TextContent).Text; text != dispatch.ErrForbidden.Error() {
+		t.Fatalf("the refusal is %q, want %q", text, dispatch.ErrForbidden.Error())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"comm.person_reach.list"}; !slices.Equal(seen, want) {
+		t.Fatalf("the gate was asked %v, want exactly %v", seen, want)
+	}
+	if asked.Load() != 0 {
+		t.Fatalf("the rooms-of seam was asked %d times behind a refusing gate, want none", asked.Load())
 	}
 }

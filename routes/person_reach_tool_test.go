@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aosanya/mwanachama-backend-shared/dispatch"
@@ -78,5 +80,26 @@ func TestThePersonReachToolAnswersOnlyACallerWhoseGateHoldsItsAction(t *testing.
 	rows, ok := out.([]models.ChatReach)
 	if !ok || len(rows) != 1 || rows[0].Reason != models.ChatReachGroup {
 		t.Fatalf("the reach of asker-b = %#v, want her one group thread", out)
+	}
+}
+
+func TestThePersonReachToolAsksTheGateForItsActionAndAsksTheHostNothingWhenItRefuses(t *testing.T) {
+	_, m := newCommServer(t)
+	m.UseBelonging(belongingOf(map[string][]string{"s-1": {"asker-b"}}))
+	m.UseLeading(leadingOf(nil))
+	var asked atomic.Int32
+	m.UseRoomsOf(countedRoomsOf(&asked, map[string][]string{"asker-b": {"s-1"}}))
+	seedChatThread(t, m, "s-1", "general")
+	gate := &recordingGate{}
+	tool := personReachTool(t, m, routes.Mount{Authorize: gate.refuse})
+	out, err := tool.Invoke(context.Background(), json.RawMessage(`{"actor_id":"asker-b"}`))
+	if !errors.Is(err, dispatch.ErrForbidden) || out != nil {
+		t.Fatalf("a refusing gate gave %#v, %v; want ErrForbidden and no rows", out, err)
+	}
+	if want := []string{personReachAction}; !slices.Equal(gate.actions(), want) {
+		t.Fatalf("the gate was asked %v, want exactly %v", gate.actions(), want)
+	}
+	if asked.Load() != 0 {
+		t.Fatalf("the rooms-of seam was asked %d times behind a refusing gate, want none", asked.Load())
 	}
 }
