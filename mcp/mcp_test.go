@@ -97,6 +97,7 @@ func TestTheChatToolsAreListedWithNoSessionFactInTheirSchemas(t *testing.T) {
 		"comm_chat_thread_mark_read": true, "comm_chat_thread_create": true,
 		"comm_chat_thread_list_archived": true, "comm_chat_thread_archive": true, "comm_chat_thread_unarchive": true,
 		"comm_notification_list": true, "comm_notification_unread": true, "comm_notification_mark_read": true,
+		"comm_person_reach_list": true,
 	}
 	if len(listed.Tools) != len(want) {
 		t.Fatalf("listed %d tools, want %d", len(listed.Tools), len(want))
