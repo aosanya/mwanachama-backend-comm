@@ -93,10 +93,31 @@ type ChatArchive struct {
 	ArchivedAt  time.Time `json:"archived_at"`
 }
 
+type ChatLastMessage struct {
+	ID             string    `json:"id"`
+	AuthorID       string    `json:"author_id"`
+	Body           string    `json:"body"`
+	AttachmentKind string    `json:"attachment_kind,omitempty"`
+	AttachmentID   string    `json:"attachment_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type ChatThreadView struct {
 	ChatThread
-	Unread        int        `json:"unread"`
-	LastMessageAt *time.Time `json:"last_message_at,omitempty"`
+	Unread        int              `json:"unread"`
+	LastMessageAt *time.Time       `json:"last_message_at,omitempty"`
+	LastMessage   *ChatLastMessage `json:"last_message,omitempty"`
+}
+
+func (m ChatMessage) Last() ChatLastMessage {
+	return ChatLastMessage{
+		ID:             m.ID,
+		AuthorID:       m.AuthorID,
+		Body:           m.Body,
+		AttachmentKind: m.AttachmentKind,
+		AttachmentID:   m.AttachmentID,
+		CreatedAt:      m.CreatedAt,
+	}
 }
 
 // ChatRepository is the persistence boundary for the chat domain.

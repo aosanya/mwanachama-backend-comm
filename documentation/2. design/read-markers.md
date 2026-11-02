@@ -53,6 +53,20 @@ the caller included. A thread nobody has posted in carries no
 the latest of its threads' `last_message_at`, so a room moves up when any
 thread it can read hears something, not only its first one.
 
+**It also carries `last_message`** (HS617, the member app's Chat tab and
+Threads list): the thread's latest post itself, as `id`, `author_id`, `body`,
+`attachment_kind`, `attachment_id` and `created_at`, so a client prints each
+row's preview from the list alone instead of reading every thread whole. It is
+absent exactly when `last_message_at` is, set only on the threads the list
+returns, so the fence that guards the time guards the post: a post in a `leads`
+thread, or in somebody else's request, never reaches a member it is hidden
+from, body included. `ChatStore.LatestPosts` returns the newest post of each
+thread (by `created_at`, then id, the order a thread reads in) in one grouped
+query and one fetch by id. It names no author: a client resolves `author_id`
+the way it does for a thread's posts. A post that moderation has withheld
+still stands in the thread's own list and so still stands as the preview; whether
+a preview should skip it is open (HS617) and unchanged here.
+
 **Marking** takes a JSON object body. `{"message_id": "<post>"}` moves the
 point to that post's `created_at`, which is what a client should send: the
 last post it actually showed, so a post that arrives between reading and

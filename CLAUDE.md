@@ -110,7 +110,7 @@ what is true of **comm** is in
   mark-read action moves it, never backwards, with the reader bound
   `{"from": "caller"}`, behind the same structure fence. Listing a room's
   threads returns each as `ChatThreadView` with its `unread` count: posts by
-  somebody else after the caller's point. See
+  somebody else after the caller's point, `last_message_at` and `last_message`. See
   [read-markers.md](documentation/2.%20design/read-markers.md).
 - **A subject thread is fenced by a standing the host supplies** (CM34).
   `subject_thread`/`subject_message` are conversations about something

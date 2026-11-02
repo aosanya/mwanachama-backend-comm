@@ -110,8 +110,11 @@ func (m *CommManager) threadViews(ctx context.Context, structureID, callerID str
 			continue
 		}
 		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}
-		if at, ok := latest[t.ID]; ok {
+		if post, ok := latest[t.ID]; ok {
+			at := post.CreatedAt
+			last := post.Last()
 			view.LastMessageAt = &at
+			view.LastMessage = &last
 		}
 		out = append(out, view)
 	}

@@ -160,10 +160,11 @@ func TestLatestPostsNamesOnlyThreadsThatHaveOne(t *testing.T) {
 	if _, ok := latest[quiet.ID]; ok {
 		t.Fatalf("latest = %v, a thread nobody posted in must be absent", latest)
 	}
-	got, ok := latest[r.thread]
+	post, ok := latest[r.thread]
 	if !ok || len(latest) != 1 {
 		t.Fatalf("latest = %v, want only the general thread", latest)
 	}
+	got := post.CreatedAt
 	if !got.Equal(last.CreatedAt.UTC().Truncate(time.Microsecond)) && !got.Equal(last.CreatedAt.UTC()) {
 		t.Fatalf("latest = %v, want the newest post %v, whoever wrote it", got, last.CreatedAt)
 	}

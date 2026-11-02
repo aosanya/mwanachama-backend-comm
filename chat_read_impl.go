@@ -2,12 +2,14 @@ package mwanachamacomm
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-shared/specstore"
 )
 
 func (s *ChatStore) MarkRead(ctx context.Context, structureID, threadID, readerID string, readAt time.Time) (models.ChatReadMarker, error) {
@@ -97,12 +99,13 @@ func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID stri
 	return counts, rows.Err()
 }
 
-func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[string]time.Time, error) {
+func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[string]models.ChatMessage, error) {
 	messageScope, messageArgs := runClause(s.store, "m")
 	threadScope, threadArgs := runClause(s.store, "t")
 	query := `
 	SELECT t.id, (
-	  SELECT max(m.created_at) FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id` + messageScope + `
+	  SELECT m.id FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id` + messageScope + `
+	   ORDER BY m.created_at DESC, m.id DESC LIMIT 1
 	)
 	  FROM ` + s.store.Table(roleChatThread) + ` t
 	 WHERE t.structure_id = ?` + threadScope
@@ -113,18 +116,35 @@ func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[st
 		return nil, classify(err)
 	}
 	defer rows.Close()
-	latest := map[string]time.Time{}
+	threadOf := map[string]string{}
+	messageIDs := []string{}
 	for rows.Next() {
 		var (
-			threadID string
-			at       flexTime
+			threadID  string
+			messageID sql.NullString
 		)
-		if err := rows.Scan(&threadID, &at); err != nil {
+		if err := rows.Scan(&threadID, &messageID); err != nil {
 			return nil, err
 		}
-		if at.Valid {
-			latest[threadID] = at.Time.UTC()
+		if messageID.Valid {
+			threadOf[messageID.String] = threadID
+			messageIDs = append(messageIDs, messageID.String)
 		}
 	}
-	return latest, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	latest := map[string]models.ChatMessage{}
+	if len(messageIDs) == 0 {
+		return latest, nil
+	}
+	posts, err := specstore.List[models.ChatMessage](s.store, s.store.Query(ctx, roleChatMessage).Where("id IN ?", messageIDs), roleChatMessage)
+	if err != nil {
+		return nil, err
+	}
+	for _, post := range posts {
+		post.CreatedAt = post.CreatedAt.UTC()
+		latest[threadOf[post.ID]] = post
+	}
+	return latest, nil
 }

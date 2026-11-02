@@ -44,6 +44,7 @@ type (
 	ChatReadMarker     = models.ChatReadMarker
 	ChatArchive        = models.ChatArchive
 	ChatThreadView     = models.ChatThreadView
+	ChatLastMessage    = models.ChatLastMessage
 	ChatActivityQuery  = models.ChatActivityQuery
 	ChatActivityPage   = models.ChatActivityPage
 	ChatActivityReader = models.ChatActivityReader
