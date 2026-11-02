@@ -441,6 +441,15 @@ A `before` is fenced exactly like an `after`: the room fence runs first, and
 a `before` naming no post, or a post of another thread or structure, answers
 the same not-found. Pinned in `routes/chat_messages_page_test.go`.
 
+## The notification list's names
+
+`GET /notifications` answers each row's `Names` as an object, `{}` when the
+raiser gave no names, never `null`. The row's keys are the model's Go field
+names (`ID`, `SubjectKind`, `ReadAt`), and wakala-api's `invited_group_names.go`
+and self-tests read them in that case, so a change to snake_case moves them in
+the same change. The member app reads both spellings. Pinned in
+`routes/notification_wire_test.go`.
+
 ## Reading by id (CM51)
 
 A notice names one thing — a `thread_reply` a subject thread, a

@@ -66,6 +66,11 @@ func (s *NotificationStore) List(ctx context.Context, actorID string, limit int)
 	if err != nil {
 		return nil, classify(err)
 	}
+	for i := range out {
+		if out[i].Names == nil {
+			out[i].Names = map[string]string{}
+		}
+	}
 	return out, nil
 }
 
