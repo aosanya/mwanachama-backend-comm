@@ -22,6 +22,8 @@ type StandingStore struct {
 	store *store
 	chat  *ChatStore
 	clock Clock
+
+	kindOf AuthorKindOf
 }
 
 func NewStandingStore(db *gorm.DB, s *spec.Spec, clock Clock) (*StandingStore, error) {
@@ -173,10 +175,17 @@ func (s *StandingStore) sendDue(ctx context.Context, m models.StandingMessage, n
 		if err != nil {
 			return err
 		}
+		kind := ""
+		if s.kindOf != nil {
+			if kind, err = s.kindOf(ctx, m.AuthorID); err != nil {
+				return err
+			}
+		}
 		posted, err = chat.Post(ctx, models.ChatMessage{
 			StructureID: m.StructureID,
 			ThreadID:    m.ThreadID,
 			AuthorID:    m.AuthorID,
+			AuthorKind:  kind,
 			Body:        m.Body,
 		})
 		return err

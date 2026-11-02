@@ -77,12 +77,14 @@ func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.Act
 	if err != nil {
 		return nil, err
 	}
-	return &CommManager{
+	m := &CommManager{
 		ChatStore: chat, DMStore: dm, ModerationStore: moderation,
 		AddressStore: addr, NotificationStore: notif, AddressDirectoryStore: dir,
 		subjects: subjects, standings: standings, db: db, clock: clock, spec: s,
 		PushStore: push,
-	}, nil
+	}
+	standings.kindOf = m.kindOfAuthor
+	return m, nil
 }
 
 func (m *CommManager) Spec() *spec.Spec { return m.spec }

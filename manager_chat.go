@@ -2,6 +2,7 @@ package mwanachamacomm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -20,6 +21,8 @@ type RoomsOf func(ctx context.Context, actorID string) ([]string, error)
 
 func (m *CommManager) UseRoomsOf(r RoomsOf) { m.roomsOf = r }
 
+var errAuthorKindNotASubjectKind = errors.New("the host named an author kind outside the subject kind pattern")
+
 type AuthorKindOf func(ctx context.Context, actorID string) (string, error)
 
 func (m *CommManager) UseAuthorKindOf(k AuthorKindOf) { m.authorKind = k }
@@ -28,7 +31,14 @@ func (m *CommManager) kindOfAuthor(ctx context.Context, actorID string) (string,
 	if m.authorKind == nil || actorID == "" {
 		return "", nil
 	}
-	return m.authorKind(ctx, actorID)
+	kind, err := m.authorKind(ctx, actorID)
+	if err != nil {
+		return "", err
+	}
+	if kind != "" && !subjectKindPattern.MatchString(kind) {
+		return "", errAuthorKindNotASubjectKind
+	}
+	return kind, nil
 }
 
 func (m *CommManager) leads(ctx context.Context, structureID, callerID string) (bool, error) {

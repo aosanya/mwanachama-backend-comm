@@ -21,9 +21,12 @@ device. So the kind is a fact the host supplies, the way `Belonging` and
   check, with the session's caller, and stores the answer on the message as
   `author_kind`. The message carries it from then on; an author whose kind
   changes later does not rewrite what they posted.
-- `author_kind` is a `chat_message` field held by the existing `subject_kind`
-  pattern. It is opaque to comm, like `attachment_kind`: the host says `agent`,
-  comm never learns what that means.
+- `author_kind` is a `chat_message` field held by the `subject_kind` pattern,
+  `^[a-z][a-z0-9_]{0,63}$`. comm does not interpret it, like `attachment_kind`:
+  the host says `agent`, comm never learns what that means. The host owns the
+  pattern: a value outside it is the host's mistake, so the post is refused as
+  an internal error (500, nothing stored, nothing about the value in the
+  answer) and not as a 400 blaming the author.
 - It is returned by every read that returns a message: the thread's messages,
   a message by id, and the `last_message` of each listed thread
   (`ChatLastMessage.AuthorKind`). It is omitted when empty, so a person's
@@ -31,6 +34,10 @@ device. So the kind is a fact the host supplies, the way `Belonging` and
 - A manager given no function names no kind for anybody.
 - A function that fails refuses the post as an internal error and stores
   nothing.
+- A standing message is stamped the same way when its occurrence is posted,
+  with the kind of the person who set it up. If the function fails or names a
+  kind outside the pattern, the occurrence is not claimed and the next tick
+  sends it.
 
 ## Why a client cannot forge it
 
