@@ -107,6 +107,12 @@
           "required": true
         },
         {
+          "name": "author_kind",
+          "type": "string",
+          "description": "What kind of actor the host says posted it, in the host's own vocabulary, asked of the host once when the post is made and never taken from the request. Opaque here, and empty for a post whose author the host names no kind for.",
+          "matches": "subject_kind"
+        },
+        {
           "name": "body",
           "type": "text",
           "description": "The post itself, as written. Never edited and never deleted \u2014 a withheld post is a removal row beside it, not a change here."

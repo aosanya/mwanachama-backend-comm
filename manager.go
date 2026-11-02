@@ -30,6 +30,7 @@ type CommManager struct {
 	belonging  Belonging
 	leading    Leading
 	roomsOf    RoomsOf
+	authorKind AuthorKindOf
 	leadsOf    Leads
 	standing   Standing
 	answerers  Answerers

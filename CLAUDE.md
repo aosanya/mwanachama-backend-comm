@@ -23,7 +23,7 @@ what is true of **comm** is in
 
 ### The invariants
 
-- **`comm.blueprint.json` is the object set.** Twenty-three roles, 175 fields.
+- **`comm.blueprint.json` is the object set.** Twenty-three roles, 176 fields.
   There are no row structs and no `AutoMigrate`; `spec.Migrate` emits the
   DDL and `cmd/ddl` prints it for review. A table is
   `<instance>_<hashOf(mount)>_<hashOf(comm_<object>)>` — never spell a
@@ -82,6 +82,11 @@ what is true of **comm** is in
   before anything else; a caller who does not belong gets the same 404 as an
   invented structure or thread, and a manager given none belongs nowhere.
   See [routes.md](documentation/2.%20design/routes.md#the-structure-fence).
+- **A chat message carries the kind of its author (HS693).** `UseAuthorKindOf`
+  gives the manager an `AuthorKindOf` function the host answers, asked once at
+  post time and stored as `chat_message.author_kind`, omitted when empty; no
+  request body can set it. See
+  [author-kind.md](documentation/2.%20design/author-kind.md).
 - **A thread can be the leads' until it is opened (CM42).**
   `chat_thread.audience` is `leads` or `group`; a started thread begins with
   the leads, a topic-minted one and every older row are the group's.

@@ -86,6 +86,7 @@ type ChatMessage struct {
 	StructureID string    `json:"structure_id"`
 	ThreadID    string    `json:"thread_id,omitempty"`
 	AuthorID    string    `json:"author_id"`
+	AuthorKind  string    `json:"author_kind,omitempty"`
 	Body        string    `json:"body"`
 	CreatedAt   time.Time `json:"created_at"`
 
@@ -120,6 +121,7 @@ type ChatArchive struct {
 type ChatLastMessage struct {
 	ID             string    `json:"id"`
 	AuthorID       string    `json:"author_id"`
+	AuthorKind     string    `json:"author_kind,omitempty"`
 	Body           string    `json:"body"`
 	AttachmentKind string    `json:"attachment_kind,omitempty"`
 	AttachmentID   string    `json:"attachment_id,omitempty"`
@@ -137,6 +139,7 @@ func (m ChatMessage) Last() ChatLastMessage {
 	return ChatLastMessage{
 		ID:             m.ID,
 		AuthorID:       m.AuthorID,
+		AuthorKind:     m.AuthorKind,
 		Body:           m.Body,
 		AttachmentKind: m.AttachmentKind,
 		AttachmentID:   m.AttachmentID,

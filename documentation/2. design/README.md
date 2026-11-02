@@ -30,3 +30,7 @@ room's threads are listed.
 [person-reach.md](person-reach.md) records HS691: `ReadableReason`, the `UseRoomsOf` seam and
 `list_person_chat_reach`, which tells a manager which threads one named person
 can read and why.
+
+[author-kind.md](author-kind.md) records HS693: `UseAuthorKindOf`, the
+`author_kind` a chat message is stamped with at post time, and why a body
+cannot set it.

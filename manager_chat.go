@@ -20,6 +20,17 @@ type RoomsOf func(ctx context.Context, actorID string) ([]string, error)
 
 func (m *CommManager) UseRoomsOf(r RoomsOf) { m.roomsOf = r }
 
+type AuthorKindOf func(ctx context.Context, actorID string) (string, error)
+
+func (m *CommManager) UseAuthorKindOf(k AuthorKindOf) { m.authorKind = k }
+
+func (m *CommManager) kindOfAuthor(ctx context.Context, actorID string) (string, error) {
+	if m.authorKind == nil || actorID == "" {
+		return "", nil
+	}
+	return m.authorKind(ctx, actorID)
+}
+
 func (m *CommManager) leads(ctx context.Context, structureID, callerID string) (bool, error) {
 	if m.leading == nil || callerID == "" || structureID == "" {
 		return false, nil
@@ -199,8 +210,12 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 	if t.Declined() {
 		return models.ChatMessage{}, models.ErrChatThreadDeclined
 	}
+	kind, err := m.kindOfAuthor(ctx, callerID)
+	if err != nil {
+		return models.ChatMessage{}, err
+	}
 	return m.ChatStore.Post(ctx, models.ChatMessage{
-		StructureID: structureID, ThreadID: threadID, AuthorID: callerID, Body: body,
+		StructureID: structureID, ThreadID: threadID, AuthorID: callerID, AuthorKind: kind, Body: body,
 		AttachmentKind: attachmentKind, AttachmentID: attachmentID,
 	})
 }
