@@ -223,12 +223,33 @@ func (s *ChatStore) ListMessages(ctx context.Context, structureID, threadID stri
 	return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
 }
 
-func (s *ChatStore) ListMessagesAfter(ctx context.Context, after models.ChatMessage) ([]models.ChatMessage, error) {
-	at := stamp(after.CreatedAt)
-	q := s.store.Query(ctx, roleChatMessage).
-		Where("structure_id = ? AND thread_id = ?", after.StructureID, after.ThreadID).
-		Where("created_at > ? OR (created_at = ? AND id > ?)", at, at, after.ID)
-	return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
+type chatMessageWindow struct {
+	After  *models.ChatMessage
+	Before *models.ChatMessage
+	Limit  int
+}
+
+func (s *ChatStore) ListMessagesWindow(ctx context.Context, structureID, threadID string, w chatMessageWindow) ([]models.ChatMessage, error) {
+	q := s.store.Query(ctx, roleChatMessage).Where("structure_id = ? AND thread_id = ?", structureID, threadID)
+	if w.After != nil {
+		at := stamp(w.After.CreatedAt)
+		q = q.Where("created_at > ? OR (created_at = ? AND id > ?)", at, at, w.After.ID)
+	}
+	if w.Before != nil {
+		at := stamp(w.Before.CreatedAt)
+		q = q.Where("created_at < ? OR (created_at = ? AND id < ?)", at, at, w.Before.ID)
+	}
+	if w.Limit <= 0 {
+		return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
+	}
+	newest, err := specstore.List[models.ChatMessage](s.store, q.Order("created_at DESC, id DESC").Limit(w.Limit), roleChatMessage)
+	if err != nil {
+		return nil, err
+	}
+	for i, j := 0, len(newest)-1; i < j; i, j = i+1, j-1 {
+		newest[i], newest[j] = newest[j], newest[i]
+	}
+	return newest, nil
 }
 
 var _ models.ChatRepository = (*ChatStore)(nil)

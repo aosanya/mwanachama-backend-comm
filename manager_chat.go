@@ -146,21 +146,36 @@ func (m *CommManager) MarkChatThreadReadFor(ctx context.Context, structureID, th
 	return m.ChatStore.MarkRead(ctx, structureID, threadID, readerID, readAt)
 }
 
-func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, threadID, callerID, afterID string) ([]models.ChatMessage, error) {
+func (m *CommManager) ListChatMessagesFor(ctx context.Context, structureID, threadID, callerID, afterID, beforeID string, limit int) ([]models.ChatMessage, error) {
 	if err := m.inThread(ctx, structureID, threadID, callerID); err != nil {
 		return nil, err
 	}
-	if afterID == "" {
-		return m.ChatStore.ListMessages(ctx, structureID, threadID)
+	if limit < 0 {
+		return nil, fmt.Errorf("%w: limit must not be negative", models.ErrChatInvalid)
 	}
-	after, err := m.ChatStore.GetMessage(ctx, afterID)
+	window := chatMessageWindow{Limit: limit}
+	var err error
+	if window.After, err = m.messageInThread(ctx, structureID, threadID, afterID); err != nil {
+		return nil, err
+	}
+	if window.Before, err = m.messageInThread(ctx, structureID, threadID, beforeID); err != nil {
+		return nil, err
+	}
+	return m.ChatStore.ListMessagesWindow(ctx, structureID, threadID, window)
+}
+
+func (m *CommManager) messageInThread(ctx context.Context, structureID, threadID, messageID string) (*models.ChatMessage, error) {
+	if messageID == "" {
+		return nil, nil
+	}
+	msg, err := m.ChatStore.GetMessage(ctx, messageID)
 	if err != nil {
 		return nil, err
 	}
-	if after.StructureID != structureID || after.ThreadID != threadID {
+	if msg.StructureID != structureID || msg.ThreadID != threadID {
 		return nil, models.ErrChatNotFound
 	}
-	return m.ChatStore.ListMessagesAfter(ctx, after)
+	return &msg, nil
 }
 
 func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threadID, callerID, body, attachmentKind, attachmentID string) (models.ChatMessage, error) {

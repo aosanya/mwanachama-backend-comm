@@ -21,6 +21,7 @@ var markedReferences = map[string]string{
 	"mark_chat_thread_read.message_id":         "comm.chat_message",
 	"list_reports_for_message.message_id":      "comm.chat_message",
 	"list_chat_messages.after":                 "comm.chat_message",
+	"list_chat_messages.before":                "comm.chat_message",
 	"get_subject_thread.thread_id":             "comm.subject_thread",
 	"list_subject_messages.thread_id":          "comm.subject_thread",
 	"post_subject_message.thread_id":           "comm.subject_thread",

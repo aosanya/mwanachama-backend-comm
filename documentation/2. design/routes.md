@@ -426,6 +426,20 @@ invented thread rather than an empty list or a 400, so the argument cannot
 be used to learn which posts exist elsewhere. Pinned in
 `routes/chat_messages_after_test.go`.
 
+## The newest page of a long thread (HS618)
+
+`list_chat_messages` also takes `before`, a post's id, and `limit`. `before`
+is `after` turned round: only the posts that sort before that one in the
+`created_at, id` order. `limit` keeps the newest that many of whatever
+`after` and `before` leave, and the answer is still oldest first, so a client
+opening a long room asks for `limit=50` and gets its last page, then asks for
+`before=<its oldest post>&limit=50` for the page above it. Omitted or `0`
+every post is returned as before; a negative `limit` is a 400.
+
+A `before` is fenced exactly like an `after`: the room fence runs first, and
+a `before` naming no post, or a post of another thread or structure, answers
+the same not-found. Pinned in `routes/chat_messages_page_test.go`.
+
 ## Reading by id (CM51)
 
 A notice names one thing — a `thread_reply` a subject thread, a

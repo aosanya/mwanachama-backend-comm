@@ -155,7 +155,7 @@
       "action": "comm.chat_message.list",
       "status": 200,
       "title": "Posts in a thread",
-      "description": "Every post in one thread of a structure's room, oldest first, for a caller who belongs to that structure. An outsider, a thread that was never minted and a thread of another structure all answer the same not-found. Given after, only the posts that come after that one, so a reader asks for what is new since the last post it holds; an after naming no post of this thread answers the same not-found.",
+      "description": "Every post in one thread of a structure's room, oldest first, for a caller who belongs to that structure. An outsider, a thread that was never minted and a thread of another structure all answer the same not-found. Given after, only the posts that come after that one, so a reader asks for what is new since the last post it holds; given before, only the posts that come before that one. Given limit, only the newest that many of what remains, still oldest first, so a reader opens a long room on its last page and asks for the page before it. An after or a before naming no post of this thread answers the same not-found.",
       "args": [
         {
           "from": "path",
@@ -180,6 +180,17 @@
           "as": "after",
           "refers": "comm.chat_message",
           "description": "Optional. A post's id in this thread: only posts after it are returned. Omitted, every post is."
+        },
+        {
+          "from": "query",
+          "as": "before",
+          "refers": "comm.chat_message",
+          "description": "Optional. A post's id in this thread: only posts before it are returned."
+        },
+        {
+          "from": "query",
+          "as": "limit",
+          "description": "Optional. How many posts to return: the newest that the other arguments leave, still oldest first. Omitted or 0, all of them; negative is refused."
         }
       ],
       "returns": [
