@@ -1,6 +1,6 @@
 # MCP tools for chat (HS25)
 
-`routes.ChatTools(m, mount)` builds eleven MCP tools from `comm.operations.json`
+`routes.ChatTools(m, mount)` builds twelve MCP tools from `comm.operations.json`
 through `mwanachama-backend-shared/dispatch.Tools`, the same engine the REST
 table uses, and keeps only the actions in `routes.ChatActions`:
 
@@ -14,6 +14,7 @@ table uses, and keeps only the actions in `routes.ChatActions`:
 | `comm_chat_thread_list_archived` | `comm.chat_thread.list_archived` |
 | `comm_chat_thread_archive` | `comm.chat_thread.archive` |
 | `comm_chat_thread_unarchive` | `comm.chat_thread.unarchive` |
+| `comm_person_reach_list` | `comm.person_reach.list` |
 | `comm_notification_list` | `comm.notification.list` |
 | `comm_notification_unread` | `comm.notification.unread` |
 | `comm_notification_mark_read` | `comm.notification.mark_read` |
@@ -28,8 +29,18 @@ takes `ids` and answers `marked`. `routes/notification_tools_test.go` holds the
 names and arguments; the wakala-api test `comm_notification_tools_test.go`
 holds them against the real `/mcp`.
 
-- The caller is `{"from": "caller"}` on every one, so it is bound from the
-  mount's `Caller` and never appears in a tool's input schema.
+- The caller is `{"from": "caller"}` on eleven of the twelve, so it is bound
+  from the mount's `Caller` and never appears in a tool's input schema.
+- `comm_person_reach_list` is the exception and the first tool that names a
+  subject: its `actor_id` is an argument, not a session fact, so the session
+  decides nothing about whose reach it answers. The only thing between a session
+  and anybody's reach is the mount's `Authorize` for `comm.person_reach.list`;
+  with `Mount.Authorize == nil` dispatch skips the gate and the tool answers any
+  session about any person. A host mounting the tools supplies a gate that
+  refuses the action to everybody who may not read a person's reach.
+  `mwanachama-wakala-api` does: its `residentCommActions` omits the action and
+  its `agentPermissioned` holds an agent to the agency's `chat.reach`
+  permission. [person-reach.md](person-reach.md) holds the report itself.
 - The structure fence, the leads fence and the read markers are the manager's,
   so a tool answers an outsider with the same not-found the REST address does.
 - Every other operation is left out on purpose; widening the set is an entry
@@ -37,7 +48,9 @@ holds them against the real `/mcp`.
 - Registering the tools on wakala-api's `/mcp` is HS26, not this change.
 
 `mcp/mcp_test.go` drives them through a real MCP client over the go-sdk's
-in-memory transport.
+in-memory transport, including a mount whose `Authorize` refuses: the reach
+tool asks it for `comm.person_reach.list` and nothing else, answers the
+refusal, and never reaches the host's `RoomsOf`.
 
 ## The call's `_meta` (S58)
 

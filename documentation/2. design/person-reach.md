@@ -48,9 +48,24 @@ leads started the thread. Direct messages are never listed; whether a manager
 may see who talks to whom is a privacy decision that belongs to the owner.
 
 A person who belongs to no room, one the host does not know and an invented id
-all answer the same 404, for the reason the structure fence does: a different
-answer would tell the caller which people exist. A failing `RoomsOf` is a
-redacted 500, never a 404 that would pass for "she has no rooms".
+all answer the same `404 {"error":"chat: not found"}`, so the 404 does not say
+whether the person exists. That is all it hides. A person who belongs to a room
+with no readable thread answers `200 []`, so 200 against 404 tells a holder of
+the action whether an id belongs to at least one room. What counts as a room is
+the host's `RoomsOf`: in wakala-api an owner or an agent is in every group of
+the agency, so for them the answer is 200 whenever the agency has any group. A
+failing `RoomsOf` is a redacted 500, never a 404 that would pass for "she has no
+rooms".
+
+## Cost
+
+Per room the person is in, the reach asks `Belonging` once, reads that room's
+threads with one `ListThreads` and asks `Leading` once. A person in 40 rooms
+with 5 threads each costs 200 rows, about 30 KB of JSON and 40 SELECTs on the
+comm side, and the host's belonging and leading seams run 40 times each, once
+per room. The count was measured through the real route with a person who asked
+for all 200 threads; the size moves with the labels. Nothing batches the rooms
+today, so the report suits a manager opening one person, not a list of people.
 
 ## Tests
 
@@ -61,3 +76,14 @@ belongs gets the group threads and those she asked for, a lead also gets the
 `leads` ones, a non-member and an unseeded seam are not found, a caller without
 the action is refused, the person is the path's and never the caller's, and a
 row carries nothing but its six fields. Each was mutation-checked.
+
+The gate is held in three places, each with a mount whose `Authorize` records
+the action it is asked and refuses: the route (`routes/person_chat_reach_test.go`),
+the tool called directly (`routes/person_reach_tool_test.go`) and the tool
+through a real MCP client (`mcp/mcp_test.go`). Each wants the refusal, exactly
+one ask of the gate and it for `comm.person_reach.list`, and no call to the
+host's `RoomsOf`. Each was checked in a scratch copy by letting `dispatch` skip
+the gate for that action alone: the route test fails when the route's gate is
+skipped, the tool tests when the tool's is, and both pass with it restored.
+`TestNothingIsAnonymous` covers the route by its empty allowlist: naming the
+action in `AnonymousActions` fails it.
