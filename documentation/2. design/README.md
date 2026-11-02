@@ -26,3 +26,7 @@ Push, and the VAPID configuration a host supplies.
 [read-markers.md](read-markers.md) records CM40: the `chat_read_marker` role,
 marking a room's thread read, and the unread count each thread carries when a
 room's threads are listed.
+
+[person-reach.md](person-reach.md) records HS691: `ReadableReason`, the `UseRoomsOf` seam and
+`list_person_chat_reach`, which tells a manager which threads one named person
+can read and why.
