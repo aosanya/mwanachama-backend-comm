@@ -16,6 +16,10 @@ type Leading func(ctx context.Context, actorID, structureID string) (bool, error
 
 func (m *CommManager) UseLeading(l Leading) { m.leading = l }
 
+type RoomsOf func(ctx context.Context, actorID string) ([]string, error)
+
+func (m *CommManager) UseRoomsOf(r RoomsOf) { m.roomsOf = r }
+
 func (m *CommManager) leads(ctx context.Context, structureID, callerID string) (bool, error) {
 	if m.leading == nil || callerID == "" || structureID == "" {
 		return false, nil

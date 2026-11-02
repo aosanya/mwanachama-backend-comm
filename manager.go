@@ -29,6 +29,7 @@ type CommManager struct {
 	spec       *spec.Spec
 	belonging  Belonging
 	leading    Leading
+	roomsOf    RoomsOf
 	leadsOf    Leads
 	standing   Standing
 	answerers  Answerers

@@ -47,6 +47,28 @@
         }
       ]
     },
+    "list_person_chat_reach": {
+      "method": "GET",
+      "path": "/people/{actor_id}/chat/reach",
+      "call": "ChatReachOfPerson",
+      "action": "comm.person_reach.list",
+      "status": 200,
+      "title": "What one person can read",
+      "description": "Every thread, across every room the mount says one named person belongs to, that person may read, each with the structure it is in, its label, its audience, who asked for it when somebody did, and the reason she can read it: group when the thread is open to everybody who belongs, asked when it is still with the leads and she is the one who asked for it, leads when it is still with the leads and she is one of them. It carries no post, no unread count and no read point, and direct messages are never listed. A person who belongs to no room, one the mount does not know and an invented id all answer identically, as a not-found.",
+      "args": [
+        {
+          "from": "path",
+          "as": "actor_id",
+          "required": true,
+          "description": "The person whose reach this is."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "start_chat_thread": {
       "method": "POST",
       "path": "/groups/{structure_id}/chat/threads",

@@ -46,15 +46,39 @@ func (t ChatThread) Declinable() bool {
 	return !t.Declined() && t.Audience == ChatAudienceLeads && t.RequestedBy != ""
 }
 
-func (t ChatThread) ReadableBy(actorID string, leads bool) bool {
+type ChatReachReason string
+
+const (
+	ChatReachGroup ChatReachReason = "group"
+	ChatReachAsked ChatReachReason = "asked"
+	ChatReachLeads ChatReachReason = "leads"
+)
+
+func (t ChatThread) ReadableReason(actorID string, leads bool) (ChatReachReason, bool) {
 	switch {
 	case t.Audience != ChatAudienceLeads:
-		return true
+		return ChatReachGroup, true
 	case leads:
-		return true
+		return ChatReachLeads, true
+	case actorID != "" && actorID == t.RequestedBy:
+		return ChatReachAsked, true
 	default:
-		return actorID != "" && actorID == t.RequestedBy
+		return "", false
 	}
+}
+
+func (t ChatThread) ReadableBy(actorID string, leads bool) bool {
+	_, ok := t.ReadableReason(actorID, leads)
+	return ok
+}
+
+type ChatReach struct {
+	StructureID string          `json:"structure_id"`
+	ThreadID    string          `json:"thread_id"`
+	Label       string          `json:"label"`
+	Audience    ChatAudience    `json:"audience"`
+	RequestedBy string          `json:"requested_by,omitempty"`
+	Reason      ChatReachReason `json:"reason"`
 }
 
 type ChatMessage struct {
