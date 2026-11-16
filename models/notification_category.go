@@ -1,34 +1,22 @@
 package models
 
-// NotificationCategory, NotificationEvent and NotificationSubjectKind — the
-// notification vocabulary. Split out of notification.go for the same
-// file-length reason the gateway's own category.go was: the closed
-// vocabulary a notification is described in lives together, separate from
-// the rows and their Validate.
-
 import "sort"
 
 type NotificationCategory string
 
 const (
-	// CategorySurvey — a survey reached you, and the reminder. Exempt from
-	// muting.
 	CategorySurvey NotificationCategory = "survey"
-	// CategoryResults — "You said, we heard".
+
 	CategoryResults NotificationCategory = "results"
-	// CategoryContribution — matched, orphaned, and a report closed
-	// not-found.
+
 	CategoryContribution NotificationCategory = "contribution"
-	// CategoryMerchandise — stock recorded against your name.
+
 	CategoryMerchandise NotificationCategory = "merchandise"
-	// CategoryChat — a removal receipt.
+
 	CategoryChat       NotificationCategory = "chat"
 	CategoryMembership NotificationCategory = "membership"
-	// CategorySecurity — OTP, device recovery, duplicate-ID case notices.
-	// The only category with an SMS channel, and exempt from muting.
-	CategorySecurity NotificationCategory = "security"
-	// CategoryApproval — an agent-proposed write is waiting on the actor
-	// named Accountable for it (mwanachama-backend-api-kazi's K6).
+	CategorySecurity   NotificationCategory = "security"
+
 	CategoryApproval NotificationCategory = "approval"
 	CategoryItem     NotificationCategory = "item"
 	CategoryCase     NotificationCategory = "case"
@@ -37,8 +25,6 @@ const (
 	CategoryMarket   NotificationCategory = "market"
 )
 
-// notificationCategories is the whole vocabulary, in the order the object
-// file lists it.
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
@@ -46,21 +32,12 @@ var notificationCategories = []NotificationCategory{
 	CategoryMarket,
 }
 
-// NotificationCategories returns the vocabulary. A copy, so a caller
-// ranging over it cannot re-point the package's own slice.
 func NotificationCategories() []NotificationCategory {
 	out := make([]NotificationCategory, len(notificationCategories))
 	copy(out, notificationCategories)
 	return out
 }
 
-// IsNotificationCategory is the one membership check that survived the
-// conversion, because it decides a status code rather than a refusal:
-// routes answers an unknown category 404, where the declared check in the
-// store answers 400. It reads the Go constants, which since CM25 are the
-// *civic* vocabulary rather than the module's — so a domain that declared
-// its own category is answered 404 by this and accepted by the store. That
-// is CM30, and CM21 is where it is fixed, by asking the spec.
 func IsNotificationCategory(c NotificationCategory) bool {
 	for _, k := range notificationCategories {
 		if k == c {
@@ -70,20 +47,43 @@ func IsNotificationCategory(c NotificationCategory) bool {
 	return false
 }
 
-// notificationExempt is the muting exemption pair. It is a function over
-// the vocabulary rather than a field on a table, because an exemption a
-// row can carry is an exemption a row can lose.
 func notificationExempt(c NotificationCategory) bool {
 	return c == CategorySurvey || c == CategorySecurity
 }
 
 func IsNotificationCategoryExempt(c NotificationCategory) bool { return notificationExempt(c) }
 
-func NotificationSMSChannel(c NotificationCategory) bool { return c == CategorySecurity }
+func NotificationSMSChannel(c NotificationCategory) bool { return screenless(c) }
 
-// NotificationEvent is the specific act a row is the by-product of. The
-// title and body are rendered from this and the subject, never stored as
-// text.
+func NotificationVoiceChannel(c NotificationCategory) bool { return screenless(c) }
+
+func NotificationChannels(c NotificationCategory) []NotificationChannel {
+	if !screenless(c) {
+		return nil
+	}
+	return []NotificationChannel{ChannelSMS, ChannelVoice}
+}
+
+func screenless(c NotificationCategory) bool {
+	for _, k := range screenlessCategories {
+		if k == c {
+			return true
+		}
+	}
+	return false
+}
+
+type NotificationChannel string
+
+const (
+	ChannelSMS   NotificationChannel = "sms"
+	ChannelVoice NotificationChannel = "voice"
+)
+
+var screenlessCategories = []NotificationCategory{
+	CategorySecurity, CategorySurvey, CategoryResults, CategoryContribution,
+}
+
 type NotificationEvent string
 
 const (
@@ -221,10 +221,6 @@ func NotificationCategoryOf(e NotificationEvent) (NotificationCategory, bool) {
 	return c, ok
 }
 
-// NotificationEvents returns the whole vocabulary of events. Exported so the
-// blueprint's declared `values` and these constants can be held to each other
-// in both directions — a stored value outlives a rename, which makes a drifted
-// constant a data bug rather than a compile error.
 func NotificationEvents() []NotificationEvent {
 	out := make([]NotificationEvent, 0, len(notificationEventCategory))
 	for e := range notificationEventCategory {
@@ -234,8 +230,6 @@ func NotificationEvents() []NotificationEvent {
 	return out
 }
 
-// NotificationSubjectKind names the table (SubjectKind, SubjectID)
-// addresses. Not a foreign key, because it points at nine of them.
 type NotificationSubjectKind string
 
 const (
@@ -281,8 +275,6 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectPoster, SubjectAsk, SubjectGroupOrder, SubjectNotice, SubjectQuote, SubjectDraft,
 }
 
-// NotificationSubjectKinds returns the whole vocabulary of subject kinds, for
-// the same reason NotificationEvents does.
 func NotificationSubjectKinds() []NotificationSubjectKind {
 	out := make([]NotificationSubjectKind, len(notificationSubjectKinds))
 	copy(out, notificationSubjectKinds)
