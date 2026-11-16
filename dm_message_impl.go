@@ -29,7 +29,7 @@ func (s *DMStore) ListMessages(ctx context.Context, threadID string) ([]models.D
 		return nil, err
 	}
 
-	q := s.store.Query(ctx, roleDMMessage).Where("thread_id = ?", threadID).Order("created_at, id")
+	q := s.store.Query(ctx, roleDMMessage).Where("thread_id = ? AND withdrawn_at = ''", threadID).Order("created_at, id")
 	rows, err := specstore.List[models.DMMessage](s.store, q, roleDMMessage)
 	if err != nil {
 		return nil, err

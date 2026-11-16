@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-shared/consent"
 )
 
 type Belonging func(ctx context.Context, actorID, structureID string) (bool, error)
@@ -154,6 +155,9 @@ func (m *CommManager) OpenChatThreadFor(ctx context.Context, structureID, thread
 }
 
 func (m *CommManager) MarkChatThreadReadFor(ctx context.Context, structureID, threadID, readerID, messageID string) (models.ChatReadMarker, error) {
+	if err := consent.Require(ctx, m.consent, readerID); err != nil {
+		return models.ChatReadMarker{}, err
+	}
 	if err := m.inThread(ctx, structureID, threadID, readerID); err != nil {
 		return models.ChatReadMarker{}, err
 	}

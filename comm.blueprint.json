@@ -133,6 +133,11 @@
           "name": "created_at",
           "type": "timestamp",
           "description": "When it was posted. Second half of both listing indexes, because a room is always read in time order."
+        },
+        {
+          "name": "withdrawn_at",
+          "type": "string",
+          "description": "When the author withdrew their consent. Empty means they have not. The post is kept and no longer listed."
         }
       ],
       "indexes": [
@@ -543,6 +548,11 @@
           "name": "created_at",
           "type": "timestamp",
           "description": "When it was sent. Second half of the listing index, because a conversation is always read in time order."
+        },
+        {
+          "name": "withdrawn_at",
+          "type": "string",
+          "description": "When the sender withdrew their consent. Empty means they have not. The message is kept and no longer listed."
         }
       ],
       "indexes": [

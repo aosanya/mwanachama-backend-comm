@@ -65,7 +65,7 @@ func (s *ChatStore) UnreadCounts(ctx context.Context, structureID, readerID stri
 	      FROM ` + s.store.Table(roleChatMessage) + ` m
 	      LEFT JOIN ` + s.store.Table(roleChatReadMarker) + ` r
 	        ON r.thread_id = m.thread_id AND r.reader_id = ?` + markerScope + `
-	     WHERE m.thread_id = t.id AND m.author_id <> ?` + messageScope + `
+	     WHERE m.thread_id = t.id AND m.author_id <> ? AND m.withdrawn_at = ''` + messageScope + `
 	       AND (r.read_at IS NULL OR m.created_at > r.read_at)
 	     LIMIT ?
 	  ) counted
@@ -104,7 +104,7 @@ func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[st
 	threadScope, threadArgs := runClause(s.store, "t")
 	query := `
 	SELECT t.id, (
-	  SELECT m.id FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id` + messageScope + `
+	  SELECT m.id FROM ` + s.store.Table(roleChatMessage) + ` m WHERE m.thread_id = t.id AND m.withdrawn_at = ''` + messageScope + `
 	   ORDER BY m.created_at DESC, m.id DESC LIMIT 1
 	)
 	  FROM ` + s.store.Table(roleChatThread) + ` t

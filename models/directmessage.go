@@ -7,28 +7,16 @@ import (
 	"time"
 )
 
-// ErrDMNotFound is returned when a thread, participant, or message has no
-// record.
 var ErrDMNotFound = errors.New("directmessage: not found")
 
 var ErrDMAlreadyActive = errors.New("directmessage: already an active participant")
 
-// ErrDMSelfKick is returned when an admin tries to kick themselves; leaving is
-// Leave's job, and Leave guards against stranding the thread.
 var ErrDMSelfKick = errors.New("directmessage: cannot kick yourself")
 
-// ErrDMNotAdmin is the refusal for a roster write the caller is not an
-// admin of. It was unexported, which is why dm.go's status switch needed a
-// 403 default arm that every other error inherited — CM31.
 var ErrDMNotAdmin = errors.New("directmessage: not admin")
 
-// ErrDMInvalidReaction is a malformed reaction: absent, or longer than a
-// short cluster of emoji.
 var ErrDMInvalidReaction = errors.New("directmessage: invalid reaction")
 
-// ErrDMLastAdmin is returned when the thread's only active admin tries to
-// leave while other participants are still active — nobody would be left who
-// can promote, invite or kick. Promote a successor first.
 var ErrDMLastAdmin = errors.New("directmessage: the last admin cannot leave while others remain; promote a successor first")
 
 var ErrDMNotLastToLeave = errors.New("directmessage: only the actor who was last to leave can bring this thread back")
@@ -56,21 +44,13 @@ type DMThread struct {
 
 	OpenedViaAddressOwner string `json:"-"`
 
-	// SentFromAddressOwner / SentFromAddressIndex are the sender's side of the
-	// pair: which of *their own* addresses they chose to write from (DEV-1539).
 	SentFromAddressOwner string `json:"-"`
 	SentFromAddressIndex *int   `json:"-"`
 
-	// SentFromAddressSealed is the sender's own address, encrypted to the
-	// recipient's devices (DEV-1561). Opaque here: the gateway stores it and
-	// serves it back, and holds no key to it.
 	SentFromAddressSealed json.RawMessage `json:"sent_from_address_sealed,omitempty"`
 
 	MyAddressIndex *int `json:"my_address_index,omitempty" spec:"-"`
 
-	// OpenedViaAddressIndex is which of the owner's addresses was used, and it
-	// is **never serialised** — `MyAddressIndex` is what a reader gets, so a
-	// new read path cannot leak this by forgetting to filter it.
 	OpenedViaAddressIndex *int `json:"-"`
 }
 
@@ -95,6 +75,7 @@ type DMMessage struct {
 	PayloadCiphertext string            `json:"payload_ciphertext"`
 	PerRecipientKeys  map[string]string `json:"per_recipient_keys"`
 	CreatedAt         time.Time         `json:"created_at"`
+	WithdrawnAt       string            `json:"withdrawn_at,omitempty"`
 }
 
 type DMReaction struct {
@@ -112,18 +93,11 @@ type DMDeviceKey struct {
 
 	PublishedBy string `json:"published_by,omitempty"`
 
-	// DeviceID is the handset the key belongs to, from the same session. Empty
-	// is legitimate: a session minted by the phone flow carries no device.
 	DeviceID string `json:"device_id,omitempty"`
 
-	// RetiredAt marks a key that must no longer be sealed to — set when the
-	// same handset publishes a different key. A lookup never returns a retired
-	// key, because a sender who wraps to one produces a message that is
-	// undecryptable by construction with no error anywhere.
 	RetiredAt *time.Time `json:"retired_at,omitempty"`
 }
 
-// DMRepository is the persistence boundary for the direct-message domain.
 type DMRepository interface {
 	CreateThread(ctx context.Context, t DMThread, initialActors []string) (DMThread, error)
 	GetThread(ctx context.Context, id string) (DMThread, error)
@@ -140,20 +114,15 @@ type DMRepository interface {
 	Post(ctx context.Context, m DMMessage) (DMMessage, error)
 	ListMessages(ctx context.Context, threadID string) ([]DMMessage, error)
 
-	// GetMessage returns one message by id, so a caller acting on a message
-	// (reacting to it) can find the thread whose participant fence governs it.
 	GetMessage(ctx context.Context, id string) (DMMessage, error)
 
 	SetReaction(ctx context.Context, r DMReaction) error
 	ClearReaction(ctx context.Context, messageID, actorID string) error
-	// ListReactions returns every reaction on every message of a thread, so a
-	// conversation loads its reactions in one read rather than one per message.
+
 	ListReactions(ctx context.Context, threadID string) ([]DMReaction, error)
 
 	PublishDeviceKey(ctx context.Context, k DMDeviceKey) (DMDeviceKey, error)
 	LookupDeviceKeys(ctx context.Context, actorIDs []string) ([]DMDeviceKey, error)
 
-	// RetireDeviceKeysForDevice retires every live key published by one
-	// handset and reports how many it retired (DEV-1272).
 	RetireDeviceKeysForDevice(ctx context.Context, deviceID string, at time.Time) (int, error)
 }

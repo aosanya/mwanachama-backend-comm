@@ -216,7 +216,7 @@ func (s *ChatStore) GetMessage(ctx context.Context, id string) (models.ChatMessa
 }
 
 func (s *ChatStore) ListMessages(ctx context.Context, structureID, threadID string) ([]models.ChatMessage, error) {
-	q := s.store.Query(ctx, roleChatMessage).Where("structure_id = ?", structureID)
+	q := s.store.Query(ctx, roleChatMessage).Where("structure_id = ? AND withdrawn_at = ''", structureID)
 	if threadID != "" {
 		q = q.Where("thread_id = ?", threadID)
 	}
@@ -230,7 +230,7 @@ type chatMessageWindow struct {
 }
 
 func (s *ChatStore) ListMessagesWindow(ctx context.Context, structureID, threadID string, w chatMessageWindow) ([]models.ChatMessage, error) {
-	q := s.store.Query(ctx, roleChatMessage).Where("structure_id = ? AND thread_id = ?", structureID, threadID)
+	q := s.store.Query(ctx, roleChatMessage).Where("structure_id = ? AND thread_id = ? AND withdrawn_at = ''", structureID, threadID)
 	if w.After != nil {
 		at := stamp(w.After.CreatedAt)
 		q = q.Where("created_at > ? OR (created_at = ? AND id > ?)", at, at, w.After.ID)

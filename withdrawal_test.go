@@ -42,3 +42,36 @@ func TestReleasingNobodyIsRefused(t *testing.T) {
 		t.Fatalf("ReleaseActor empty = %v, want ErrPushSubscriptionInvalid", err)
 	}
 }
+
+func TestWithdrawalHidesTheActorsMessagesWithoutDeletingThem(t *testing.T) {
+	ctx := context.Background()
+	m := gatedManager(t, nil)
+	ids := map[string]string{}
+	for _, author := range []string{"mem-1", "mem-2"} {
+		posted, err := m.PostChatMessage(ctx, models.ChatMessage{StructureID: "s-1", ThreadID: "t-1", AuthorID: author, Body: "hello from " + author})
+		if err != nil {
+			t.Fatalf("PostChatMessage %s: %v", author, err)
+		}
+		ids[author] = posted.ID
+	}
+	if err := m.HideActorMessages(ctx, "mem-1"); err != nil {
+		t.Fatalf("HideActorMessages: %v", err)
+	}
+	shown, err := m.ListChatMessages(ctx, "s-1", "t-1")
+	if err != nil {
+		t.Fatalf("ListChatMessages: %v", err)
+	}
+	if len(shown) != 1 || shown[0].AuthorID != "mem-2" {
+		t.Fatalf("listed messages = %+v, want only mem-2's", shown)
+	}
+	kept, err := m.GetChatMessage(ctx, ids["mem-1"])
+	if err != nil || kept.WithdrawnAt == "" || kept.Body == "" {
+		t.Fatalf("withdrawn message = %+v (%v), want it kept and marked", kept, err)
+	}
+}
+
+func TestHidingMessagesOfNobodyIsRefused(t *testing.T) {
+	if err := gatedManager(t, nil).HideActorMessages(context.Background(), ""); !errors.Is(err, models.ErrChatInvalid) {
+		t.Fatalf("HideActorMessages empty = %v, want ErrChatInvalid", err)
+	}
+}

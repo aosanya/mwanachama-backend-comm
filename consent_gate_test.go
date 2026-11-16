@@ -65,3 +65,11 @@ func TestADirectMessageNeedsALiveConsent(t *testing.T) {
 		t.Fatalf("DM without consent = %v, want ErrConsentRequired", err)
 	}
 }
+
+func TestAChatReadMarkerNeedsALiveConsent(t *testing.T) {
+	m := gatedManager(t, gateFor{"mem-2": consent.ErrWithdrawn})
+	_, err := m.MarkChatThreadReadFor(context.Background(), "s-1", "t-1", "mem-2", "")
+	if !errors.Is(err, comm.ErrConsentWithdrawn) {
+		t.Fatalf("read marker after withdrawal = %v, want ErrConsentWithdrawn", err)
+	}
+}
