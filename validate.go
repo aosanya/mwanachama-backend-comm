@@ -25,9 +25,6 @@ func invalid(role string) error {
 	return ErrInvalidReference
 }
 
-// Check applies every rule the spec states — required, an enum's values, and
-// a named pattern — without touching a database, so a bulk import can
-// validate what it read before it opens a connection.
 func Check(s *spec.Spec, role string, v any) error {
 	o, ok := s.ByRole(role)
 	if !ok {
