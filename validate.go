@@ -51,6 +51,9 @@ func Check(s *spec.Spec, role string, v any) error {
 		if cell == nil || !isText {
 			continue
 		}
+		if err := refuseUndrawnMessage(role, f.Name, text); err != nil {
+			return err
+		}
 		if len(f.Values) > 0 && !holds(f.Values, text) {
 			return fmt.Errorf("%w: %q is not one of %s's declared values", invalid(role), text, f.Name)
 		}

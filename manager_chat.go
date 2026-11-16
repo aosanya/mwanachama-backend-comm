@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 	"github.com/aosanya/mwanachama-backend-shared/consent"
@@ -214,7 +213,7 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 	if err := m.inThread(ctx, structureID, threadID, callerID); err != nil {
 		return models.ChatMessage{}, err
 	}
-	if strings.TrimSpace(body) == "" {
+	if !messageDraws(body) {
 		return models.ChatMessage{}, fmt.Errorf("%w: body is required", models.ErrChatInvalid)
 	}
 	if err := (models.ChatMessage{AttachmentKind: attachmentKind, AttachmentID: attachmentID}).AttachmentIsWhole(); err != nil {

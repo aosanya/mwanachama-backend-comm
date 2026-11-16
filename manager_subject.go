@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"gorm.io/gorm"
 
@@ -111,7 +110,7 @@ func (m *CommManager) PostSubjectMessageFor(ctx context.Context, threadID, calle
 	if err != nil {
 		return models.SubjectThreadMessage{}, err
 	}
-	if strings.TrimSpace(body) == "" {
+	if !messageDraws(body) {
 		return models.SubjectThreadMessage{}, fmt.Errorf("%w: body is required", models.ErrSubjectInvalid)
 	}
 	answerers, err := m.answerersToTell(ctx, t, callerID, st)
