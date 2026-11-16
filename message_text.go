@@ -13,9 +13,18 @@ var messageBodyRoles = map[string]string{
 	roleStandingMessage: "body",
 }
 
+const (
+	firstPictographRune = 0x1F000
+	lastPictographRune  = 0x1FAFF
+)
+
+func isPictograph(r rune) bool {
+	return r >= firstPictographRune && r <= lastPictographRune
+}
+
 func messageDraws(body string) bool {
 	for _, r := range body {
-		if !plaintext.IsUnseenOrLineBreaking(r) && unicode.In(r, unicode.L, unicode.N, unicode.P, unicode.S) {
+		if isPictograph(r) || (!plaintext.IsUnseenOrLineBreaking(r) && unicode.In(r, unicode.L, unicode.N, unicode.P, unicode.S)) {
 			return true
 		}
 	}

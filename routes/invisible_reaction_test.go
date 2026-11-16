@@ -17,10 +17,12 @@ var reactionsThatDrawNothing = map[string]string{
 }
 
 var reactionsThatDraw = map[string]string{
-	"a thumb":           "\U0001f44d",
-	"an emoji family":   "\U0001f468\u200d\U0001f469\u200d\U0001f467",
-	"a heart presented": "\u2764\ufe0f",
-	"a letter":          "x",
+	"a thumb":             "\U0001f44d",
+	"an emoji family":     "\U0001f468\u200d\U0001f469\u200d\U0001f467",
+	"a heart presented":   "\u2764\ufe0f",
+	"a letter":            "x",
+	"a Unicode 16 emoji":  "\U0001fae9",
+	"a Unicode 17 shovel": "\U0001fa8f",
 }
 
 func TestAReactionThatDrawsNothingIsRefusedLikeAnEmptyOne(t *testing.T) {

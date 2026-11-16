@@ -32,6 +32,11 @@ var messagesThatDraw = map[string]string{
 	"a zero width space between real words": "bin\u200blorry",
 	"punctuation alone":                     "?!",
 	"a digit alone":                         "7",
+	"a Unicode 16 emoji":                    "\U0001fae9",
+	"a Unicode 16 harp":                     "\U0001fa89",
+	"a Unicode 16 fingerprint":              "\U0001fac6",
+	"a Unicode 17 shovel":                   "\U0001fa8f",
+	"a new emoji with a text":               "\U0001fae9 thanks",
 }
 
 func TestAChatPostThatDrawsNothingIsRefused(t *testing.T) {
