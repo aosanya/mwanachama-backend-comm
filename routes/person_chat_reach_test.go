@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/aosanya/mwanachama-backend-shared/dispatch"
+	"github.com/aosanya/mwanachama-backend-shared/httpwire"
 
 	mwanachamacomm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-comm/models"
@@ -292,7 +293,7 @@ func TestTheReachRouteAsksTheGateForItsActionAndAsksTheHostNothingWhenItRefuses(
 	gate := &recordingGate{}
 	srv := newServer(t, f.m, routes.Mount{Caller: fromCtx(callerKey), Device: fromCtx(deviceKey), Authorize: gate.refuse})
 	got := call(t, srv, http.MethodGet, "/people/lead-a/chat/reach", "manager-m", nil)
-	if got.code != http.StatusForbidden || got.message(t) != dispatch.ErrForbidden.Error() {
+	if got.code != http.StatusForbidden || got.message(t) != httpwire.PlainMessage(dispatch.ErrForbidden.Error()) {
 		t.Fatalf("a refusing gate = %d %s, want the 403 refusal", got.code, got.body)
 	}
 	if want := []string{personReachAction}; !slices.Equal(gate.actions(), want) {
