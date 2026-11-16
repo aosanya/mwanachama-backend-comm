@@ -129,7 +129,7 @@ func (m *CommManager) SetDMReactionFor(ctx context.Context, messageID, callerID,
 	if err := m.activeOnMessageRoster(ctx, messageID, callerID); err != nil {
 		return err
 	}
-	if emoji == "" {
+	if !messageDraws(emoji) {
 		return fmt.Errorf("%w: emoji is required", models.ErrDMInvalidReaction)
 	}
 	if utf8.RuneCountInString(emoji) > maxReactionRunes {
