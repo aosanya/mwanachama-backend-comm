@@ -26,3 +26,5 @@ Every non-test Go file and both JSON files (`comm.blueprint.json`, `comm.operati
 One commit here per hub commit or group, each naming the hub hash: eef9ff73, ec77c144, b1f9348c, a37f9023, 997c7b76, 20050ce0, 3de4ffa2, 921429eb (the comm half), c9907728, e97a230a (the comm half), and the test-only commits 3351da2a, 3607f941, bb9b7712, f09917d3, 728c352f, 6b9e8f54, c5145b9f, e03d5c84, d43aea5f, ab087f5a, c6d68aca, f2f44c31 and 4ea6d46f.
 
 Files a commit touched lost their comments (the repository rule is no comments in code). The test-only commits were replayed before 921429eb because its test uses the fixture that 6b9e8f54 introduced.
+
+The backend is ahead of the hub copy by MUN686 ([invisible-messages.md](invisible-messages.md)): `message_text.go`, one call in `validate.go`, and the two manager checks differ until the hub copy is deleted by ISS-105.
