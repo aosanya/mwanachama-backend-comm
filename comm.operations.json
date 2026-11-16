@@ -278,7 +278,7 @@
       "action": "comm.chat_message.read",
       "status": 200,
       "title": "A chat message by id",
-      "description": "One message in a structure's room, read by its id, answering its structure_id and thread_id so a notice naming the message can open where it was posted. Its author reads it while they belong to the structure, even once it has been removed; anybody else reads it only while they may read its thread and only while it stands. A message the caller may not read, a removed one read by anybody but its author and an invented id answer identically, as a not-found. It carries author_kind when the host named a kind for its author when it was posted.",
+      "description": "One message in a structure's room, read by its id, answering its structure_id and thread_id so a notice naming the message can open where it was posted. Its author reads it while they belong to the structure, even once it has been removed; anybody else reads it only while they may read its thread and only while it stands and its author's consent has not been withdrawn. A message the caller may not read, a removed or withdrawn one read by anybody but its author and an invented id answer identically, as a not-found. It carries author_kind when the host named a kind for its author when it was posted.",
       "args": [
         {
           "from": "path",

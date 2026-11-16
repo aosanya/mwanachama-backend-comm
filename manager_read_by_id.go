@@ -29,6 +29,9 @@ func (m *CommManager) GetChatMessageFor(ctx context.Context, messageID, callerID
 	if err := m.inThread(ctx, msg.StructureID, msg.ThreadID, callerID); err != nil {
 		return models.ChatMessage{}, err
 	}
+	if msg.WithdrawnAt != "" {
+		return models.ChatMessage{}, models.ErrChatNotFound
+	}
 	removed, err := m.messageRemoved(ctx, messageID)
 	if err != nil {
 		return models.ChatMessage{}, err
