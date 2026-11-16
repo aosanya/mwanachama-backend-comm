@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
+	"github.com/aosanya/mwanachama-backend-shared/consent"
 )
 
 type Leads func(ctx context.Context, structureID string) ([]string, error)
@@ -14,6 +15,9 @@ type Leads func(ctx context.Context, structureID string) ([]string, error)
 func (m *CommManager) UseLeads(l Leads) { m.leadsOf = l }
 
 func (m *CommManager) StartChatThreadFor(ctx context.Context, structureID, callerID, label string) (models.ChatThread, error) {
+	if err := consent.Require(ctx, m.consent, callerID); err != nil {
+		return models.ChatThread{}, err
+	}
 	if err := m.inStructure(ctx, structureID, callerID); err != nil {
 		return models.ChatThread{}, err
 	}

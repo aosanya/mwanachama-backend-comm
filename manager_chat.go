@@ -208,6 +208,9 @@ func (m *CommManager) messageInThread(ctx context.Context, structureID, threadID
 }
 
 func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threadID, callerID, body, attachmentKind, attachmentID string) (models.ChatMessage, error) {
+	if err := consent.Require(ctx, m.consent, callerID); err != nil {
+		return models.ChatMessage{}, err
+	}
 	if err := m.inThread(ctx, structureID, threadID, callerID); err != nil {
 		return models.ChatMessage{}, err
 	}
