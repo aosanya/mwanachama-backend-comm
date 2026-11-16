@@ -75,3 +75,52 @@ func TestHidingMessagesOfNobodyIsRefused(t *testing.T) {
 		t.Fatalf("HideActorMessages empty = %v, want ErrChatInvalid", err)
 	}
 }
+
+func TestWithdrawnMessagesLeaveTheActivityCountsButStayStoredAndRestorable(t *testing.T) {
+	ctx := context.Background()
+	m, db, s := gatedManagerOn(t, nil)
+	for _, post := range []struct{ room, author string }{{"s-1", "mem-1"}, {"s-1", "mem-1"}, {"s-1", "mem-2"}, {"s-2", "mem-1"}} {
+		if _, err := m.PostChatMessage(ctx, models.ChatMessage{StructureID: post.room, ThreadID: "t-" + post.room, AuthorID: post.author, Body: "hello"}); err != nil {
+			t.Fatalf("PostChatMessage: %v", err)
+		}
+	}
+	counted := func() map[string]int {
+		page, err := m.Activity(ctx, models.ChatActivityQuery{})
+		if err != nil {
+			t.Fatalf("Activity: %v", err)
+		}
+		rooms := map[string]int{}
+		for _, row := range page.Rows {
+			rooms[row.StructureID] = row.Messages
+		}
+		rooms["total"] = page.Messages
+		return rooms
+	}
+	if got := counted(); got["s-1"] != 3 || got["s-2"] != 1 || got["total"] != 4 {
+		t.Fatalf("counts before withdrawal = %v, want s-1 3, s-2 1, total 4", got)
+	}
+	if err := m.HideActorMessages(ctx, "mem-1"); err != nil {
+		t.Fatalf("HideActorMessages: %v", err)
+	}
+	got := counted()
+	if got["s-1"] != 1 || got["s-2"] != 0 || got["total"] != 1 {
+		t.Fatalf("counts after withdrawal = %v, want s-1 1, s-2 0, total 1", got)
+	}
+	page, err := m.Activity(ctx, models.ChatActivityQuery{StructureID: "s-1"})
+	if err != nil || page.Messages != 1 || page.LastPostAt == nil {
+		t.Fatalf("filtered activity = %+v (%v), want one shown message", page, err)
+	}
+	object, _ := s.Object("chat_message")
+	table := s.TableFor(object)
+	var stored int64
+	db.Raw("select count(*) from " + table + " where author_id = 'mem-1' and body = 'hello'").Scan(&stored)
+	if stored != 3 {
+		t.Fatalf("stored messages of the withdrawn author = %d, want 3", stored)
+	}
+	if err := db.Exec("update " + table + " set withdrawn_at = '' where author_id = 'mem-1'").Error; err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if got := counted(); got["s-1"] != 3 || got["s-2"] != 1 || got["total"] != 4 {
+		t.Fatalf("counts after restore = %v, want s-1 3, s-2 1, total 4", got)
+	}
+}

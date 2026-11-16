@@ -13,6 +13,7 @@ import (
 	comm "github.com/aosanya/mwanachama-backend-comm"
 	"github.com/aosanya/mwanachama-backend-comm/models"
 	"github.com/aosanya/mwanachama-backend-shared/consent"
+	"github.com/aosanya/mwanachama-backend-shared/spec"
 )
 
 type noActs struct{}
@@ -24,6 +25,12 @@ type gateFor map[string]error
 func (g gateFor) Check(_ context.Context, actorID string) error { return g[actorID] }
 
 func gatedManager(t *testing.T, g consent.Gate) *comm.CommManager {
+	t.Helper()
+	m, _, _ := gatedManagerOn(t, g)
+	return m
+}
+
+func gatedManagerOn(t *testing.T, g consent.Gate) (*comm.CommManager, *gorm.DB, *spec.Spec) {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
@@ -41,7 +48,7 @@ func gatedManager(t *testing.T, g consent.Gate) *comm.CommManager {
 		t.Fatalf("NewCommManager: %v", err)
 	}
 	m.UseConsentGate(g)
-	return m
+	return m, db, s
 }
 
 func TestAChatPostNeedsALiveConsent(t *testing.T) {

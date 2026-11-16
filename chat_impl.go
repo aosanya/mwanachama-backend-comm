@@ -254,7 +254,10 @@ func (s *ChatStore) ListMessagesWindow(ctx context.Context, structureID, threadI
 
 var _ models.ChatRepository = (*ChatStore)(nil)
 
-const chatRoomFilter = "/*room*/"
+const (
+	chatRoomFilter    = "/*room*/"
+	chatMessageFilter = "/*shown*/"
+)
 
 func chatActivitySQL(threads, messages string) string {
 	return `
@@ -266,7 +269,7 @@ func chatActivitySQL(threads, messages string) string {
 	          FROM ` + threads + ` ` + chatRoomFilter + ` GROUP BY structure_id) t
 	  FULL OUTER JOIN
 	       (SELECT structure_id, count(*) AS messages, max(created_at) AS last_post_at
-	          FROM ` + messages + ` ` + chatRoomFilter + ` GROUP BY structure_id) m
+	          FROM ` + messages + ` ` + chatMessageFilter + ` GROUP BY structure_id) m
 	    ON m.structure_id = t.structure_id`
 }
 
@@ -288,9 +291,14 @@ func (s *ChatStore) Activity(ctx context.Context, q models.ChatActivityQuery) (m
 		where = "WHERE " + strings.Join(conditions, " AND ")
 		args = append(append(args, perTable...), perTable...)
 	}
-	query := strings.ReplaceAll(
+	shown := "WHERE withdrawn_at = ''"
+	if where != "" {
+		shown = where + " AND withdrawn_at = ''"
+	}
+	query := strings.ReplaceAll(strings.ReplaceAll(
 		chatActivitySQL(s.store.Table(roleChatThread), s.store.Table(roleChatMessage)),
-		chatRoomFilter, where,
+		chatRoomFilter, where),
+		chatMessageFilter, shown,
 	) + `
 	  ORDER BY (m.last_post_at IS NULL) ASC, m.last_post_at DESC, COALESCE(t.structure_id, m.structure_id)`
 
