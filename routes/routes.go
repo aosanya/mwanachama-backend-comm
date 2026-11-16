@@ -12,6 +12,8 @@ type Route = httpwire.Route
 type Mount = dispatch.Mount
 
 var Sentinels = map[string]error{
+	"ErrConsentRequired":            mwanachamacomm.ErrConsentRequired,
+	"ErrConsentWithdrawn":           mwanachamacomm.ErrConsentWithdrawn,
 	"ErrChatNotFound":               mwanachamacomm.ErrChatNotFound,
 	"ErrChatInvalid":                mwanachamacomm.ErrChatInvalid,
 	"ErrChatNotDeclinable":          mwanachamacomm.ErrChatNotDeclinable,
@@ -45,11 +47,6 @@ var Sentinels = map[string]error{
 	"ErrStandingStopped":            mwanachamacomm.ErrStandingStopped,
 }
 
-// AnonymousActions names what any caller may reach without presenting one.
-// comm has nothing of the kind: every address here reads or writes somebody's
-// own conversations, addresses or notifications. It is the allowlist the
-// table is split on and never the list of what is protected, so an operation
-// added to the spec and not named here arrives gated.
 var AnonymousActions = []string{}
 
 var Table = dispatch.NewTable(mwanachamacomm.Operations(), Sentinels, AnonymousActions...)

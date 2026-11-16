@@ -3,6 +3,7 @@ package mwanachamacomm
 import (
 	"context"
 	"fmt"
+	"github.com/aosanya/mwanachama-backend-shared/consent"
 	"time"
 
 	"gorm.io/gorm"
@@ -38,6 +39,7 @@ type CommManager struct {
 	audience   Audience
 	push       *pushDelivery
 	runID      string
+	consent    consent.Gate
 }
 
 func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.ActWriter, actorsTable string) (*CommManager, error) {
@@ -89,10 +91,12 @@ func NewCommManager(db *gorm.DB, s *spec.Spec, clock Clock, actWriter models.Act
 
 func (m *CommManager) Spec() *spec.Spec { return m.spec }
 
-// Three method names are on both ChatStore and DMStore, so a promoted
-// selector would be ambiguous. Each domain's is named for its own object.
+func (m *CommManager) UseConsentGate(g consent.Gate) { m.consent = g }
 
 func (m *CommManager) PostChatMessage(ctx context.Context, msg models.ChatMessage) (models.ChatMessage, error) {
+	if err := consent.Require(ctx, m.consent, msg.AuthorID); err != nil {
+		return models.ChatMessage{}, err
+	}
 	return m.ChatStore.Post(ctx, msg)
 }
 
@@ -105,6 +109,9 @@ func (m *CommManager) ListChatMessages(ctx context.Context, structureID, threadI
 }
 
 func (m *CommManager) PostDMMessage(ctx context.Context, msg models.DMMessage) (models.DMMessage, error) {
+	if err := consent.Require(ctx, m.consent, msg.SenderID); err != nil {
+		return models.DMMessage{}, err
+	}
 	return m.DMStore.Post(ctx, msg)
 }
 
@@ -133,10 +140,6 @@ func (m *CommManager) RetireMyAddress(ctx context.Context, callerID string, inde
 
 func (m *CommManager) clockNow() time.Time { return m.AddressStore.clock() }
 
-// MarkMyNotificationsRead takes the instant from the body when the caller
-// supplies one and from the server's clock otherwise, which is what the
-// hand-written route did. The read mark is the recipient's own assertion,
-// so a caller may date it, but an absent value is never the zero instant.
 func (m *CommManager) MarkMyNotificationsRead(ctx context.Context, callerID string, ids []string, readAt string) (int, error) {
 	at := m.clockNow()
 	if readAt != "" {
@@ -149,11 +152,6 @@ func (m *CommManager) MarkMyNotificationsRead(ctx context.Context, callerID stri
 	return m.NotificationStore.MarkRead(ctx, callerID, ids, at)
 }
 
-// SetNotificationPreferenceFor answers an unknown category with
-// ErrNotificationNoSuchCategory, which the declared table maps to 404 —
-// the status the hand-written route gave it. The vocabulary it checks
-// against is the mounted domain's declared values, not a Go slice, which is
-// what CM30 was filed against.
 func (m *CommManager) SetNotificationPreferenceFor(ctx context.Context, callerID string, category models.NotificationCategory, muted bool) (models.NotificationPreference, error) {
 	o, ok := m.spec.ByRole(roleNotificationPreference)
 	if !ok {

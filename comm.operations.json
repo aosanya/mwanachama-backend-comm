@@ -1584,6 +1584,8 @@
     }
   },
   "errors": {
+    "ErrConsentRequired": 403,
+    "ErrConsentWithdrawn": 403,
     "ErrChatNotFound": 404,
     "ErrChatInvalid": 400,
     "ErrChatNotDeclinable": 409,
