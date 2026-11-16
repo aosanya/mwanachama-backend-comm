@@ -11,7 +11,6 @@ import (
 
 	"github.com/aosanya/mwanachama-backend-shared/recur"
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -101,7 +100,7 @@ func (s *StandingStore) GetStanding(ctx context.Context, structureID, id string)
 
 func (s *StandingStore) ListStanding(ctx context.Context, structureID string) ([]models.StandingMessage, error) {
 	q := s.store.Query(ctx, roleStandingMessage).Where("structure_id = ?", structureID).Order("created_at, id")
-	return specstore.List[models.StandingMessage](s.store, q, roleStandingMessage)
+	return list[models.StandingMessage](s.store, q, roleStandingMessage)
 }
 
 func (s *StandingStore) StopStanding(ctx context.Context, structureID, id, stoppedBy string) (models.StandingMessage, error) {
@@ -126,7 +125,7 @@ func (s *StandingStore) StopStanding(ctx context.Context, structureID, id, stopp
 
 func (s *StandingStore) SendDueStandingMessages(ctx context.Context, now time.Time) ([]models.ChatMessage, error) {
 	q := s.store.Query(ctx, roleStandingMessage).Where("stopped_at IS NULL").Order("created_at, id")
-	running, err := specstore.List[models.StandingMessage](s.store, q, roleStandingMessage)
+	running, err := list[models.StandingMessage](s.store, q, roleStandingMessage)
 	if err != nil {
 		return nil, err
 	}

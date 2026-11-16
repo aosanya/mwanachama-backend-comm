@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -62,7 +61,7 @@ func (s *NotificationStore) List(ctx context.Context, actorID string, limit int)
 		Where("actor_id = ?", actorID).
 		Order("created_at DESC, id DESC").
 		Limit(limit)
-	out, err := specstore.List[models.Notification](s.store, q, roleNotification)
+	out, err := list[models.Notification](s.store, q, roleNotification)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -158,7 +157,7 @@ func (s *NotificationStore) ListPreferences(ctx context.Context, actorID string)
 	q := s.store.Query(ctx, roleNotificationPreference).
 		Where("actor_id = ?", actorID).
 		Order("category")
-	out, err := specstore.List[models.NotificationPreference](s.store, q, roleNotificationPreference)
+	out, err := list[models.NotificationPreference](s.store, q, roleNotificationPreference)
 	if err != nil {
 		return nil, classify(err)
 	}

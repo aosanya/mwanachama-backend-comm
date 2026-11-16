@@ -7,8 +7,6 @@ import (
 
 	"gorm.io/gorm/clause"
 
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
-
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
@@ -30,7 +28,7 @@ func (s *DMStore) ListMessages(ctx context.Context, threadID string) ([]models.D
 	}
 
 	q := s.store.Query(ctx, roleDMMessage).Where("thread_id = ? AND withdrawn_at = ''", threadID).Order("created_at, id")
-	rows, err := specstore.List[models.DMMessage](s.store, q, roleDMMessage)
+	rows, err := list[models.DMMessage](s.store, q, roleDMMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +104,7 @@ func (s *DMStore) LookupDeviceKeys(ctx context.Context, actorIDs []string) ([]mo
 	q := s.store.Query(ctx, roleDMDeviceKey).
 		Where("actor_id IN ? AND retired_at IS NULL", actorIDs).
 		Order("actor_id, key_id")
-	return specstore.List[models.DMDeviceKey](s.store, q, roleDMDeviceKey)
+	return list[models.DMDeviceKey](s.store, q, roleDMDeviceKey)
 }
 
 func (s *DMStore) RetireDeviceKeysForDevice(ctx context.Context, deviceID string, at time.Time) (int, error) {
@@ -156,7 +154,7 @@ func (s *DMStore) ListReactions(ctx context.Context, threadID string) ([]models.
 			append([]any{threadID}, scopeArgs...)...).
 		Order("message_id, actor_id")
 
-	out, err := specstore.List[models.DMReaction](s.store, q, roleDMReaction)
+	out, err := list[models.DMReaction](s.store, q, roleDMReaction)
 	if err != nil {
 		return nil, classify(err)
 	}

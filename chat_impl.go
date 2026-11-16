@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -45,6 +44,9 @@ func (s *ChatStore) MintThread(ctx context.Context, structureID, tagPath string)
 }
 
 func (s *ChatStore) StartThread(ctx context.Context, structureID, label string) (models.ChatThread, error) {
+	if err := refuseControlCharacters(roleChatThread, "label", label); err != nil {
+		return models.ChatThread{}, err
+	}
 	label = strings.Join(strings.Fields(label), " ")
 	tagPath, ok := labelTagPath(label)
 	if !ok {
@@ -102,6 +104,9 @@ func (s *ChatStore) mintThread(ctx context.Context, structureID, tagPath, label 
 }
 
 func (s *ChatStore) RequestThread(ctx context.Context, structureID, label, requestedBy string, reusable func(models.ChatThread) bool) (models.ChatThread, bool, error) {
+	if err := refuseControlCharacters(roleChatThread, "label", label); err != nil {
+		return models.ChatThread{}, false, err
+	}
 	label = strings.Join(strings.Fields(label), " ")
 	tagPath, ok := labelTagPath(label)
 	if !ok {
@@ -177,7 +182,7 @@ func (s *ChatStore) ResolveThread(ctx context.Context, structureID, tagPath stri
 
 func (s *ChatStore) ListThreads(ctx context.Context, structureID string) ([]models.ChatThread, error) {
 	q := s.store.Query(ctx, roleChatThread).Where("structure_id = ?", structureID).Order("created_at, id")
-	return specstore.List[models.ChatThread](s.store, q, roleChatThread)
+	return list[models.ChatThread](s.store, q, roleChatThread)
 }
 
 func (s *ChatStore) threadIn(ctx context.Context, structureID, threadID string) (models.ChatThread, error) {
@@ -220,7 +225,7 @@ func (s *ChatStore) ListMessages(ctx context.Context, structureID, threadID stri
 	if threadID != "" {
 		q = q.Where("thread_id = ?", threadID)
 	}
-	return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
+	return list[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
 }
 
 type chatMessageWindow struct {
@@ -240,9 +245,9 @@ func (s *ChatStore) ListMessagesWindow(ctx context.Context, structureID, threadI
 		q = q.Where("created_at < ? OR (created_at = ? AND id < ?)", at, at, w.Before.ID)
 	}
 	if w.Limit <= 0 {
-		return specstore.List[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
+		return list[models.ChatMessage](s.store, q.Order("created_at, id"), roleChatMessage)
 	}
-	newest, err := specstore.List[models.ChatMessage](s.store, q.Order("created_at DESC, id DESC").Limit(w.Limit), roleChatMessage)
+	newest, err := list[models.ChatMessage](s.store, q.Order("created_at DESC, id DESC").Limit(w.Limit), roleChatMessage)
 	if err != nil {
 		return nil, err
 	}

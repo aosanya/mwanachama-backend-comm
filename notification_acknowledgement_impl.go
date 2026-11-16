@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
-
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
 
@@ -42,7 +40,7 @@ func (s *NotificationStore) AcknowledgeNotification(ctx context.Context, actorID
 
 func (s *NotificationStore) acknowledgementOf(ctx context.Context, notificationID string) (models.NotificationAcknowledgement, bool, error) {
 	q := s.store.Query(ctx, roleNotificationAck).Where("notification_id = ?", notificationID).Limit(1)
-	out, err := specstore.List[models.NotificationAcknowledgement](s.store, q, roleNotificationAck)
+	out, err := list[models.NotificationAcknowledgement](s.store, q, roleNotificationAck)
 	if err != nil {
 		return models.NotificationAcknowledgement{}, false, classify(err)
 	}
@@ -70,7 +68,7 @@ func (s *NotificationStore) NotificationReceipts(ctx context.Context, subjectKin
 	if after != "" {
 		q = q.Where("id > ?", after)
 	}
-	sent, err := specstore.List[models.Notification](s.store, q.Order("id").Limit(limit), roleNotification)
+	sent, err := list[models.Notification](s.store, q.Order("id").Limit(limit), roleNotification)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -98,7 +96,7 @@ func (s *NotificationStore) acknowledgementTimes(ctx context.Context, sent []mod
 		ids[i] = n.ID
 	}
 	q := s.store.Query(ctx, roleNotificationAck).Where("notification_id IN ?", ids)
-	acks, err := specstore.List[models.NotificationAcknowledgement](s.store, q, roleNotificationAck)
+	acks, err := list[models.NotificationAcknowledgement](s.store, q, roleNotificationAck)
 	if err != nil {
 		return nil, classify(err)
 	}

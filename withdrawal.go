@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 )
 
 func (s *PushStore) ReleaseActor(ctx context.Context, actorID string) error {
@@ -51,12 +50,12 @@ func (m *CommManager) ListHiddenMessages(ctx context.Context, actorID string) (H
 		return HiddenMessages{}, fmt.Errorf("%w: a message belongs to somebody", models.ErrChatInvalid)
 	}
 	chatQuery := m.ChatStore.store.Query(ctx, roleChatMessage).Where("author_id = ? AND withdrawn_at <> ''", actorID).Order("created_at, id")
-	chat, err := specstore.List[models.ChatMessage](m.ChatStore.store, chatQuery, roleChatMessage)
+	chat, err := list[models.ChatMessage](m.ChatStore.store, chatQuery, roleChatMessage)
 	if err != nil {
 		return HiddenMessages{}, classify(err)
 	}
 	dmQuery := m.DMStore.store.Query(ctx, roleDMMessage).Where("sender_id = ? AND withdrawn_at <> ''", actorID).Order("created_at, id")
-	direct, err := specstore.List[models.DMMessage](m.DMStore.store, dmQuery, roleDMMessage)
+	direct, err := list[models.DMMessage](m.DMStore.store, dmQuery, roleDMMessage)
 	if err != nil {
 		return HiddenMessages{}, classify(err)
 	}

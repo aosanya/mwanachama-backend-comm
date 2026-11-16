@@ -48,10 +48,12 @@ func deleteWhere(ctx context.Context, st *store, role, where string, args ...any
 	return st.Query(ctx, role).Exec("delete from "+st.Table(role)+" where "+where+scope, append(args, scopeArgs...)...).Error
 }
 
-type store = specstore.Store
-
 func newStore(db *gorm.DB, s *spec.Spec, carriers map[string]any) (*store, error) {
-	return specstore.New(db, s, carriers)
+	inner, err := specstore.New(db, s, carriers)
+	if err != nil {
+		return nil, err
+	}
+	return &store{Store: inner}, nil
 }
 
 func newID() string { return specstore.NewID() }

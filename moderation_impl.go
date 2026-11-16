@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -67,13 +66,13 @@ func (s *ModerationStore) FileReport(ctx context.Context, r models.Report) (mode
 func (s *ModerationStore) ListReportsForMessage(ctx context.Context, messageID string) ([]models.Report, error) {
 	q := s.store.Query(ctx, roleReport).
 		Where("message_id = ?", messageID).Order("reported_at DESC, id DESC")
-	return specstore.List[models.Report](s.store, q, roleReport)
+	return list[models.Report](s.store, q, roleReport)
 }
 
 func (s *ModerationStore) ListReportQueue(ctx context.Context, structureID string) ([]models.Report, error) {
 	q := s.store.Query(ctx, roleReport).
 		Where("structure_id = ?", structureID).Order("reported_at DESC, id DESC")
-	return specstore.List[models.Report](s.store, q, roleReport)
+	return list[models.Report](s.store, q, roleReport)
 }
 
 func (s *ModerationStore) CreateRemoval(ctx context.Context, rem models.Removal, wall string, actor models.Actor) (models.Removal, error) {
@@ -125,7 +124,7 @@ func (s *ModerationStore) GetRemovalForMessage(ctx context.Context, messageID st
 func (s *ModerationStore) ListRemovalsForStructure(ctx context.Context, structureID string) ([]models.Removal, error) {
 	q := s.store.Query(ctx, roleRemoval).
 		Where("structure_id = ?", structureID).Order("removed_at DESC, id DESC")
-	return specstore.List[models.Removal](s.store, q, roleRemoval)
+	return list[models.Removal](s.store, q, roleRemoval)
 }
 
 func (s *ModerationStore) CreateDispute(ctx context.Context, d models.Dispute) (models.Dispute, error) {

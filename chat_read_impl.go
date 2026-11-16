@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 )
 
 func (s *ChatStore) MarkRead(ctx context.Context, structureID, threadID, readerID string, readAt time.Time) (models.ChatReadMarker, error) {
@@ -138,7 +137,7 @@ func (s *ChatStore) LatestPosts(ctx context.Context, structureID string) (map[st
 	if len(messageIDs) == 0 {
 		return latest, nil
 	}
-	posts, err := specstore.List[models.ChatMessage](s.store, s.store.Query(ctx, roleChatMessage).Where("id IN ?", messageIDs), roleChatMessage)
+	posts, err := list[models.ChatMessage](s.store, s.store.Query(ctx, roleChatMessage).Where("id IN ?", messageIDs), roleChatMessage)
 	if err != nil {
 		return nil, err
 	}

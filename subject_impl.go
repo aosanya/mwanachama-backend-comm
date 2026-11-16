@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -80,7 +79,7 @@ func (s *SubjectStore) Threads(ctx context.Context, kind, id string) ([]models.S
 	q := s.store.Query(ctx, roleSubjectThread).
 		Where("subject_kind = ? AND subject_id = ?", kind, id).
 		Order("created_at, id")
-	return specstore.List[models.SubjectThread](s.store, q, roleSubjectThread)
+	return list[models.SubjectThread](s.store, q, roleSubjectThread)
 }
 
 func (s *SubjectStore) Views(ctx context.Context, threads []models.SubjectThread) ([]models.SubjectThreadView, error) {
@@ -124,7 +123,7 @@ func (s *SubjectStore) Views(ctx context.Context, threads []models.SubjectThread
 
 func (s *SubjectStore) Messages(ctx context.Context, threadID string) ([]models.SubjectThreadMessage, error) {
 	q := s.store.Query(ctx, roleSubjectMessage).Where("thread_id = ?", threadID).Order("created_at, id")
-	return specstore.List[models.SubjectThreadMessage](s.store, q, roleSubjectMessage)
+	return list[models.SubjectThreadMessage](s.store, q, roleSubjectMessage)
 }
 
 func (s *SubjectStore) Post(ctx context.Context, m models.SubjectThreadMessage) (models.SubjectThreadMessage, error) {

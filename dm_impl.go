@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -101,7 +100,7 @@ func (s *DMStore) ListThreadsFor(ctx context.Context, actorID string) ([]models.
 			append([]any{actorID, []string{string(models.DMStateActive), string(models.DMStateInvited)}}, scopeArgs...)...).
 		Order("created_at, id")
 
-	out, err := specstore.List[models.DMThread](s.store, q, roleDMThread)
+	out, err := list[models.DMThread](s.store, q, roleDMThread)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +113,7 @@ func (s *DMStore) ListThreadsFor(ctx context.Context, actorID string) ([]models.
 func (s *DMStore) ListParticipants(ctx context.Context, threadID string) ([]models.DMParticipant, error) {
 	q := s.store.Query(ctx, roleDMParticipant).
 		Where("thread_id = ?", threadID).Order("updated_at, actor_id")
-	return specstore.List[models.DMParticipant](s.store, q, roleDMParticipant)
+	return list[models.DMParticipant](s.store, q, roleDMParticipant)
 }
 
 var _ models.DMRepository = (*DMStore)(nil)

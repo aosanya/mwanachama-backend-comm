@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -80,7 +79,7 @@ func (s *PushStore) ListPushSubscriptions(ctx context.Context, actorID string) (
 	q := s.store.Query(ctx, rolePushSubscription).
 		Where("actor_id = ?", actorID).
 		Order("created_at, id")
-	out, err := specstore.List[models.PushSubscription](s.store, q, rolePushSubscription)
+	out, err := list[models.PushSubscription](s.store, q, rolePushSubscription)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -111,7 +110,7 @@ func (s *PushStore) ListPushDeliveries(ctx context.Context, notificationID strin
 	q := s.store.Query(ctx, rolePushDelivery).
 		Where("notification_id = ?", notificationID).
 		Order("at, id")
-	out, err := specstore.List[models.PushDelivery](s.store, q, rolePushDelivery)
+	out, err := list[models.PushDelivery](s.store, q, rolePushDelivery)
 	if err != nil {
 		return nil, classify(err)
 	}

@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/aosanya/mwanachama-backend-shared/spec"
-	"github.com/aosanya/mwanachama-backend-shared/specstore"
 
 	"github.com/aosanya/mwanachama-backend-comm/models"
 )
@@ -56,7 +55,7 @@ func (s *AddressStore) ListFor(ctx context.Context, actorID string) ([]models.Ad
 	q := s.store.Query(ctx, roleAddress).
 		Where("actor_id = ?", actorID).
 		Order("address_index")
-	out, err := specstore.List[models.Address](s.store, q, roleAddress)
+	out, err := list[models.Address](s.store, q, roleAddress)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -177,7 +176,7 @@ func (s *AddressStore) ListListed(ctx context.Context, excludeActorID string, no
 	if excludeActorID != "" {
 		q = q.Where("actor_id <> ?", excludeActorID)
 	}
-	out, err := specstore.List[models.Address](s.store, q, roleAddress)
+	out, err := list[models.Address](s.store, q, roleAddress)
 	if err != nil {
 		return nil, classify(err)
 	}
