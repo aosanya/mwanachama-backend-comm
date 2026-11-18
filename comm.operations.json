@@ -299,6 +299,34 @@
         }
       ]
     },
+    "get_chat_thread": {
+      "method": "GET",
+      "path": "/chat/threads/{thread_id}",
+      "call": "GetChatThreadFor",
+      "action": "comm.chat_thread.read",
+      "status": 200,
+      "title": "A chat thread by id",
+      "description": "One thread in a structure's room, read by its id, answering its structure_id so a notice naming the thread can open where it lives and check it still stands. A caller who does not belong to the structure, a leads thread read by somebody who is neither a lead nor the one who asked for it, and an invented id answer identically, as a not-found. A thread the caller archived still reads.",
+      "args": [
+        {
+          "from": "path",
+          "as": "thread_id",
+          "refers": "comm.chat_thread",
+          "required": true,
+          "description": "The thread."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "mark_chat_thread_read": {
       "method": "POST",
       "path": "/groups/{structure_id}/chat/threads/{thread_id}/read",

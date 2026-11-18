@@ -42,6 +42,20 @@ func (m *CommManager) GetChatMessageFor(ctx context.Context, messageID, callerID
 	return msg, nil
 }
 
+func (m *CommManager) GetChatThreadFor(ctx context.Context, threadID, callerID string) (models.ChatThread, error) {
+	if callerID == "" {
+		return models.ChatThread{}, models.ErrChatNotFound
+	}
+	t, err := m.ChatStore.GetThread(ctx, threadID)
+	if err != nil {
+		return models.ChatThread{}, err
+	}
+	if err := m.inThread(ctx, t.StructureID, t.ID, callerID); err != nil {
+		return models.ChatThread{}, err
+	}
+	return t, nil
+}
+
 func (m *CommManager) messageRemoved(ctx context.Context, messageID string) (bool, error) {
 	_, err := m.ModerationStore.GetRemovalForMessage(ctx, messageID)
 	if errors.Is(err, models.ErrModerationNotFound) {

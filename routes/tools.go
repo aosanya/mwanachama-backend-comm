@@ -19,6 +19,7 @@ var ChatActions = []string{
 	"comm.chat_thread.list_archived",
 	"comm.chat_thread.archive",
 	"comm.chat_thread.unarchive",
+	"comm.chat_thread.read",
 	"comm.person_reach.list",
 	"comm.notification.list",
 	"comm.notification.unread",

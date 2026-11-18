@@ -18,6 +18,7 @@ var markedReferences = map[string]string{
 	"unarchive_chat_thread.thread_id":          "comm.chat_thread",
 	"create_standing_message.thread_id":        "comm.chat_thread",
 	"get_chat_message.message_id":              "comm.chat_message",
+	"get_chat_thread.thread_id":                "comm.chat_thread",
 	"mark_chat_thread_read.message_id":         "comm.chat_message",
 	"list_reports_for_message.message_id":      "comm.chat_message",
 	"list_chat_messages.after":                 "comm.chat_message",

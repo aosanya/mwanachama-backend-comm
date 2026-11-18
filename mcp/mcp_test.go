@@ -106,7 +106,7 @@ func TestTheChatToolsAreListedWithNoSessionFactInTheirSchemas(t *testing.T) {
 		"comm_chat_thread_list": true, "comm_chat_message_list": true, "comm_chat_message_post": true,
 		"comm_chat_thread_mark_read": true, "comm_chat_thread_create": true,
 		"comm_chat_thread_list_archived": true, "comm_chat_thread_archive": true, "comm_chat_thread_unarchive": true,
-		"comm_notification_list": true, "comm_notification_unread": true, "comm_notification_mark_read": true,
+		"comm_notification_list": true, "comm_chat_thread_read": true, "comm_notification_unread": true, "comm_notification_mark_read": true,
 		"comm_person_reach_list": true,
 	}
 	if len(listed.Tools) != len(want) {
@@ -210,6 +210,28 @@ func TestAMemberArchivesAndBringsBackAThreadThroughTheTools(t *testing.T) {
 	}
 	if _, threads := callTool(t, cs, "comm_chat_thread_list", map[string]any{"structure_id": "s-1"}); !strings.Contains(mustJSON(threads), threadID) {
 		t.Fatalf("an unarchived thread is not back: %s", mustJSON(threads))
+	}
+}
+
+func TestAMemberReadsOneThreadByItsIdThroughTheTool(t *testing.T) {
+	who := "actor-a"
+	cs := connect(t, newManager(t), &who)
+	_, thread := callTool(t, cs, "comm_chat_thread_create", map[string]any{"structure_id": "s-1", "label": "Market day"})
+	threadID, _ := thread["id"].(string)
+	if threadID == "" {
+		t.Fatalf("start returned no id: %v", thread)
+	}
+
+	res, read := callTool(t, cs, "comm_chat_thread_read", map[string]any{"thread_id": threadID})
+	if res.IsError {
+		t.Fatalf("read: %+v", res.Content[0])
+	}
+	if read["id"] != threadID || read["structure_id"] != "s-1" {
+		t.Fatalf("the thread read is %s, want id %s in s-1", mustJSON(read), threadID)
+	}
+
+	if res, _ := callTool(t, cs, "comm_chat_thread_read", map[string]any{"thread_id": "thr-invented"}); !res.IsError {
+		t.Fatalf("an invented thread id read without an error")
 	}
 }
 
