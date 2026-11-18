@@ -1,12 +1,13 @@
 # MCP tools for chat (HS25)
 
-`routes.ChatTools(m, mount)` builds twelve MCP tools from `comm.operations.json`
+`routes.ChatTools(m, mount)` builds thirteen MCP tools from `comm.operations.json`
 through `mwanachama-backend-shared/dispatch.Tools`, the same engine the REST
 table uses, and keeps only the actions in `routes.ChatActions`:
 
 | Tool | Action |
 | --- | --- |
 | `comm_chat_thread_list` | `comm.chat_thread.list` |
+| `comm_chat_thread_read` | `comm.chat_thread.read` |
 | `comm_chat_message_list` | `comm.chat_message.list` |
 | `comm_chat_message_post` | `comm.chat_message.post` |
 | `comm_chat_thread_mark_read` | `comm.chat_thread.mark_read` |
@@ -29,7 +30,7 @@ takes `ids` and answers `marked`. `routes/notification_tools_test.go` holds the
 names and arguments; the wakala-api test `comm_notification_tools_test.go`
 holds them against the real `/mcp`.
 
-- The caller is `{"from": "caller"}` on eleven of the twelve, so it is bound
+- The caller is `{"from": "caller"}` on twelve of the thirteen, so it is bound
   from the mount's `Caller` and never appears in a tool's input schema.
 - `comm_person_reach_list` is the exception and the first tool that names a
   subject: its `actor_id` is an argument, not a session fact, so the session

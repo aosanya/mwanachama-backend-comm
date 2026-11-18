@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Fifty-two addresses, declared in `comm.operations.json` and served by a
+Fifty-three addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -19,6 +19,7 @@ consumer is the gateway, and it is CM28.
 | --- | --- | --- |
 | GET | `/chat/activity` | `comm.chat.activity.read` |
 | GET | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.list` |
+| GET | `/chat/threads/{thread_id}` | `comm.chat_thread.read` |
 | GET | `/people/{actor_id}/chat/reach` | `comm.person_reach.list` |
 | POST | `/groups/{structure_id}/chat/threads` | `comm.chat_thread.create` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/open` | `comm.chat_thread.open` |
@@ -455,7 +456,7 @@ the same change. The member app reads both spellings. Pinned in
 
 A notice names one thing — a `thread_reply` a subject thread, a
 `message_removed` a chat message — and a client opening it has only that id.
-Two addresses answer it, both behind the fence the thing already sits behind
+Three addresses answer it, each behind the fence the thing already sits behind
 (member app decision 191):
 
 - `GET /subject-threads/{thread_id}` answers the thread's `subject_kind`,
@@ -470,6 +471,16 @@ Two addresses answer it, both behind the fence the thing already sits behind
   still with the leads stays theirs and its requester's) and only while no
   removal names it. Every miss — outside the structure, outside the thread,
   removed and not the author's, invented — is the same 404.
+- `GET /chat/threads/{thread_id}` (ISS-142) answers the thread with its `id`,
+  `structure_id`, `tag_path`, `label`, `audience`, `requested_by`,
+  `declined_at`, `declined_by` and `created_at`, so the member app can check
+  that the thread a `thread_requested`, `thread_reply` or `record_message`
+  notice names still stands before it opens it. A caller who belongs to the
+  thread's structure reads it; a leads-audience thread only the leads and the
+  actor who asked for it read. An outsider, an empty caller, a non-lead on a
+  leads thread and an invented id are the same 404. An archived thread still
+  reads, because archive is per reader and hides only from the list. The MCP
+  tool is `comm_chat_thread_read`, taking `thread_id`.
 
 ## The subject fence
 
