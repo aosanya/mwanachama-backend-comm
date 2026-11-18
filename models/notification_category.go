@@ -23,13 +23,14 @@ const (
 	CategoryTask     NotificationCategory = "task"
 	CategoryPost     NotificationCategory = "post"
 	CategoryMarket   NotificationCategory = "market"
+	CategoryReport   NotificationCategory = "report"
 )
 
 var notificationCategories = []NotificationCategory{
 	CategorySurvey, CategoryResults, CategoryContribution,
 	CategoryMerchandise, CategoryChat, CategoryMembership, CategorySecurity,
 	CategoryApproval, CategoryItem, CategoryCase, CategoryTask, CategoryPost,
-	CategoryMarket,
+	CategoryMarket, CategoryReport,
 }
 
 func NotificationCategories() []NotificationCategory {
@@ -143,6 +144,7 @@ const (
 	EventCounterSent                  NotificationEvent = "counter_sent"
 	EventAskClosed                    NotificationEvent = "ask_closed"
 	EventGroupOrderCalledOff          NotificationEvent = "group_order_called_off"
+	EventReportHandedOver             NotificationEvent = "report_handed_over"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -202,6 +204,7 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventCounterSent:                  CategoryMarket,
 	EventAskClosed:                    CategoryMarket,
 	EventGroupOrderCalledOff:          CategoryMarket,
+	EventReportHandedOver:             CategoryReport,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{
@@ -262,6 +265,7 @@ const (
 	SubjectNotice             NotificationSubjectKind = "notice"
 	SubjectQuote              NotificationSubjectKind = "quote"
 	SubjectDraft              NotificationSubjectKind = "draft"
+	SubjectReport             NotificationSubjectKind = "report"
 )
 
 var notificationSubjectKinds = []NotificationSubjectKind{
@@ -272,7 +276,7 @@ var notificationSubjectKinds = []NotificationSubjectKind{
 	SubjectGroupJoinRequest, SubjectGroupJoinDecision,
 	SubjectItem, SubjectItemDigest, SubjectRecordChange,
 	SubjectCase, SubjectTask, SubjectRecord, SubjectPoll, SubjectPost,
-	SubjectPoster, SubjectAsk, SubjectGroupOrder, SubjectNotice, SubjectQuote, SubjectDraft,
+	SubjectPoster, SubjectAsk, SubjectGroupOrder, SubjectNotice, SubjectQuote, SubjectDraft, SubjectReport,
 }
 
 func NotificationSubjectKinds() []NotificationSubjectKind {

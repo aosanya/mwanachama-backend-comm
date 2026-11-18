@@ -39,6 +39,7 @@ var Sentinels = map[string]error{
 	"ErrNotificationCapSpent":       mwanachamacomm.ErrNotificationCapSpent,
 	"ErrNotificationInvalid":        mwanachamacomm.ErrNotificationInvalid,
 	"ErrNotificationMuted":          mwanachamacomm.ErrNotificationMuted,
+	"ErrNotificationNotRaisable":    mwanachamacomm.ErrNotificationNotRaisable,
 	"ErrInvalidReference":           mwanachamacomm.ErrInvalidReference,
 	"ErrConflict":                   mwanachamacomm.ErrConflict,
 	"ErrPushSubscriptionInvalid":    mwanachamacomm.ErrPushSubscriptionInvalid,

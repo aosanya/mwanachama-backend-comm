@@ -64,7 +64,7 @@ what is true of **comm** is in
   `models/` keeps only what no declaration states: a value derived from
   another, a pair that is both halves or neither, a count that must be
   positive, and `AddressHours`' own shape.
-- **`comm.operations.json` is the route table.** Fifty-one addresses, each
+- **`comm.operations.json` is the route table.** Fifty-two addresses, each
   with a gating action, and one sentinel-to-status map. `routes/` is a few
   dozen lines of adapter over `dispatch.Table`. Paths are relative — the mount
   supplies the prefix.

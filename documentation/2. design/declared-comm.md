@@ -330,6 +330,7 @@ means lives here rather than beside the constant.
 | `poll_result_published` | `results` | a poll's result was published to a group the recipient belongs to (CM103); subject `poll` |
 | `volunteer_picked` | `post` | the poster of a volunteer call picked the recipient's offer (CM105); subject `post` |
 | `volunteer_call_filled` | `post` | a volunteer call the recipient offered on was filled without them (CM105); subject `post` |
+| `report_handed_over` | `report` | somebody handed the recipient a report to read (hub issue SW585); subject `report`; raised through `comm.notification.raise`, and only while the mount's `UseRaisable` names the event |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it

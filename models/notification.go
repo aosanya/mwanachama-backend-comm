@@ -16,6 +16,8 @@ var ErrNotificationNotFound = errors.New("notification: not found")
 // message names which.
 var ErrNotificationInvalid = errors.New("notification: invalid row")
 
+var ErrNotificationNotRaisable = errors.New("notification: the host does not let a caller raise that event")
+
 var ErrNotificationCapSpent = errors.New("notification: that cap is already spent for this subject")
 
 // ErrNotificationNoSuchCategory is the refusal for a category the mounted

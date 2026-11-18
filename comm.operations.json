@@ -1174,6 +1174,62 @@
         }
       ]
     },
+    "raise_notification": {
+      "method": "POST",
+      "path": "/notifications",
+      "call": "RaiseNotificationFor",
+      "action": "comm.notification.raise",
+      "status": 200,
+      "title": "Tell one person about something",
+      "description": "Puts one notification in the list of one named person, about a record another module owns, and reports it. There is no stored title or body: the client renders both from the event and the subject, and from the display names the caller gave beside the subject's id. Only an event the mount names as one a caller may raise is accepted; any other event, declared or not, is refused as forbidden, and a mount that names none refuses every one. The recipient's muted categories still apply, and a muted one answers as a conflict. Who may call it is the mount's to decide.",
+      "args": [
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The one raising it, from the session."
+        },
+        {
+          "from": "body",
+          "as": "recipient_id",
+          "required": true,
+          "description": "The person to tell."
+        },
+        {
+          "from": "body",
+          "as": "category",
+          "required": true,
+          "description": "The notification category, in the host's own vocabulary."
+        },
+        {
+          "from": "body",
+          "as": "event",
+          "required": true,
+          "description": "What happened, in the host's own vocabulary."
+        },
+        {
+          "from": "body",
+          "as": "subject_kind",
+          "required": true,
+          "description": "What kind of thing it is about."
+        },
+        {
+          "from": "body",
+          "as": "subject_id",
+          "required": true,
+          "description": "Which one."
+        },
+        {
+          "from": "body",
+          "as": "names",
+          "description": "Display names to show beside the subject, as an object of strings."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "mark_notifications_read": {
       "method": "POST",
       "path": "/notifications/read",
@@ -1611,6 +1667,7 @@
     "ErrNotificationCapSpent": 409,
     "ErrNotificationInvalid": 400,
     "ErrNotificationMuted": 409,
+    "ErrNotificationNotRaisable": 403,
     "ErrInvalidReference": 400,
     "ErrConflict": 409,
     "ErrPushSubscriptionInvalid": 400,

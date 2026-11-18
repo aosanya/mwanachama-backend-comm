@@ -37,6 +37,7 @@ type CommManager struct {
 	answerers  Answerers
 	recipients Recipients
 	audience   Audience
+	raisable   Raisable
 	push       *pushDelivery
 	runID      string
 	consent    consent.Gate

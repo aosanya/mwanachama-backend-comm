@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Fifty-one addresses, declared in `comm.operations.json` and served by a
+Fifty-two addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -54,6 +54,7 @@ consumer is the gateway, and it is CM28.
 | GET | `/groups/{structure_id}/moderation/messages/{message_id}/reports` | `comm.report.for_message` |
 | GET | `/notifications` | `comm.notification.list` |
 | GET | `/notifications/unread` | `comm.notification.unread` |
+| POST | `/notifications` | `comm.notification.raise` |
 | POST | `/notifications/read` | `comm.notification.mark_read` |
 | POST | `/notifications/{notification_id}/acknowledge` | `comm.notification.acknowledge` |
 | GET | `/notification-receipts` | `comm.notification.receipts` |

@@ -125,7 +125,8 @@
             "case",
             "task",
             "post",
-            "market"
+            "market",
+            "report"
           ]
         },
         {
@@ -180,7 +181,8 @@
             "draft_waiting",
             "counter_sent",
             "ask_closed",
-            "group_order_called_off"
+            "group_order_called_off",
+            "report_handed_over"
           ]
         },
         {
@@ -210,7 +212,8 @@
             "group_order",
             "notice",
             "quote",
-            "draft"
+            "draft",
+            "report"
           ]
         }
       ]
@@ -235,7 +238,8 @@
             "case",
             "task",
             "post",
-            "market"
+            "market",
+            "report"
           ]
         }
       ]
