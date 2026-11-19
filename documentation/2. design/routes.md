@@ -1,6 +1,6 @@
 # comm's declared route table
 
-Fifty-three addresses, declared in `comm.operations.json` and served by a
+Fifty-four addresses, declared in `comm.operations.json` and served by a
 seventy-line adapter over `dispatch.Table`. The format is documented once, in
 [dispatcher.md](../../../mwanachama-backend-shared/documentation/2.%20design/dispatcher.md);
 this page records only what is true of **comm**.
@@ -30,6 +30,7 @@ consumer is the gateway, and it is CM28.
 | GET | `/groups/{structure_id}/chat/threads/archived` | `comm.chat_thread.list_archived` |
 | POST | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.archive` |
 | DELETE | `/groups/{structure_id}/chat/threads/{thread_id}/archive` | `comm.chat_thread.unarchive` |
+| PUT | `/groups/{structure_id}/chat/question-room` | `comm.chat_room.set_question` |
 | POST | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.open` |
 | GET | `/subjects/{subject_kind}/{subject_id}/threads` | `comm.subject_thread.list` |
 | GET | `/subject-threads/{thread_id}/messages` | `comm.subject_message.list` |

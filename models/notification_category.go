@@ -145,6 +145,8 @@ const (
 	EventAskClosed                    NotificationEvent = "ask_closed"
 	EventGroupOrderCalledOff          NotificationEvent = "group_order_called_off"
 	EventReportHandedOver             NotificationEvent = "report_handed_over"
+	EventPaymentLate                  NotificationEvent = "payment_late"
+	EventPaymentListHandedOver        NotificationEvent = "payment_list_handed_over"
 )
 
 var notificationEventCategory = map[NotificationEvent]NotificationCategory{
@@ -205,6 +207,8 @@ var notificationEventCategory = map[NotificationEvent]NotificationCategory{
 	EventAskClosed:                    CategoryMarket,
 	EventGroupOrderCalledOff:          CategoryMarket,
 	EventReportHandedOver:             CategoryReport,
+	EventPaymentLate:                  CategoryTask,
+	EventPaymentListHandedOver:        CategoryTask,
 }
 
 var notificationEventUnmutable = map[NotificationEvent]bool{

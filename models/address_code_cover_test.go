@@ -14,7 +14,7 @@ func TestAddressDeriveIsStableAndCanonical(t *testing.T) {
 	if a != b {
 		t.Fatalf("same key derived %q then %q", a, b)
 	}
-	if !AddressValid(a) {
+	if !AddressValid(a) || len(a) != 14 {
 		t.Fatalf("derived address %q is not canonical", a)
 	}
 	other, _ := AddressDerive("key-two")
@@ -41,7 +41,7 @@ func TestAddressNormalizeAcceptsHowAPersonTypesIt(t *testing.T) {
 }
 
 func TestAddressNormalizeRefusesMalformed(t *testing.T) {
-	for _, typed := range []string{"", "MKU4827YUT339", "MKU4827YUT33911", "4827MKU3391YUT", "MKU4827YUT339X", "MK!4827YUT3391"} {
+	for _, typed := range []string{"", "MKU4827YUT339", "MKU4827YUT33911", "4827MKU3391YUT", "MKU4827YUT339X", "MK!4827YUT3391", "MKU48271YUT339", "MKU 4827 YUT 33x1", "MK$4827YUT3391", "4827MKUYUT3391"} {
 		if _, err := AddressNormalize(typed); !errors.Is(err, ErrAddressMalformed) {
 			t.Fatalf("%q: want ErrAddressMalformed, got %v", typed, err)
 		}

@@ -125,6 +125,10 @@ func syncNotificationCaps(db *gorm.DB, s *spec.Spec) error {
 			table, table,
 		),
 		fmt.Sprintf(
+			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_late_reminder_per_bill ON %s (actor_id, subject_id) WHERE event = 'payment_late'`,
+			table, table,
+		),
+		fmt.Sprintf(
 			`CREATE UNIQUE INDEX IF NOT EXISTS %s_one_digest_per_day ON %s (actor_id, subject_id) WHERE event = 'items_overdue'`,
 			table, table,
 		),

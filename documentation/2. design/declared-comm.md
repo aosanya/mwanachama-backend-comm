@@ -331,6 +331,8 @@ means lives here rather than beside the constant.
 | `volunteer_picked` | `post` | the poster of a volunteer call picked the recipient's offer (CM105); subject `post` |
 | `volunteer_call_filled` | `post` | a volunteer call the recipient offered on was filled without them (CM105); subject `post` |
 | `report_handed_over` | `report` | somebody handed the recipient a report to read (hub issue SW585); subject `report`; raised through `comm.notification.raise`, and only while the mount's `UseRaisable` names the event |
+| `payment_late` | `task` | a bill is past the days its charge's late rule allows; raised once per recipient and bill, which a partial unique index keeps true on a second run |
+| `payment_list_handed_over` | `task` | somebody handed the recipient the list of unpaid bills; raised through `comm.notification.raise` while the mount's `UseRaisable` names the event |
 
 `survey` and `security` are exempt from muting, and `security` is the only
 category with an SMS channel. Muting a category silences every event in it

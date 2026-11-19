@@ -11,9 +11,16 @@ var ErrChatNotFound = errors.New("chat: not found")
 
 var ErrChatInvalid = errors.New("chat: invalid")
 
+var ErrChatQuestionRoom = errors.New("chat: this room takes questions in your own conversation")
+
 var ErrChatThreadDeclined = errors.New("chat: a declined thread is read-only")
 
 var ErrChatNotDeclinable = errors.New("chat: only a thread somebody asked for, still with the leads, can be declined")
+
+type ChatQuestionRoom struct {
+	StructureID  string `json:"structure_id"`
+	QuestionRoom bool   `json:"question_room"`
+}
 
 type ChatThread struct {
 	ID          string       `json:"id"`
@@ -126,9 +133,12 @@ type ChatLastMessage struct {
 
 type ChatThreadView struct {
 	ChatThread
-	Unread        int              `json:"unread"`
-	LastMessageAt *time.Time       `json:"last_message_at,omitempty"`
-	LastMessage   *ChatLastMessage `json:"last_message,omitempty"`
+	Unread         int              `json:"unread"`
+	QuestionRoom   bool             `json:"question_room,omitempty"`
+	TakesQuestions bool             `json:"takes_questions,omitempty"`
+	Leader         bool             `json:"leader,omitempty"`
+	LastMessageAt  *time.Time       `json:"last_message_at,omitempty"`
+	LastMessage    *ChatLastMessage `json:"last_message,omitempty"`
 }
 
 func (m ChatMessage) Last() ChatLastMessage {

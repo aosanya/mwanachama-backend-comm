@@ -1381,6 +1381,12 @@
       "type": "json",
       "description": "Who is told of each event the host rules on, as a list of rules: event, the audiences told in order, the audiences told only when none of those resolves, and whether a recipient may mute it. Audiences are names the host resolves; this module never learns who they are. An empty list rules on nothing, so every event keeps the host's own defaults.",
       "default": []
+    },
+    {
+      "name": "question_rooms",
+      "type": "json",
+      "description": "The rooms that take questions, as a list of room (structure) ids. In such a room a member cannot post into the open group thread; they ask in their own conversation, which only they and the room's leaders read, and the leaders answer there. Rooms not listed behave as ordinary group chats. An empty list names no question room.",
+      "default": []
     }
   ]
 }

@@ -21,6 +21,10 @@ The default path is `../projects/hub-steward/code/wakala-api/modules/comm`, rela
 
 Every non-test Go file and both JSON files (`comm.blueprint.json`, `comm.operations.json`) are identical after the rewrite, and every test file of the hub exists here and is identical. Nothing in the output is `diff` or `Only in hub`. What remains is 83 `Only in backend` lines, all test files this repository wrote that the hub copy never carried: 46 in the root package, 32 in `routes` and 5 in `models`. They test code that is identical in both.
 
+## Update of 2026-11-19
+
+The hub changed the module again after this result; [hub-import-drift.md](hub-import-drift.md) lists every difference and what was merged.
+
 ## The hub commits carried over
 
 One commit here per hub commit or group, each naming the hub hash: eef9ff73, ec77c144, b1f9348c, a37f9023, 997c7b76, 20050ce0, 3de4ffa2, 921429eb (the comm half), c9907728, e97a230a (the comm half), and the test-only commits 3351da2a, 3607f941, bb9b7712, f09917d3, 728c352f, 6b9e8f54, c5145b9f, e03d5c84, d43aea5f, ab087f5a, c6d68aca, f2f44c31 and 4ea6d46f.

@@ -125,6 +125,10 @@ func (m *CommManager) threadViews(ctx context.Context, structureID, callerID str
 	if err != nil {
 		return nil, err
 	}
+	question, err := m.isQuestionRoom(ctx, structureID)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]models.ChatThreadView, 0, len(threads))
 	archived, err := m.ChatStore.ArchivedThreads(ctx, structureID, callerID)
 	if err != nil {
@@ -134,7 +138,7 @@ func (m *CommManager) threadViews(ctx context.Context, structureID, callerID str
 		if archived[t.ID] != archivedOnes || !t.ReadableBy(callerID, leads) {
 			continue
 		}
-		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID]}
+		view := models.ChatThreadView{ChatThread: t, Unread: unread[t.ID], QuestionRoom: question && !leads, TakesQuestions: question && leads, Leader: leads}
 		if post, ok := latest[t.ID]; ok {
 			at := post.CreatedAt
 			last := post.Last()
@@ -226,6 +230,9 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 	if t.Declined() {
 		return models.ChatMessage{}, models.ErrChatThreadDeclined
 	}
+	if err := m.refuseOpenThreadQuestion(ctx, structureID, t, callerID); err != nil {
+		return models.ChatMessage{}, err
+	}
 	kind, err := m.kindOfAuthor(ctx, callerID)
 	if err != nil {
 		return models.ChatMessage{}, err
@@ -234,4 +241,22 @@ func (m *CommManager) PostChatMessageFor(ctx context.Context, structureID, threa
 		StructureID: structureID, ThreadID: threadID, AuthorID: callerID, AuthorKind: kind, Body: body,
 		AttachmentKind: attachmentKind, AttachmentID: attachmentID,
 	})
+}
+
+func (m *CommManager) refuseOpenThreadQuestion(ctx context.Context, structureID string, t models.ChatThread, callerID string) error {
+	if t.Audience != models.ChatAudienceGroup {
+		return nil
+	}
+	question, err := m.isQuestionRoom(ctx, structureID)
+	if err != nil || !question {
+		return err
+	}
+	callerLeads, err := m.leads(ctx, structureID, callerID)
+	if err != nil {
+		return err
+	}
+	if callerLeads {
+		return nil
+	}
+	return models.ErrChatQuestionRoom
 }

@@ -18,6 +18,7 @@ var Sentinels = map[string]error{
 	"ErrChatInvalid":                mwanachamacomm.ErrChatInvalid,
 	"ErrChatNotDeclinable":          mwanachamacomm.ErrChatNotDeclinable,
 	"ErrChatThreadDeclined":         mwanachamacomm.ErrChatThreadDeclined,
+	"ErrChatQuestionRoom":           mwanachamacomm.ErrChatQuestionRoom,
 	"ErrSubjectNotFound":            mwanachamacomm.ErrSubjectNotFound,
 	"ErrSubjectInvalid":             mwanachamacomm.ErrSubjectInvalid,
 	"ErrDMNotFound":                 mwanachamacomm.ErrDMNotFound,

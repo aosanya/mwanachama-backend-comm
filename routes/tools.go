@@ -20,10 +20,12 @@ var ChatActions = []string{
 	"comm.chat_thread.archive",
 	"comm.chat_thread.unarchive",
 	"comm.chat_thread.read",
+	"comm.chat_room.set_question",
 	"comm.person_reach.list",
 	"comm.notification.list",
 	"comm.notification.unread",
 	"comm.notification.mark_read",
+	"comm.notification.raise",
 }
 
 func BuildChatTools(m *mwanachamacomm.CommManager, mount Mount) ([]Tool, error) {

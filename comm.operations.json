@@ -136,6 +136,39 @@
         }
       ]
     },
+    "set_chat_question_room": {
+      "method": "PUT",
+      "path": "/groups/{structure_id}/chat/question-room",
+      "call": "SetChatQuestionRoomFor",
+      "action": "comm.chat_room.set_question",
+      "status": 200,
+      "title": "Make a room take questions, or an ordinary room again",
+      "description": "Switches one structure's room into a question room, where a member cannot post into the open group thread and asks in their own conversation that only they and the room's leaders read, or back into an ordinary group chat. Switching a room to the state it is in changes nothing. Only a caller the mount says leads the structure may switch it; anybody else, an outsider and a structure that does not exist all answer the same not-found. Answers with the structure and whether it is now a question room.",
+      "args": [
+        {
+          "from": "path",
+          "as": "structure_id",
+          "required": true,
+          "description": "The structure whose room this is."
+        },
+        {
+          "from": "caller",
+          "as": "caller_id",
+          "description": "The caller, from the session."
+        },
+        {
+          "from": "body",
+          "as": "on",
+          "required": true,
+          "description": "True to make the room a question room, false to make it an ordinary room again."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
+    },
     "decline_chat_thread": {
       "method": "POST",
       "path": "/groups/{structure_id}/chat/threads/{thread_id}/decline",
@@ -1674,6 +1707,7 @@
     "ErrChatInvalid": 400,
     "ErrChatNotDeclinable": 409,
     "ErrChatThreadDeclined": 409,
+    "ErrChatQuestionRoom": 409,
     "ErrSubjectNotFound": 404,
     "ErrSubjectInvalid": 400,
     "ErrDMNotFound": 404,
