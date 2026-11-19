@@ -1698,6 +1698,28 @@
           "body": true
         }
       ]
+    },
+    "list_raise_recipients": {
+      "method": "GET",
+      "path": "/notifications/recipients",
+      "call": "ListRaiseRecipients",
+      "action": "comm.notification.recipients",
+      "status": 200,
+      "title": "Who may be told about something",
+      "description": "The people the host allows as the recipient of one event a caller may raise, so a client offers only them. An event the host puts no limit on, or one it does not let a caller raise, answers as a refusal. Who may call it is the mount's to decide, as for raising.",
+      "args": [
+        {
+          "from": "query",
+          "as": "event",
+          "required": true,
+          "description": "The event the notification would be about."
+        }
+      ],
+      "returns": [
+        {
+          "body": true
+        }
+      ]
     }
   },
   "errors": {

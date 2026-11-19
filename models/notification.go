@@ -133,3 +133,7 @@ type NotificationRepository interface {
 	// "not exists (… where muted)": absent is on.
 	IsMuted(ctx context.Context, actorID string, category NotificationCategory) (bool, error)
 }
+
+type NotificationRecipient struct {
+	ActorID string `json:"actor_id"`
+}
