@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
-	github.com/aosanya/mwanachama-backend-shared v0.0.0
+	github.com/aosanya/mwanachama-backend-shared v0.3.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.10.0
@@ -39,5 +39,3 @@ require (
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
 )
-
-replace github.com/aosanya/mwanachama-backend-shared => ../mwanachama-backend-shared
